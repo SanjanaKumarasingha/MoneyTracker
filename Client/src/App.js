@@ -2,12 +2,14 @@
 // import './App.css';
 
 import Dashboard from "./components/Dashboard/Dashboard";
+import IEForm from "./components/Form/IEForm";
 
 function App() {
   return (
     <div className="App">
       Sanjana
-      <Dashboard/>
+      {/* <Dashboard/> */}
+      <IEForm />
       {/* <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
