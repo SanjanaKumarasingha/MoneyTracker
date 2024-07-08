@@ -1,0 +1,41 @@
+.i-e-toggle {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 220px;
+    margin: 0 auto 20px;
+    padding: 5px;
+    border: 2px solid #007bff;
+    border-radius: 30px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+}
+
+.i-e-toggle div {
+    width: 100px;
+    padding: 10px 0;
+    text-align: center;
+    transition: color 0.3s;
+    z-index: 1;
+    font-weight: bold;
+}
+
+.i-e-toggle .slider {
+    position: absolute;
+    width: 100px;
+    height: 100%;
+    background-color: #007bff;
+    border-radius: 25px;
+    transition: transform 0.3s ease-in-out;
+    z-index: 0;
+}
+
+/* Active class */
+.i-e-toggle .expense.active {
+    color: #fff;
+}
+
+.i-e-toggle .income.active {
+    color: #fff;
+}

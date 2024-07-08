@@ -1,33 +1,22 @@
+import React, { useState } from "react";
+import "./IEForm.css"; // Import the CSS file
+import Toggle from "../IEToggle/Toggle";
+
 function IEForm() {
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+
   return (
     <div>
-      <div className="input-control">
-        <input
-          type="text"
-          value={title}
-          name={"title"}
-          placeholder="Salary Title"
-          onChange={handleInput("title")}
-        />
-      </div>
+      <Toggle isExpense={isExpense} toggleExpenseIncome={toggleExpenseIncome} />
       <div className="input-control">
         <input
           value={amount}
           type="text"
           name={"amount"}
-          placeholder={"Salary Amount"}
-          onChange={handleInput("amount")}
-        />
-      </div>
-      <div className="input-control">
-        <DatePicker
-          id="date"
-          placeholderText="Enter A Date"
-          selected={date}
-          dateFormat="dd/MM/yyyy"
-          onChange={(date) => {
-            setInputState({ ...inputState, date: date });
-          }}
+          placeholder={"Amount"}
+          onChange={(e) => setAmount(e.target.value)} // Update state on input change
         />
       </div>
       <div className="selects input-control">
@@ -36,14 +25,14 @@ function IEForm() {
           value={category}
           name="category"
           id="category"
-          onChange={handleInput("category")}
+          onChange={(e) => setCategory(e.target.value)} // Update state on select change
         >
           <option value="" disabled>
             Select Option
           </option>
           <option value="salary">Salary</option>
           <option value="freelancing">Freelancing</option>
-          <option value="investments">Investiments</option>
+          <option value="investments">Investments</option>
           <option value="stocks">Stocks</option>
           <option value="bitcoin">Bitcoin</option>
           <option value="bank">Bank Transfer</option>
@@ -59,18 +48,11 @@ function IEForm() {
           id="description"
           cols="30"
           rows="4"
-          onChange={handleInput("description")}
+          onChange={(e) => setDescription(e.target.value)} // Update state on textarea change
         ></textarea>
       </div>
       <div className="submit-btn">
-        <Button
-          name={"Add Income"}
-          icon={plus}
-          bPad={".8rem 1.6rem"}
-          bRad={"30px"}
-          bg={"var(--color-accent"}
-          color={"#fff"}
-        />
+        <button>Add {isExpense ? "Expense" : "Income"}</button>
       </div>
     </div>
   );

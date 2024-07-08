@@ -1,0 +1,63 @@
+/* General Styling */
+body {
+    font-family: Arial, sans-serif;
+}
+
+div {
+    box-sizing: border-box;
+}
+
+/* IEForm Container */
+
+
+/* Input Controls */
+.input-control {
+    margin-bottom: 20px;
+}
+
+.input-control input,
+.input-control select,
+.input-control textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s;
+}
+
+.input-control input:focus,
+.input-control select:focus,
+.input-control textarea:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.selects select {
+    appearance: none;
+    background: #fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3e%3cpath fill='%23007bff' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") no-repeat right 10px top 50%;
+    background-size: 8px 10px;
+}
+
+.selects select:focus {
+    background-image: none;
+}
+
+.submit-btn {
+    display: flex;
+    justify-content: center;
+}
+
+.submit-btn button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--color-accent);
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.submit-btn button:hover {
+    background-color: #0056b3;
+}
