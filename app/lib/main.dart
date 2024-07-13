@@ -1,3 +1,4 @@
+import 'package:app/pages/start/start.dart';
 import 'package:flutter/material.dart';
 import 'package:app/pages/home.dart';
 
@@ -16,6 +17,6 @@ class MoneyTracker extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 243, 242, 243)),
           useMaterial3: true,
         ),
-        home: const Home());
+        home: const GetStarted());
   }
 }
