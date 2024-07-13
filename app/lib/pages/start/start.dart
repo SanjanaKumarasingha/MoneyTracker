@@ -10,7 +10,7 @@ class GetStarted extends StatelessWidget {
     return Scaffold(
       body: Container(
         width: double.maxFinite,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.only(left: 20, right: 20),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -18,17 +18,18 @@ class GetStarted extends StatelessWidget {
               const Text(
                 'Money Tracker',
                 style: TextStyle(
-                  fontSize: 40,
+                  fontSize: 45,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Color.fromARGB(255, 0, 140, 255),
                   decorationColor: Colors.blue,
+                  decorationStyle: TextDecorationStyle.solid,
                   decorationThickness: 2,
                   shadows: [
-                  Shadow(
-                    color: Colors.black,
-                    offset: Offset(2, 2),
-                    blurRadius: 2,
-                  ),
+                    Shadow(
+                      color: Colors.black,
+                      offset: Offset(2, 2),
+                      blurRadius: 2,
+                    ),
                   ],
                 ),
                 textAlign: TextAlign.center,
