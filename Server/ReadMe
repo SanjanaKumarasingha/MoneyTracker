@@ -1,0 +1,41 @@
+# server
+
+File Structure
+
+money-tracker/
+├── config/
+│   ├── db.config.js
+│   ├── sequelize.config.js
+│   └── mongoose.config.js
+├── controllers/
+│   ├── auth.controller.js
+│   ├── user.controller.js
+│   ├── transaction.controller.js
+│   └── category.controller.js
+├── models/
+│   ├── index.js
+│   ├── user.model.js
+│   ├── transaction.model.js
+│   ├── category.model.js
+│   └── mongoose/
+│       ├── user.model.js
+│       └── transaction.model.js
+├── routes/
+│   ├── auth.routes.js
+│   ├── user.routes.js
+│   ├── transaction.routes.js
+│   └── category.routes.js
+├── services/
+│   ├── auth.service.js
+│   ├── user.service.js
+│   ├── transaction.service.js
+│   └── category.service.js
+├── middlewares/
+│   ├── auth.middleware.js
+│   └── error.middleware.js
+├── utils/
+│   └── validation.js
+├── .env
+├── app.js
+├── package.json
+└── README.md
