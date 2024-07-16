@@ -1,4 +1,3 @@
-import 'package:app/pages/loading_page.dart';
 import 'package:flutter/material.dart';
 import 'package:app/components/image_view.dart';
 import 'package:app/utils/export.dart';
