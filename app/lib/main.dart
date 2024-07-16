@@ -1,5 +1,7 @@
-import 'package:app/pages/Splash_screen/splash_screen.dart';
+import 'package:app/pages/Splash/splash_screen.dart';
+import 'package:app/pages/Register/register.dart';
 import 'package:flutter/material.dart';
+import 'package:app/pages/Login/login_screen.dart';
 
 void main() {
   runApp(const MoneyTracker());
@@ -13,9 +15,12 @@ class MoneyTracker extends StatelessWidget {
     return MaterialApp(
         title: 'MoneyTracker',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 243, 242, 243)),
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color.fromARGB(255, 243, 242, 243)),
           useMaterial3: true,
         ),
-        home: const SplashScreen());
+        home: RegisterPage());
   }
 }
