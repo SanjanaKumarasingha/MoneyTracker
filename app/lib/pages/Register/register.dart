@@ -2,7 +2,10 @@ import 'package:app/pages/Login/login_screen.dart';
 import 'package:flutter/material.dart';
 
 class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _RegisterPageState createState() => _RegisterPageState();
 }
 

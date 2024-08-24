@@ -7,6 +7,7 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _LoginScreenState createState() => _LoginScreenState();
 }
 
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.blue[50],
       body: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 80.0),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 80.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -51,8 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.blue[900],
                 ),
               ),
-              SizedBox(height: 24),
-              _isLoading ? CircularProgressIndicator() : _buildLoginForm(),
+              const SizedBox(height: 24),
+              _isLoading ? const CircularProgressIndicator() : _buildLoginForm(),
             ],
           ),
         ),
@@ -74,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.blue.withOpacity(0.1),
                   spreadRadius: 5,
                   blurRadius: 7,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -84,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                prefixIcon: Icon(Icons.person),
+                prefixIcon: const Icon(Icons.person),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -97,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -107,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.blue.withOpacity(0.1),
                   spreadRadius: 5,
                   blurRadius: 7,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -117,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                prefixIcon: Icon(Icons.lock),
+                prefixIcon: const Icon(Icons.lock),
               ),
               obscureText: true,
               validator: (value) {
@@ -131,21 +132,21 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _login,
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
             ),
-            child: Text(
+            child: const Text(
               'Login',
               style: TextStyle(fontSize: 18),
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           TextButton(
             onPressed: () {
               // Navigate to the registration screen
@@ -154,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () {
                 // Navigate to the login screen
                 Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => RegisterPage()));
+                    MaterialPageRoute(builder: (context) => const RegisterPage()));
               },
               child: Text(
                 'Create an account? Register',

@@ -21,6 +21,6 @@ class MoneyTracker extends StatelessWidget {
               seedColor: const Color.fromARGB(255, 243, 242, 243)),
           useMaterial3: true,
         ),
-        home: RegisterPage());
+        home: const RegisterPage());
   }
 }
