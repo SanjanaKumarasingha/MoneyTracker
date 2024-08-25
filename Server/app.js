@@ -1,5 +1,6 @@
 const express = require("express");
 const { db } = require("./db/db");
+const cors = require("cors");
 const { readdirSync } = require("fs");
 const app = express();
 
@@ -9,6 +10,7 @@ const PORT = process.env.PORT;
 
 //middlewares
 app.use(express.json());
+app.use(cors());
 
 //routes
 readdirSync("./routes").map((route) =>

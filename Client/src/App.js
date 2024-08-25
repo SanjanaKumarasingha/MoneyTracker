@@ -6,7 +6,7 @@ import IEForm from "./components/Form/IEForm";
 function App() {
   return (
     <GlobalProvider>
-      {/* <Dashboard /> */}
+      <Dashboard />
       <IEForm />
     </GlobalProvider>
   );
