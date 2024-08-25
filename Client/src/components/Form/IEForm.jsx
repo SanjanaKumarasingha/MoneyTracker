@@ -1,22 +1,63 @@
 import React, { useState } from "react";
 import "./IEForm.css"; // Import the CSS file
 import Toggle from "../IEToggle/Toggle";
+import { useGlobalContext } from "../../context/globalContext";
+import DatePicker from "react-datepicker";
 
 function IEForm() {
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
+  const [isExpense, setIsExpense] = useState(true); // State to manage expense or income
+  const { addIncome, getIncomes, error, setError } = useGlobalContext();
+  const [inputState, setInputState] = useState({
+    title: "",
+    amount: "",
+    date: "",
+    category: "",
+    description: "",
+  });
+
+  const { title, amount, date, category, description } = inputState;
+
+  const handleInput = (name) => (e) => {
+    setInputState({ ...inputState, [name]: e.target.value });
+    setError("");
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    addIncome(inputState);
+    setInputState({
+      title: "",
+      amount: "",
+      date: "",
+      category: "",
+      description: "",
+    });
+  };
+
+  const toggleExpenseIncome = () => {
+    setIsExpense(!isExpense); // Toggle between expense and income
+  };
 
   return (
-    <div>
+    <div className="form-container">
+      {error && <p className="error">{error}</p>}
       <Toggle isExpense={isExpense} toggleExpenseIncome={toggleExpenseIncome} />
       <div className="input-control">
         <input
-          value={amount}
           type="text"
-          name={"amount"}
-          placeholder={"Amount"}
-          onChange={(e) => setAmount(e.target.value)} // Update state on input change
+          value={title}
+          name="title"
+          placeholder="Title"
+          onChange={handleInput("title")} // Update state on input change
+        />
+      </div>
+      <div className="input-control">
+        <input
+          type="text"
+          value={amount}
+          name="amount"
+          placeholder="Amount"
+          onChange={handleInput("amount")}
         />
       </div>
       <div className="selects input-control">
@@ -25,7 +66,7 @@ function IEForm() {
           value={category}
           name="category"
           id="category"
-          onChange={(e) => setCategory(e.target.value)} // Update state on select change
+          onChange={handleInput("category")}
         >
           <option value="" disabled>
             Select Option
@@ -48,11 +89,23 @@ function IEForm() {
           id="description"
           cols="30"
           rows="4"
-          onChange={(e) => setDescription(e.target.value)} // Update state on textarea change
+          onChange={handleInput("description")}
         ></textarea>
+      </div>
+      <div className="input-control">
+        <DatePicker
+          id="date"
+          placeholderText="Enter a Date"
+          selected={date}
+          dateFormat="dd/MM/yyyy"
+          onChange={(date) => {
+            setInputState({ ...inputState, date: date });
+          }}
+        />
       </div>
       <div className="submit-btn">
         <button>Add {isExpense ? "Expense" : "Income"}</button>
+        onChange={handleSubmit()}
       </div>
     </div>
   );
