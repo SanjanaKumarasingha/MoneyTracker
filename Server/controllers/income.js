@@ -46,6 +46,6 @@ exports.deleteIncome = async (req, res) => {
       res.status(200).json({ message: "Income Deleted" });
     })
     .catch((err) => {
-      res.status(500).json({ message: "Server Error" });
+      res.status(500).json({ message: "Server Error", err });
     });
 };
