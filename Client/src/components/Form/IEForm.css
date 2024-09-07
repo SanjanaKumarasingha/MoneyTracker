@@ -1,63 +1,53 @@
-/* General Styling */
-body {
-    font-family: Arial, sans-serif;
+/* Form.css */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 }
 
-div {
-    box-sizing: border-box;
-}
-
-/* IEForm Container */
-
-
-/* Input Controls */
-.input-control {
-    margin-bottom: 20px;
-}
-
-.input-control input,
-.input-control select,
-.input-control textarea {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    transition: border-color 0.3s;
-}
-
-.input-control input:focus,
-.input-control select:focus,
-.input-control textarea:focus {
-    border-color: #007bff;
+.form input,
+.form textarea,
+.form select {
+    font-family: inherit;
+    font-size: inherit;
     outline: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    border: 2px solid #fff;
+    background: transparent;
+    resize: none;
+    box-shadow: 0px 1px 15px rgba(0, 0, 0, 0.06);
+    color: rgba(34, 34, 96, 0.9);
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+    color: rgba(34, 34, 96, 0.4);
+}
+
+.input-control input {
+    width: 100%;
+}
+
+.selects {
+    display: flex;
+    justify-content: flex-end;
 }
 
 .selects select {
-    appearance: none;
-    background: #fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3e%3cpath fill='%23007bff' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") no-repeat right 10px top 50%;
-    background-size: 8px 10px;
+    color: rgba(34, 34, 96, 0.4);
 }
 
-.selects select:focus {
-    background-image: none;
-}
-
-.submit-btn {
-    display: flex;
-    justify-content: center;
+.selects select:focus,
+.selects select:active {
+    color: rgba(34, 34, 96, 1);
 }
 
 .submit-btn button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    background-color: var(--color-accent);
-    color: #fff;
-    cursor: pointer;
-    transition: background-color 0.3s;
+    box-shadow: 0px 1px 15px rgba(0, 0, 0, 0.06);
 }
 
 .submit-btn button:hover {
-    background-color: #0056b3;
+    background: var(--color-green) !important;
 }

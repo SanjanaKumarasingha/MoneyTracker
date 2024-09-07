@@ -1,0 +1,23 @@
+/* src/pages/ProfilePage.css */
+.profile-page {
+    padding: 40px;
+    text-align: center;
+}
+
+.profile-page h1 {
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+.profile-info {
+    background-color: #f1f1f1;
+    padding: 20px;
+    border-radius: 10px;
+    display: inline-block;
+    text-align: left;
+}
+
+.profile-info p {
+    margin: 10px 0;
+    font-size: 18px;
+}

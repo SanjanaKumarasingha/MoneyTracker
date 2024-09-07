@@ -1,13 +1,8 @@
-import React from "react";
+import React, { useState } from "react"; // Add useState import
 import "./Toggle.css";
 
-function Toggle() {
-  const [isExpense, setIsExpense] = useState(true);
-
-  const toggleExpenseIncome = () => {
-    setIsExpense(!isExpense);
-  };
-
+function Toggle({ isExpense, toggleExpenseIncome }) {
+  // Receive props
   return (
     <div>
       <div className="i-e-toggle" onClick={toggleExpenseIncome}>

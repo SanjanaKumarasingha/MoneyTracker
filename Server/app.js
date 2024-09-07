@@ -1,5 +1,7 @@
 const express = require("express");
-
+const { db } = require("./db/db");
+const cors = require("cors");
+const { readdirSync } = require("fs");
 const app = express();
 
 require("dotenv").config();
@@ -7,10 +9,19 @@ require("dotenv").config();
 const PORT = process.env.PORT;
 
 //middlewares
-app.use(express.json())
+app.use(express.json());
+app.use(cors());
+
+//routes
+readdirSync("./routes").map((route) =>
+  app.use("/api/v1", require("./routes/" + route))
+);
 
 const server = () => {
-  console.log("You are listning to port:", PORT);
+  db();
+  app.listen(PORT, () => {
+    console.log("listening to port:", PORT);
+  });
 };
 
 server();
