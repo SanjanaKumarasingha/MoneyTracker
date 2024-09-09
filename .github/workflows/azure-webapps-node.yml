@@ -43,10 +43,10 @@ jobs:
         cache: 'npm'
 
     - name: npm install, build, and test
-      working-directory: Server
       run: |
         npm ci
         npm run build --if-present
+      working-directory: Server
 
     - name: Upload artifact for deployment job
       uses: actions/upload-artifact@v3
