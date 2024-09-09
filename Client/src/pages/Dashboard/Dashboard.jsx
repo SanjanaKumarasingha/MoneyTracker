@@ -11,7 +11,7 @@ function DashboardPage() {
   return (
     <div className="dashboard-page">
       {/* Sidebar */}
-      {/* <Sidebar /> */}
+      <Sidebar />
 
       {/* Main Content */}
       <div className="main-content">
