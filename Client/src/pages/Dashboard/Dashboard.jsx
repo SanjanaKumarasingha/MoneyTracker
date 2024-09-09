@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.js
 import React from "react";
 import "./Dashboard.css";
-import Sidebar from "../../components/Common/layout/Sidebar/Sidebar";
+// import Sidebar from "../../components/Common/layout/Sidebar/Sidebar";
 import Header from "../../components/Common/layout/Header/Header";
 import StatsCard from "../../components/Dashboard/StatsCard";
 import ActivityChart from "../../components/Dashboard/ActivityChart";
@@ -11,7 +11,7 @@ function DashboardPage() {
   return (
     <div className="dashboard-page">
       {/* Sidebar */}
-      <Sidebar />
+      {/* <Sidebar /> */}
 
       {/* Main Content */}
       <div className="main-content">
