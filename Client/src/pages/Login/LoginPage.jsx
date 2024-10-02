@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginPage.css";
+import { AuthContext } from "../../context/AuthProvider";
 
 const LoginPage = () => {
+  const { setAuth } = useContext(AuthContext);
   const userRef = useRef();
   //   const errRef = useRef();
 
@@ -12,7 +14,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // userRef.current.focus();
+    userRef.current.focus();
   }, []);
 
   useEffect(() => {
@@ -24,8 +26,10 @@ const LoginPage = () => {
   const handleSignIn = async (event) => {
     event.preventDefault();
 
-    if (!username || !password) {
-      setError("Username or password cannot be empty");
+    if (!username) {
+      setError("Username cannot be empty");
+    } else if (!password) {
+      setError("Password cannot be empty");
     } else {
       // Simulate API call or authentication logic
       if (username === "test" && password === "password") {
@@ -53,7 +57,6 @@ const LoginPage = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
-              required
             />
           </div>
 
@@ -66,7 +69,6 @@ const LoginPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              required
             />
             <span
               className="toggle-password"
