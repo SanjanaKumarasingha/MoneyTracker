@@ -1,21 +1,30 @@
-// src/components/layout/Header.js
 import React from "react";
 import "./Header.css";
-import { Link } from "react-router-dom";
+import { FaBell, FaUserCircle } from "react-icons/fa"; // Icons for notifications and user profile
 
-const Header = () => {
+function Header() {
   return (
-    <header className="header">
-      <div className="logo">
-        <Link to="/">MyApp</Link>
+    <header className="fancy-header">
+      <div className="header-content">
+        {/* Logo */}
+        <div className="logo">
+          <h1>MyDashboard</h1>
+        </div>
+
+        {/* Notification and Profile */}
+        <div className="header-right">
+          <div className="notifications">
+            <FaBell className="icon bell-icon" />
+            <span className="notification-count">3</span>
+          </div>
+          <div className="profile">
+            <FaUserCircle className="icon profile-icon" />
+            <span className="username">Sanjana</span>
+          </div>
+        </div>
       </div>
-      <nav className="nav">
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-        <Link to="/profile">Profile</Link>
-      </nav>
     </header>
   );
-};
+}
 
 export default Header;

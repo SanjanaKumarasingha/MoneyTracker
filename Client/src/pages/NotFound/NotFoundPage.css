@@ -1,0 +1,135 @@
+/* Not Found Page Container */
+.not-found-container {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1e156e, #302b63, #24243e);
+    color: #fff;
+    text-align: center;
+    /* Remove this if it's hiding content */
+    overflow: hidden;
+}
+
+/* Water Effect Container for the 404 Text */
+.water-effect {
+    position: relative;
+    display: inline-block;
+    font-size: 280px;
+    color: #0017e6;
+    font-weight: bold;
+    margin-bottom: 20px;
+    animation: floatWave 4s ease-in-out infinite;
+}
+
+/* Create Wave-like Effect on the Text */
+.water-effect::before {
+    content: "404";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    color: #15a2c9;
+    clip-path: polygon(0% 40%, 100% 30%, 100% 50%, 0% 60%);
+    /* Simulates the wave pattern */
+    animation: wave 5s ease-in-out infinite;
+}
+
+.water-effect::after {
+    content: "404";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    color: #056464;
+    opacity: 0.5;
+    clip-path: polygon(0% 50%, 100% 60%, 100% 70%, 0% 60%);
+    /* Another layer of wave */
+    animation: wave-reverse 5s ease-in-out infinite;
+}
+
+/* Float the 404 number up and down */
+@keyframes floatWave {
+    0% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* Wave-like movement for the water effect */
+@keyframes wave {
+
+    0%,
+    100% {
+        clip-path: polygon(0% 40%, 100% 30%, 100% 50%, 0% 60%);
+    }
+
+    50% {
+        clip-path: polygon(0% 50%, 100% 40%, 100% 60%, 0% 70%);
+    }
+}
+
+@keyframes wave-reverse {
+
+    0%,
+    100% {
+        clip-path: polygon(0% 50%, 100% 60%, 100% 70%, 0% 60%);
+    }
+
+    50% {
+        clip-path: polygon(0% 60%, 100% 50%, 100% 80%, 0% 70%);
+    }
+}
+
+/* Error Message Styling */
+.error-message h2 {
+    font-size: 26px;
+    margin: 20px 0;
+}
+
+.error-message p {
+    font-size: 18px;
+    margin: 10px 0 30px;
+}
+
+.home-link {
+    background-color: #00cccc;
+    padding: 12px 25px;
+    border-radius: 5px;
+    color: #333;
+    text-decoration: none;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+.home-link:hover {
+    background-color: #009999;
+    color: #fff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .water-effect {
+        font-size: 100px;
+    }
+
+    .error-message h2 {
+        font-size: 28px;
+    }
+
+    .home-link {
+        font-size: 14px;
+        padding: 10px 20px;
+    }
+}

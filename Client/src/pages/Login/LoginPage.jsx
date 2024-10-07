@@ -4,27 +4,26 @@ import "./LoginPage.css";
 import { AuthContext } from "../../context/AuthProvider";
 
 const LoginPage = () => {
-  const { setAuth } = useContext(AuthContext);
-  const userRef = useRef();
-  //   const errRef = useRef();
-
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const { setAuth } = useContext(AuthContext); // To use AuthContext
+  const userRef = useRef(); // Reference for focusing on username input
+  const [username, setUsername] = useState(""); // Username state
+  const [password, setPassword] = useState(""); // Password state
+  const [error, setError] = useState(""); // Error state
+  const [showPassword, setShowPassword] = useState(false); // Password visibility toggle
 
   useEffect(() => {
-    userRef.current.focus();
+    userRef.current.focus(); // Focus on username input when the component loads
   }, []);
 
   useEffect(() => {
-    setError("");
+    setError(""); // Reset error when username or password changes
   }, [username, password]);
 
   const navigate = useNavigate();
 
+  // Form submit handler
   const handleSignIn = async (event) => {
-    event.preventDefault();
+    event.preventDefault(); // Prevent default form submission behavior
 
     if (!username) {
       setError("Username cannot be empty");
@@ -33,10 +32,10 @@ const LoginPage = () => {
     } else {
       // Simulate API call or authentication logic
       if (username === "test" && password === "password") {
-        setError("");
-        navigate("/dashboard"); // Redirect to dashboard after successful login
+        setError(""); // Clear error on successful login
+        navigate("/dashboard"); // Redirect to dashboard
       } else {
-        setError("Invalid username or password");
+        setError("Invalid username or password"); // Show error on invalid login
       }
     }
   };
@@ -65,7 +64,6 @@ const LoginPage = () => {
             <input
               type={showPassword ? "text" : "password"}
               id="password"
-              ref={userRef}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"

@@ -1,5 +1,5 @@
-/* Main container for the login page */
-.login-container {
+/* Container for the signup page */
+.signup-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -8,7 +8,7 @@
 }
 
 /* Form container */
-.login-form {
+.form-box {
     background-color: #fff;
     padding: 40px;
     border-radius: 10px;
@@ -18,27 +18,22 @@
     max-width: 400px;
 }
 
-h2 {
-    font-size: 28px;
+h1 {
+    font-size: 32px;
     margin-bottom: 30px;
     color: #333;
 }
 
-/* Input groups for form fields */
+/* Input fields and labels */
 .input-group {
+    position: relative;
     margin-bottom: 25px;
 }
 
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 16px;
-    color: #333;
-}
-
-.input-group input {
+input {
     width: 100%;
     padding: 12px;
+    background: none;
     border: 2px solid #333;
     border-radius: 5px;
     font-size: 16px;
@@ -46,29 +41,36 @@ h2 {
     outline: none;
 }
 
-.input-group input:focus {
+input:focus {
     border-color: #4f72e3;
 }
 
-/* Error message */
-.error-message {
-    color: red;
-    font-size: 14px;
-    margin-bottom: 20px;
-}
-
-/* Toggle password visibility */
-.toggle-password {
-    position: absolute;
-    right: 10px;
-    top: calc(50% - 8px);
-    cursor: pointer;
-    color: #4f72e3;
+input:not(:placeholder-shown)+label {
+    top: -10px;
+    left: 10px;
     font-size: 12px;
+    color: #4f72e3;
 }
 
-/* Submit button styles */
-.submit-group .login-button {
+label {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #aaa;
+    transition: all 0.3s;
+}
+
+input:focus+label {
+    top: -10px;
+    left: 10px;
+    font-size: 12px;
+    color: #4f72e3;
+}
+
+/* Sign up button */
+.signup-btn {
     width: 100%;
     padding: 15px;
     background: linear-gradient(135deg, #4f72e3, #43c6ac);
@@ -80,32 +82,32 @@ h2 {
     transition: background 0.3s ease;
 }
 
-.submit-group .login-button:hover {
+.signup-btn:hover {
     background: linear-gradient(135deg, #43c6ac, #4f72e3);
 }
 
-/* Register link */
-.register-link {
+/* Redirect text */
+p {
     margin-top: 20px;
     color: #333;
 }
 
-.register-link span {
+p a {
     color: #4f72e3;
-    cursor: pointer;
+    text-decoration: none;
 }
 
-.register-link span:hover {
+p a:hover {
     text-decoration: underline;
 }
 
-/* Responsive Design */
+/* Responsive design */
 @media (max-width: 768px) {
-    .login-form {
+    .form-box {
         padding: 20px;
     }
 
-    h2 {
-        font-size: 24px;
+    h1 {
+        font-size: 28px;
     }
 }

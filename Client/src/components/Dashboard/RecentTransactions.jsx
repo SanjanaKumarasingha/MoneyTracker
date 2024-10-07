@@ -1,47 +1,30 @@
-/* src/components/dashboard/RecentTransactions.js */
-
 import React from "react";
 import "./RecentTransactions.css";
 
-const transactions = [
-  {
-    id: 1,
-    date: "2023-09-01",
-    description: "Grocery Shopping",
-    amount: "-$120.00",
-  },
-
-  {
-    id: 2,
-    date: "2023-09-02",
-    description: "Salary",
-    amount: "+$2000.00",
-  },
-
-  {
-    id: 3,
-    date: "2023-09-03",
-    description: "Gym Membership",
-    amount: "-$50.00",
-  },
-];
-
 const RecentTransactions = () => {
+  const transactions = [
+    { id: 1, name: "Groceries", amount: "-$50.00", date: "2024-10-05" },
+    { id: 2, name: "Salary", amount: "+$2000.00", date: "2024-10-01" },
+    { id: 3, name: "Rent", amount: "-$800.00", date: "2024-09-28" },
+  ];
+
   return (
     <div className="recent-transactions">
-      {" "}
-      <h3>Recent Transactions</h3>{" "}
+      <h2>Recent Transactions</h2>
       <ul>
-        {" "}
         {transactions.map((transaction) => (
-          <li key={transaction.id}>
-            {" "}
-            <span> {transaction.date}</span>{" "}
-            <span> {transaction.description}</span>{" "}
-            <span> {transaction.amount}</span>{" "}
+          <li
+            key={transaction.id}
+            className={
+              transaction.amount.startsWith("-") ? "expense" : "income"
+            }
+          >
+            <span>{transaction.name}</span>
+            <span>{transaction.amount}</span>
+            <span>{transaction.date}</span>
           </li>
         ))}
-      </ul>{" "}
+      </ul>
     </div>
   );
 };

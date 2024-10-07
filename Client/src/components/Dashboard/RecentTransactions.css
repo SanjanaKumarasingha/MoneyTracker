@@ -1,18 +1,18 @@
-/* src/components/dashboard/RecentTransactions.css */
 .recent-transactions {
-    background-color: #ffffff;
+    background: white;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
 }
 
-.recent-transactions h3 {
-    font-size: 20px;
-    margin-bottom: 20px;
+.recent-transactions h2 {
+    font-size: 22px;
+    margin-bottom: 10px;
 }
 
 .recent-transactions ul {
-    list-style-type: none;
+    list-style: none;
     padding: 0;
 }
 
@@ -20,13 +20,17 @@
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.recent-transactions li span {
-    font-size: 16px;
+    border-bottom: 1px solid #ddd;
 }
 
 .recent-transactions li:last-child {
     border-bottom: none;
+}
+
+.recent-transactions .expense {
+    color: #dc3545;
+}
+
+.recent-transactions .income {
+    color: #28a745;
 }

@@ -1,0 +1,18 @@
+.toggle-mode-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+}
+
+.toggle-mode-button button {
+    padding: 10px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.toggle-mode-button button:hover {
+    background-color: #0056b3;
+}
