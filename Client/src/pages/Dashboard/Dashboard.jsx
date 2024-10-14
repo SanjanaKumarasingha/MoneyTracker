@@ -10,11 +10,11 @@ function DashboardPage() {
   return (
     <div className="dashboard-page">
       {/* Dark/Light Mode Toggle */}
-      <ToggleModeButton />
+      {/* <ToggleModeButton /> */}
 
       {/* Main Content */}
-      <div className="main-content">
-        <Header />
+      <div className="dash-main-content">
+        {/* <Header /> */}
         <div className="dashboard-content">
           <div className="stats-cards">
             <StatsCard

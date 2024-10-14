@@ -22,6 +22,8 @@ readdirSync("./src/routes/").map((route) =>
 );
 console.log("2222");
 
+require("./start/routes")(app);
+
 if (app.get("env") === "development") {
   app.use(morgan("tiny"));
   console.log("Morgan enabled");

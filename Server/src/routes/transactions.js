@@ -1,3 +1,6 @@
+const express = require("express");
+const router = express.Router();
+
 const {
   addExpense,
   getExpense,
@@ -8,8 +11,6 @@ const {
   getIncomes,
   deleteIncome,
 } = require("../controllers/income");
-
-const router = require("express").Router();
 
 router
   .post("/add-income", addIncome)
