@@ -1,3 +1,5 @@
+// src/entities/transaction.entity.ts
+
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { User } from './user.entity';
 import { LinkedAccount } from './linked-account.entity';
@@ -29,4 +31,7 @@ export class Transaction {
 
   @Column({ nullable: true })
   description: string;
+
+  @Column({ type: 'enum', enum: ['income', 'expense'] })  // New column
+  transactionType: 'income' | 'expense';
 }

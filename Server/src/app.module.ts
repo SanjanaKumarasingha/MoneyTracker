@@ -10,6 +10,10 @@ import { Transaction } from './entities/transaction.entity';
 import { Category } from './entities/category.entity';
 import { Currency } from './entities/currency.entity';
 import { NotificationQueue } from './entities/notification-queue.entity';
+import { UserModule } from './user/user.module';
+import { TransactionController } from './transaction/transaction.controller';
+import { TransactionModule } from './transaction/transaction.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
       imports: [
@@ -27,8 +31,11 @@ import { NotificationQueue } from './entities/notification-queue.entity';
     TypeOrmModule.forFeature([User, Role, 
       LinkedAccount, Transaction, Category, Currency, NotificationQueue
     ]),
+    UserModule,
+    TransactionModule,
+    AuthModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, TransactionController],
   providers: [AppService],
 })
 export class AppModule {}
