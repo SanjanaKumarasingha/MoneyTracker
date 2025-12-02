@@ -1,12 +1,12 @@
-import React from "react";
-import AppRoutes from "./routes";
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes';
+
+// import AppRoutes from "./routes";
 import "./App.css";
 
 const App = () => {
   return (
-    <div>
-      <AppRoutes />
-    </div>
+    <RouterProvider router={router} />
   );
 };
 
