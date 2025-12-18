@@ -11,6 +11,9 @@
 # production
 /build
 
+# Dummy files
+/dummy
+
 # misc
 .DS_Store
 .env.local
