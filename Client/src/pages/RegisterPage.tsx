@@ -36,7 +36,8 @@ const RegisterPage = (props: Props) => {
     IUserInfo,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     NewUser
-  >(register, {
+  >({
+    mutationFn: register,
     onError(error, variables, context) {
       setError({
         type: 'error',

@@ -52,21 +52,23 @@ const CategoryPage = (props: Props) => {
     icon: EIconName.MONEY,
   });
 
-  const { data: categories } = useQuery<ICategory[]>(
-    ['categories'],
-    fetchCategories,
-  );
+  const { data: categories } = useQuery<ICategory[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  });
 
-  const { data: user } = useQuery<IUserInfo>(['user', userId], () =>
-    profile(userId!),
-  );
+  const { data: user } = useQuery<IUserInfo>({
+    queryKey: ['user', userId],
+    queryFn: () => profile(userId!),
+  });
 
   // Update category order mutation
   const updateCategoryOrderMutation = useMutation<
     IUserInfo,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     { id: number; categoryOrder: number[] }
-  >(updateCategoryOrder, {
+  >({
+    mutationFn: updateCategoryOrder,
     onError: (error, variables, context) => {
       // Revert the cache to the previous state on error
       const typedContext = context as {
@@ -87,7 +89,8 @@ const CategoryPage = (props: Props) => {
     ICategory,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     Partial<ICreateCategory>
-  >(addCategory, {
+  >({
+    mutationFn: addCategory,
     onMutate: async ({ id, name, icon, type, enable }) => {
       // Optimistically update the cache
 
@@ -141,8 +144,8 @@ const CategoryPage = (props: Props) => {
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['categories']);
-      queryClient.invalidateQueries(['user']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onSuccess(data, variables, context) {
       toast(`Category is created\nName: ${data.name}\nType:${data.type}`, {
@@ -164,7 +167,8 @@ const CategoryPage = (props: Props) => {
     ICategory,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     ICategory
-  >(updateCategory, {
+  >({
+    mutationFn: updateCategory,
     onMutate: async (newCategory) => {
       // Optimistically update the cache
       queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
@@ -200,7 +204,7 @@ const CategoryPage = (props: Props) => {
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
     onSuccess(data, variables, context) {
       toast('Category is updated!', { type: 'success' });

@@ -18,9 +18,12 @@ interface IConfirmPassword extends IUpdatePasswordDto {
 const UpdatePassword = (props: Props) => {
   const { userId } = useAuth();
 
-  const { data: user } = useQuery<IUserInfo>(['user', userId], () =>
-    profile(userId!),
-  );
+  const { data: user } = useQuery<IUserInfo>({
+    queryKey: ['user', userId],
+    queryFn: () => profile(userId!),
+    enabled: !!userId,
+  });
+
 
   const [password, setPassword] = useState<IConfirmPassword>({
     id: user?.id ?? 0,
@@ -42,7 +45,8 @@ const UpdatePassword = (props: Props) => {
     IUserInfo,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     IUpdatePasswordDto
-  >(updatePassword, {
+  >({
+    mutationFn: updatePassword,
     onError: (error, variables, context) => {
       // Revert the cache to the previous state on error
       const typedContext = context as {
@@ -59,7 +63,7 @@ const UpdatePassword = (props: Props) => {
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['user']);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onSuccess(data, variables, context) {
       toast('User is updated', { type: 'success' });

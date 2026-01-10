@@ -69,19 +69,21 @@ const RecordModal = ({
 
   const queryClient = useQueryClient();
 
-  const { data: categories } = useQuery<ICategory[]>(
-    ['categories'],
-    fetchCategories,
-  );
+  const { data: categories } = useQuery<ICategory[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  });
 
-  const { data: user } = useQuery<IUserInfo>(['user', userId], () =>
-    profile(userId!),
-  );
+  const { data: user } = useQuery<IUserInfo>({
+    queryKey: ['user', userId],
+    queryFn: () => profile(userId!),
+    enabled: !!userId,
+  });
 
-  const { data: remarks } = useQuery<string[]>(
-    ['remarks', selectedCategory?.id],
-    () => getRemarks(selectedCategory?.id!),
-  );
+  const { data: remarks } = useQuery<string[]>({
+    queryKey: ['remarks', selectedCategory?.id],
+    queryFn: () => getRemarks(selectedCategory?.id!),
+  });
 
   const { wallets } = useRecord();
 
@@ -118,7 +120,8 @@ const RecordModal = ({
     IRecord,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     ICreateRecord
-  >(createRecord, {
+  >({
+    mutationFn: createRecord,
     onMutate: async ({ id, price, remarks, date }) => {
       // Optimistically update the cache
 
@@ -168,7 +171,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
     onSuccess(data, variables, context) {
       toast(`${variables.category.name} is added`, { type: 'success' });
@@ -188,7 +191,8 @@ const RecordModal = ({
     IRecord,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     IRecord
-  >(updateRecord, {
+  >({
+    mutationFn: updateRecord,
     onMutate: async ({ id, price, remarks, date }) => {
       // Optimistically update the cache
 
@@ -237,7 +241,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
     onSuccess(data, variables, context) {
       toast(`Record is updated`, { type: 'success' });
@@ -245,7 +249,12 @@ const RecordModal = ({
     retry: 3,
   });
 
-  const removeRecordMutation = useMutation(deleteRecord, {
+  const removeRecordMutation = useMutation<
+    void,
+    AxiosError<{ error: string; message: string; statusCode: number }>,
+    number
+  >({
+    mutationFn: deleteRecord,
     onError(error, variables, context) {},
     onMutate: async (variables) => {
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
@@ -271,7 +280,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
   });
 

@@ -24,24 +24,23 @@ const LoginPage = (props: Props) => {
 
   const dispatch = useAppDispatch();
 
-  const login = useMutation<
-    LoginResponse,
-    AxiosError<{ error: string; message: string; statusCode: number }>,
-    IUser
-  >(signIn, {
-    onError(error, variables, context) {
-      console.log(error);
-      setError(error.response?.data.message ?? 'Unexpected error from server');
+  type ApiError = { message: string | string[]; error: string; statusCode: number };
+  const login = useMutation<LoginResponse,AxiosError<ApiError>,IUser>
+  ({
+    mutationFn: signIn,
+    onError: (error) => {
+      const msg = error.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(", ") : msg ?? "Unexpected error from server");
     },
-    onSuccess(data, variables, context) {
+    onSuccess: (data) => {
       dispatch(
         setIsSignedIn({
           access_token: data.access_token,
           user: data.user,
-        }),
+        })
       );
-      setError('');
-      navigate('/');
+      setError("");
+      navigate("/");
     },
   });
 

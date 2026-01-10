@@ -46,7 +46,8 @@ const CategoryRow = ({
     ICategory,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     ICategory
-  >(updateCategory, {
+  >({
+    mutationFn: updateCategory,
     onMutate: async (newCategory) => {
       // Optimistically update the cache
       queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
@@ -83,7 +84,7 @@ const CategoryRow = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
     retry: 3,
   });

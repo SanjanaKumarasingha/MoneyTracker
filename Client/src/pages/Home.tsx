@@ -39,13 +39,12 @@ const Home = (props: Props) => {
   const { favWallet, groupByCategoryRecords, groupBy, updateGroupingScale } =
     useRecord();
 
-  const { data: records } = useQuery<IRecordWithCategory[]>(
-    ['records', favWallet?.id],
-    () => fetchRecords(favWallet!.id),
-    {
-      enabled: !!favWallet?.id,
-    },
-  );
+  const { data: records = [] } = useQuery<IRecordWithCategory[]>({
+    queryKey: ['records', favWallet?.id],
+    queryFn: () => fetchRecords(favWallet!.id),
+    enabled: !!favWallet?.id,
+  });
+
 
   const options: ChartOptions<'doughnut'> = {
     cutout: '30%',

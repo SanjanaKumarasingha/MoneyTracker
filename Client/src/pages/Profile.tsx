@@ -14,9 +14,12 @@ type Props = {};
 const Profile = (props: Props) => {
   const { userId } = useAuth();
 
-  const { data: user } = useQuery<IUserInfo>(['user', userId], () =>
-    profile(userId!),
-  );
+  const { data: user } = useQuery<IUserInfo>({
+    queryKey: ['user', userId],
+    queryFn: () => profile(userId!),
+    enabled: !!userId,
+  });
+
   const [edit, setEdit] = useState<boolean>(false);
 
   const [editUser, setEditUser] = useState<IUserInfo>(
@@ -28,7 +31,8 @@ const Profile = (props: Props) => {
     IUserInfo,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     { id: number; user: IUserInfo }
-  >(updateUser, {
+  >({
+    mutationFn: updateUser,
     onMutate: async ({ user }) => {
       // Optimistically update the cache
       queryClient.setQueryData<IUserInfo>(['user'], (oldData) => {
@@ -58,7 +62,7 @@ const Profile = (props: Props) => {
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['user']);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onSuccess(data, variables, context) {
       toast('User is updated', { type: 'success' });

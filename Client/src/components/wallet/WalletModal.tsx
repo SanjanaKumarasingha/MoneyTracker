@@ -32,7 +32,8 @@ const WalletModal = ({
     IWallet,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     Partial<ICreateWallet>
-  >(createWallet, {
+  >({
+    mutationFn: createWallet,
     onMutate: async ({ id, name, currency }) => {
       // Optimistically update the cache
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
@@ -62,7 +63,7 @@ const WalletModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
     onSuccess(data, variables, context) {
       toast(
@@ -78,7 +79,8 @@ const WalletModal = ({
     IWallet,
     AxiosError<{ error: string; message: string; statusCode: number }>,
     IWallet
-  >(updateWallet, {
+  >({
+    mutationFn: updateWallet,
     onMutate: async ({ id, name, currency }) => {
       // Optimistically update the cache
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
@@ -113,7 +115,7 @@ const WalletModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['wallets']);
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
     onSuccess(data, variables, context) {
       toast(
@@ -132,6 +134,10 @@ const WalletModal = ({
     };
     try {
       if (type === 'Create') {
+        if (!userId) {
+          toast('User ID is not available', { type: 'error' });
+          return;
+        }
         // Call the mutation to create the wallet
         await createWalletMutation.mutateAsync({
           ...wallet,
@@ -150,7 +156,8 @@ const WalletModal = ({
     }
   };
 
-  const removeWalletMutation = useMutation(deleteWallet, {
+  const removeWalletMutation = useMutation({
+    mutationFn: deleteWallet,
     onError(error, variables, context) {},
     onMutate: async (variables) => {
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {

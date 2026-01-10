@@ -56,11 +56,12 @@ export const RecordDateProvider = ({ children }: any) => {
 
   const [currentDate, setCurrentDate] = useState<number>(0);
 
-  const { data: wallets } = useQuery<IWalletRecordWithCategory[]>(
-    ['wallets', userId],
-    () => fetchWallets(userId!),
-    { enabled: !!userId },
-  );
+  const { data: wallets } = useQuery<IWalletRecordWithCategory[]>({
+    queryKey: ['wallets', userId],
+    queryFn: () => fetchWallets(userId!),
+    enabled: !!userId,
+  });
+
 
   const { id } = useAppSelector((state) => state.wallet);
 
@@ -222,29 +223,32 @@ export const RecordDateProvider = ({ children }: any) => {
   };
 
   const { favWallet, income, expense, total, dateRecords } = useMemo(() => {
-    let tmpWallet;
+    let tmpWallet = undefined;
 
-    if (wallets) {
-      if (id === 0) {
+    const walletId = Number(id);
+
+    if (wallets && wallets.length > 0) {
+      if (walletId === 0) {
         tmpWallet = wallets[0];
       } else {
-        tmpWallet = wallets.find((w) => w.id === id);
+        tmpWallet = wallets.find((w) => w.id === walletId) ?? wallets[0];
       }
     }
 
-    const { walletExpense, walletIncome } = tmpWallet?.records?.reduce(
-      (i, w) => {
-        if (w.category.type === 'income') {
-          i.walletIncome += Number(w.price);
-        } else {
-          i.walletExpense += Number(w.price);
-        }
-        return i;
-      },
-      { walletExpense: 0, walletIncome: 0 },
-    ) ?? { walletExpense: 0, walletIncome: 0 };
+    const { walletExpense, walletIncome } =
+      tmpWallet?.records?.reduce(
+        (i, w) => {
+          if (w.category.type === 'income') {
+            i.walletIncome += Number(w.price);
+          } else {
+            i.walletExpense += Number(w.price);
+          }
+          return i;
+        },
+        { walletExpense: 0, walletIncome: 0 },
+      ) ?? { walletExpense: 0, walletIncome: 0 };
 
-    const groupedDates = _.groupBy(tmpWallet?.records, 'date');
+    const groupedDates = _.groupBy(tmpWallet?.records ?? [], 'date');
 
     const dateRecords = _.sortBy(Object.keys(groupedDates)).map((date) => ({
       date,

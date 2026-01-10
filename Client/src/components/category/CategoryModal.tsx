@@ -30,7 +30,8 @@ const CategoryModal = ({
   const [edit, setEdit] = useState<boolean>(false);
   const [openDelete, setOpenDelete] = useState<boolean>(false);
 
-  const removeCategoryMutation = useMutation(deleteCategory, {
+  const removeCategoryMutation = useMutation({
+    mutationFn: deleteCategory,
     onError(error, variables, context) {},
     onMutate: async (variables) => {
       queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
@@ -66,7 +67,8 @@ const CategoryModal = ({
     },
     onSettled: () => {
       // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries(['categories', 'user']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
     },
   });
 

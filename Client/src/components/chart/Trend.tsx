@@ -56,10 +56,10 @@ const Trend = (props: Props) => {
 
   const [currentYear, setCurrentYear] = useState<number>(0);
 
-  const { data: categories } = useQuery<ICategory[]>(
-    ['categories'],
-    fetchCategories,
-  );
+  const { data: categories } = useQuery<ICategory[]>({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  });
 
   const { filterForTrend } = useRecord();
 

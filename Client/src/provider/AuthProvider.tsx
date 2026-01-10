@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 import { logout } from '../store/userSlice';
 
 type JwtPayload = {
