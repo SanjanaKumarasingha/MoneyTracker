@@ -39,11 +39,8 @@ const CategoryPage = (props: Props) => {
   const { userId } = useAuth();
 
   const [sortedCategories, setSortedCategories] = useState<ICategory[]>([]);
-
   const [activeCategory, setActiveCategory] = useState<ICategory | null>(null);
-
   const [open, setOpen] = useState<boolean>(false);
-
   const [editCategory, setEditCategory] = useState<ICategory>({
     id: 0,
     name: '',
@@ -56,7 +53,6 @@ const CategoryPage = (props: Props) => {
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
-
   const { data: user } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
     queryFn: () => profile(userId!),

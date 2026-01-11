@@ -25,8 +25,7 @@ const RegisterPage = (props: Props) => {
     type: CustomAlertType;
   }>({ message: '', type: 'warning' });
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setConfirmShowPassword] =
-    useState<boolean>(false);
+  const [showConfirmPassword, setConfirmShowPassword] =  useState<boolean>(false);
 
   const isValidEmail = (email: string): boolean => {
     return /\S+@\S+\.\S+/.test(email);
