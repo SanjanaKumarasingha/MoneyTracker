@@ -3,15 +3,13 @@ import CustomAlert, { CustomAlertType } from "../components/Custom/CustomAlert";
 import { useMutation } from "@tanstack/react-query";
 import { register } from "../apis";
 import CustomTextField from "../components/Custom/CustomTextField";
-import { IUser, IUserInfo } from "../types";
+import { IUser, IUserInfo, ApiError } from "../types";
 import { AxiosError } from "axios";
 
 export interface NewUser extends IUser {
   email: string;
   confirmPassword: string;
 }
-
-type ApiError = { error: string; message: string | string[]; statusCode: number };
 
 const RegisterPage = () => {
   const [userInfo, setUserInfo] = useState<NewUser>({
@@ -65,6 +63,7 @@ const RegisterPage = () => {
 
     const username = userInfo.username.trim();
     const email = userInfo.email.trim();
+    console.log("dhgfdhghg")
 
     if (!isFormValid) {
       setAlert({ message: "Please fill up all the blanks", type: "error" });

@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import BackButton from '../components/BackButton';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { addCategory, fetchCategories, updateCategory } from '../apis/category';
-import { ICategory, ICreateCategory, IUserInfo } from '../types';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import {
+  addCategory,
+  fetchCategories,
+  updateCategory,
+} from '../apis/category';
 import { profile, updateCategoryOrder } from '../apis';
+import { ICategory, ICreateCategory, IUserInfo } from '../types';
 import {
   DndContext,
   DragEndEvent,
@@ -31,16 +39,20 @@ import CategoryModal from '../components/category/CategoryModal';
 import { EIconName } from '../common/icon-name.enum';
 import { useAuth } from '../provider/AuthProvider';
 
-type Props = {};
+type ApiError = {
+  error: string;
+  message: string | string[];
+  statusCode: number;
+};
 
-const CategoryPage = (props: Props) => {
+const CategoryPage = () => {
   const queryClient = useQueryClient();
-
   const { userId } = useAuth();
 
   const [sortedCategories, setSortedCategories] = useState<ICategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<ICategory | null>(null);
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState(false);
+
   const [editCategory, setEditCategory] = useState<ICategory>({
     id: 0,
     name: '',
@@ -49,313 +61,275 @@ const CategoryPage = (props: Props) => {
     icon: EIconName.MONEY,
   });
 
-  const { data: categories } = useQuery<ICategory[]>({
+  /* ===================== QUERIES ===================== */
+
+  const { data: categories = [] } = useQuery<ICategory[]>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
+
   const { data: user } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
     queryFn: () => profile(userId!),
+    enabled: !!userId,
   });
 
-  // Update category order mutation
+  /* ===================== MUTATIONS ===================== */
+
+  // 🔁 Update order
   const updateCategoryOrderMutation = useMutation<
     IUserInfo,
-    AxiosError<{ error: string; message: string; statusCode: number }>,
-    { id: number; categoryOrder: number[] }
+    AxiosError<ApiError>,
+    { id: number; categoryOrder: number[] },
+    { previousUser?: IUserInfo }
   >({
     mutationFn: updateCategoryOrder,
-    onError: (error, variables, context) => {
-      // Revert the cache to the previous state on error
-      const typedContext = context as {
-        previousUser: IUserInfo | undefined;
-      };
-      if (typedContext.previousUser) {
-        queryClient.setQueryData<IUserInfo>(
-          ['user'],
-          typedContext.previousUser,
-        );
+    onMutate: async ({ categoryOrder }) => {
+      await queryClient.cancelQueries({ queryKey: ['user', userId] });
+
+      const previousUser = queryClient.getQueryData<IUserInfo>([
+        'user',
+        userId,
+      ]);
+
+      if (previousUser) {
+        queryClient.setQueryData<IUserInfo>(['user', userId], {
+          ...previousUser,
+          categoryOrder,
+        });
       }
-      toast('Failed to swap the category', { type: 'error' });
+
+      return { previousUser };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousUser) {
+        queryClient.setQueryData(['user', userId], ctx.previousUser);
+      }
+      toast('Failed to reorder categories', { type: 'error' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
     },
   });
 
-  // Create category mutation
+  // ➕ Create
   const createCategoryMutation = useMutation<
     ICategory,
-    AxiosError<{ error: string; message: string; statusCode: number }>,
-    Partial<ICreateCategory>
+    AxiosError<ApiError>,
+    Partial<ICreateCategory>,
+    { previousCategories?: ICategory[]; previousUser?: IUserInfo }
   >({
     mutationFn: addCategory,
-    onMutate: async ({ id, name, icon, type, enable }) => {
-      // Optimistically update the cache
+    onMutate: async (newCat) => {
+      await queryClient.cancelQueries({ queryKey: ['categories'] });
 
-      queryClient.setQueryData<IUserInfo>(['user'], (oldData) => {
-        if (oldData) {
-          return {
-            ...oldData,
-            categoryOrder: [...oldData.categoryOrder, id],
-          } as IUserInfo;
-        }
-        return oldData;
-      });
+      const previousCategories =
+        queryClient.getQueryData<ICategory[]>(['categories']);
 
-      queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
-        if (oldData) {
-          return [...oldData, { id, name, icon, type, enable } as ICategory];
-        }
-        return oldData;
-      });
+      queryClient.setQueryData<ICategory[]>(['categories'], (old = []) => [
+        ...old,
+        newCat as ICategory,
+      ]);
 
-      return {
-        previousCategories: queryClient.getQueryData<ICategory[]>([
-          'categories',
-        ]),
-        previousUser: queryClient.getQueryData<IUserInfo>(['user']),
-      };
+      const previousUser = queryClient.getQueryData<IUserInfo>([
+        'user',
+        userId,
+      ]);
+
+      if (previousUser && newCat.id != null) {
+        queryClient.setQueryData<IUserInfo>(['user', userId], {
+          ...previousUser,
+          categoryOrder: [...previousUser.categoryOrder, newCat.id],
+        });
+      }
+
+      return { previousCategories, previousUser };
     },
-    onError: (error, variables, context) => {
-      // Revert the cache to the previous state on error
-      const typedContext = context as {
-        previousCategories: ICategory[] | undefined;
-        previousUser: IUserInfo | undefined;
-      };
-
-      if (typedContext.previousCategories) {
-        queryClient.setQueryData<ICategory[]>(
-          ['catergoies'],
-          typedContext.previousCategories,
-        );
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousCategories) {
+        queryClient.setQueryData(['categories'], ctx.previousCategories);
+      }
+      if (ctx?.previousUser) {
+        queryClient.setQueryData(['user', userId], ctx.previousUser);
       }
 
-      if (typedContext.previousUser) {
-        queryClient.setQueryData<IUserInfo>(
-          ['user'],
-          typedContext.previousUser,
-        );
-      }
-      toast(error.response?.data.message ?? 'Unexpected error from server', {
+      const msg = err.response?.data?.message;
+      toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
         type: 'error',
       });
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
     },
-    onSuccess(data, variables, context) {
-      toast(`Category is created\nName: ${data.name}\nType:${data.type}`, {
-        type: 'success',
-      });
+    onSuccess: (data) => {
+      toast(`Category created: ${data.name}`, { type: 'success' });
       setEditCategory({
         id: 0,
         name: '',
-        type: data.type,
         enable: true,
+        type: data.type,
         icon: EIconName.MONEY,
       });
     },
-    retry: 3,
   });
 
-  // Update category mutation
+  // ✏️ Update
   const updateCategoryMutation = useMutation<
     ICategory,
-    AxiosError<{ error: string; message: string; statusCode: number }>,
-    ICategory
+    AxiosError<ApiError>,
+    ICategory,
+    { previousCategories?: ICategory[] }
   >({
     mutationFn: updateCategory,
-    onMutate: async (newCategory) => {
-      // Optimistically update the cache
-      queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
-        if (oldData) {
-          oldData.forEach((old) => {
-            if (old.id === newCategory.id) {
-              old.icon = newCategory.icon;
-              old.name = newCategory.name;
-              old.enable = newCategory.enable;
-            }
-          });
-        }
+    onMutate: async (updated) => {
+      await queryClient.cancelQueries({ queryKey: ['categories'] });
 
-        return oldData;
-      });
-      return {
-        previousWallets: queryClient.getQueryData<ICategory[]>(['categories']),
-      };
+      const previousCategories =
+        queryClient.getQueryData<ICategory[]>(['categories']);
+
+      queryClient.setQueryData<ICategory[]>(['categories'], (old = []) =>
+        old.map((c) => (c.id === updated.id ? updated : c)),
+      );
+
+      return { previousCategories };
     },
-    onError: (error, variables, context) => {
-      // Revert the cache to the previous state on error
-      const typedContext = context as {
-        previousCategories: ICategory[] | undefined;
-      };
-
-      if (typedContext.previousCategories) {
-        queryClient.setQueryData<ICategory[]>(
-          ['wallets'],
-          typedContext.previousCategories,
-        );
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousCategories) {
+        queryClient.setQueryData(['categories'], ctx.previousCategories);
       }
-      toast('Failed to enable the category', { type: 'error' });
+      toast('Failed to update category', { type: 'error' });
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
-    onSuccess(data, variables, context) {
-      toast('Category is updated!', { type: 'success' });
+    onSuccess: () => {
+      toast('Category updated', { type: 'success' });
     },
-    retry: 3,
   });
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      if (editCategory.id === 0) {
-        // Create
-        if (editCategory.name && editCategory.icon && editCategory.type) {
-          await createCategoryMutation.mutateAsync(editCategory);
-        }
-      } else {
-        // Update
-        await updateCategoryMutation.mutateAsync(editCategory);
-      }
-    } catch (error) {}
+  /* ===================== HANDLERS ===================== */
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editCategory.name) return;
+
+    if (editCategory.id === 0) {
+      await createCategoryMutation.mutateAsync(editCategory);
+    } else {
+      await updateCategoryMutation.mutateAsync(editCategory);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    if (!active || !over || !user || active.id === over.id) return;
 
-    if (active && over && user && active.id !== over.id) {
-      try {
-        const activeIndex = sortedCategories.findIndex(
-          (item) => item.id === Number(active.id),
-        );
-        const overIndex = sortedCategories.findIndex(
-          (item) => item.id === Number(over?.id),
-        );
-        const order = arrayMove(sortedCategories, activeIndex, overIndex);
+    const activeIndex = sortedCategories.findIndex(
+      (c) => c.id === Number(active.id),
+    );
+    const overIndex = sortedCategories.findIndex(
+      (c) => c.id === Number(over.id),
+    );
 
-        updateCategoryOrderMutation.mutateAsync({
-          id: user.id,
-          categoryOrder: order.map((item) => item.id),
-        });
-        setSortedCategories(order);
-      } catch (error) {}
-    }
+    const reordered = arrayMove(sortedCategories, activeIndex, overIndex);
+    setSortedCategories(reordered);
+
+    updateCategoryOrderMutation.mutate({
+      id: user.id,
+      categoryOrder: reordered.map((c) => c.id),
+    });
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const category = categories?.find((c) => c.id === event.active.id);
-    if (category) {
-      setActiveCategory(category);
-    }
+    const cat = categories.find((c) => c.id === event.active.id);
+    if (cat) setActiveCategory(cat);
   };
 
+  /* ===================== DND ===================== */
+
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 300,
-        tolerance: 8,
-      },
-    }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
+  /* ===================== EFFECT ===================== */
+
   useEffect(() => {
-    if (categories && user) {
-      setSortedCategories((prev) => {
-        let sorted: ICategory[] = [];
-        user.categoryOrder.forEach((id) => {
-          const n = categories.filter((category) => category.id === Number(id));
+    if (!categories.length || !user) return;
 
-          if (n.length > 0) {
-            sorted.push(...n);
-          }
-        });
+    const ordered: ICategory[] = [];
+    user.categoryOrder.forEach((id) => {
+      const found = categories.find((c) => c.id === id);
+      if (found) ordered.push(found);
+    });
 
-        return sorted;
-      });
-    }
+    setSortedCategories(ordered);
   }, [categories, user]);
+
+  /* ===================== UI ===================== */
 
   return (
     <div>
-      <div className="pb-3">
-        <BackButton />
-      </div>
-      <div
-        onClick={() => {
-          toast('Category is updated!', { type: 'success' });
-        }}
-      >
-        test
-      </div>
-      <div className="flex gap-2 md:flex-row flex-col">
-        {Object.values(ECategoryType).map((cType) => (
+      <BackButton />
+
+      <div className="flex flex-col md:flex-row gap-3 mt-3">
+        {Object.values(ECategoryType).map((type) => (
           <DndContext
-            key={cType}
-            collisionDetection={closestCenter}
+            key={type}
             sensors={sensors}
+            collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
             onDragStart={handleDragStart}
-            autoScroll
           >
-            <div className="p-3 flex flex-col gap-3 bg-info-100 dark:bg-info-700 rounded-md flex-1 h-full">
-              <div className="flex justify-between items-center">
-                <p className="text-lg">
-                  {cType.charAt(0).toUpperCase() + cType.slice(1)}
-                </p>
-
-                <div
-                  className=" flex gap-2 items-center p-1 rounded-md border border-dashed border-info-300 cursor-pointer hover:bg-primary-100 active:bg-primary-50 dark:hover:bg-opacity-40 dark:active:bg-opacity-70"
+            <div className="flex-1 bg-info-100 dark:bg-info-700 rounded-md p-3">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg capitalize">{type}</h3>
+                <button
+                  className="flex items-center gap-1 text-sm"
                   onClick={() => {
-                    setEditCategory((prev) => {
-                      return { ...prev, type: cType, name: '', id: 0 };
+                    setEditCategory({
+                      id: 0,
+                      name: '',
+                      enable: true,
+                      type,
+                      icon: EIconName.MONEY,
                     });
                     setOpen(true);
                   }}
                 >
-                  <div className="p-1">
-                    <AiOutlinePlus />
-                  </div>
-                  <p className="px-2">Add New Category</p>
-                </div>
+                  <AiOutlinePlus /> Add
+                </button>
               </div>
 
               <SortableContext
-                items={sortedCategories}
+                items={sortedCategories.filter((c) => c.type === type)}
                 strategy={verticalListSortingStrategy}
               >
                 {sortedCategories
-                  .filter((sorted) => sorted.type === cType)
-                  .map((category) => (
-                    <div key={category.id}>
-                      <CategoryRow
-                        category={category}
-                        setOpen={setOpen}
-                        setEditCategory={setEditCategory}
-                      />
-                    </div>
+                  .filter((c) => c.type === type)
+                  .map((c) => (
+                    <CategoryRow
+                      key={c.id}
+                      category={c}
+                      setOpen={setOpen}
+                      setEditCategory={setEditCategory}
+                    />
                   ))}
               </SortableContext>
             </div>
 
             <DragOverlay>
-              {activeCategory ? (
+              {activeCategory && (
                 <CategoryRow
                   category={activeCategory}
                   setOpen={setOpen}
                   setEditCategory={setEditCategory}
                 />
-              ) : null}
+              )}
             </DragOverlay>
           </DndContext>
         ))}
@@ -364,9 +338,7 @@ const CategoryPage = (props: Props) => {
       {open && (
         <CategoryModal
           setOpen={setOpen}
-          callback={(event) => {
-            handleSubmit(event);
-          }}
+          callback={handleSubmit}
           editCategory={editCategory}
           setEditCategory={setEditCategory}
         />

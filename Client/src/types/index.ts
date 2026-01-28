@@ -1,5 +1,11 @@
 import { EIconName } from '../common/icon-name.enum';
 
+export interface ApiError { 
+  error: string; 
+  message: string | string[]; 
+  statusCode: number 
+}
+
 export interface IUser {
   username: string;
   password: string;

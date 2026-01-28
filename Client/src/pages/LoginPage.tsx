@@ -7,9 +7,7 @@ import CustomAlert from "../components/Custom/CustomAlert";
 import CustomTextField from "../components/Custom/CustomTextField";
 import { AxiosError } from "axios";
 import { setIsSignedIn } from "../store/userSlice";
-import { LoginResponse, IUser } from "../types";
-
-type ApiError = { message: string | string[]; error: string; statusCode: number };
+import { LoginResponse, IUser, ApiError } from "../types";
 
 const LoginPage = () => {
   const { isSignedIn } = useAppSelector((state) => state.user);
