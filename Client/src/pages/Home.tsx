@@ -24,11 +24,11 @@ import { useDarkMode } from '../provider/DarkModeProvider';
 type Props = {};
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
-const Home = (props: Props) => {
+function Home(props: Props) {
+
   const { isDarkMode } = useDarkMode();
 
   const [open, setOpen] = useState(false);
-
   const [editRecord, setEditRecord] = useState<IRecord>({
     id: 0,
     price: 0,
@@ -36,15 +36,13 @@ const Home = (props: Props) => {
     date: DateTime.now().toISO() ?? DateTime.now().toFormat('yyyy-LL-dd'),
   });
 
-  const { favWallet, groupByCategoryRecords, groupBy, updateGroupingScale } =
-    useRecord();
+  const { favWallet, groupByCategoryRecords, groupBy, updateGroupingScale } = useRecord();
 
   const { data: records = [] } = useQuery<IRecordWithCategory[]>({
     queryKey: ['records', favWallet?.id],
     queryFn: () => fetchRecords(favWallet!.id),
     enabled: !!favWallet?.id,
   });
-
 
   const options: ChartOptions<'doughnut'> = {
     cutout: '30%',
