@@ -30,9 +30,13 @@ export class UsersService {
       username: createUserDto.username,
       email: createUserDto.email,
       password: hash,
-    });
+    }); 
 
     return await this.userRepository.save(user);
+  }
+
+  async findAll(): Promise<User[]> {
+    return await this.userRepository.find();
   }
 
   async findByUsername(username): Promise<User | undefined> {
