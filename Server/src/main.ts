@@ -21,6 +21,7 @@ async function bootstrap() {
       origin: /^https?:\/\/((localhost)|(127\.0\.0\.1)):\d{4}$/,
       credentials: true,
       exposedHeaders: ['Content-Disposition'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     });
 
     // generate Swagger document for manual testing

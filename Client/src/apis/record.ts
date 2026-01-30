@@ -33,7 +33,6 @@ export async function updateRecord(record: IRecord): Promise<IRecord> {
 
 export async function deleteRecord(id: number) {
   const url = `v1/records/${id}`;
-
   const response = await Axios.delete(url);
 
   return response.data;
