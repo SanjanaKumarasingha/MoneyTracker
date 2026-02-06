@@ -83,6 +83,7 @@ const RecordModal = ({
   const { data: remarks } = useQuery<string[]>({
     queryKey: ['remarks', selectedCategory?.id],
     queryFn: () => getRemarks(selectedCategory?.id!),
+    enabled: !!selectedCategory?.id,
   });
 
   const { wallets } = useRecord();
