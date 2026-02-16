@@ -33,14 +33,14 @@ const Layout = ({ children, mode }: LayoutProps) => {
           <div className="rounded-lg flex-1">{children}</div>
         </div>
 
-        {/* <div
+        <div
           className={clsx(
             'sm:hidden absolute h-full top-0 left-0 z-50 transition-all duration-300 overflow-hidden',
             isSideBarOpen ? 'w-full' : 'w-0',
           )}
         >
           <NavbarOverlay />
-        </div> */}
+        </div>
       </div>
       <div className="mt-auto">
         <Footer />
