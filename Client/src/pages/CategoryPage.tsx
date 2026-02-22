@@ -1,14 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import BackButton from '../components/BackButton';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addCategory,
   fetchCategories,
   updateCategory,
+  deleteCategory,
 } from '../apis/category';
 import { profile, updateCategoryOrder } from '../apis';
 import { ICategory, ICreateCategory, IUserInfo } from '../types';
@@ -87,10 +84,7 @@ const CategoryPage = () => {
     onMutate: async ({ categoryOrder }) => {
       await queryClient.cancelQueries({ queryKey: ['user', userId] });
 
-      const previousUser = queryClient.getQueryData<IUserInfo>([
-        'user',
-        userId,
-      ]);
+      const previousUser = queryClient.getQueryData<IUserInfo>(['user', userId]);
 
       if (previousUser) {
         queryClient.setQueryData<IUserInfo>(['user', userId], {
@@ -122,20 +116,19 @@ const CategoryPage = () => {
     mutationFn: addCategory,
     onMutate: async (newCat) => {
       await queryClient.cancelQueries({ queryKey: ['categories'] });
+      await queryClient.cancelQueries({ queryKey: ['user', userId] });
 
       const previousCategories =
         queryClient.getQueryData<ICategory[]>(['categories']);
+      const previousUser = queryClient.getQueryData<IUserInfo>(['user', userId]);
 
+      // optimistic: add category
       queryClient.setQueryData<ICategory[]>(['categories'], (old = []) => [
         ...old,
         newCat as ICategory,
       ]);
 
-      const previousUser = queryClient.getQueryData<IUserInfo>([
-        'user',
-        userId,
-      ]);
-
+      // optimistic: append to order (only if we got an id from client-side; usually server sets id)
       if (previousUser && newCat.id != null) {
         queryClient.setQueryData<IUserInfo>(['user', userId], {
           ...previousUser,
@@ -171,6 +164,7 @@ const CategoryPage = () => {
         type: data.type,
         icon: EIconName.MONEY,
       });
+      setOpen(false);
     },
   });
 
@@ -205,6 +199,63 @@ const CategoryPage = () => {
     },
     onSuccess: () => {
       toast('Category updated', { type: 'success' });
+      setOpen(false);
+    },
+  });
+
+  // 🗑️ Delete
+  const deleteCategoryMutation = useMutation<
+    { id: number },
+    AxiosError<ApiError>,
+    number,
+    { previousCategories?: ICategory[]; previousUser?: IUserInfo }
+  >({
+    mutationFn: async (id) => {
+      await deleteCategory(id);
+      return { id };
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['categories'] });
+      await queryClient.cancelQueries({ queryKey: ['user', userId] });
+
+      const previousCategories =
+        queryClient.getQueryData<ICategory[]>(['categories']);
+      const previousUser = queryClient.getQueryData<IUserInfo>(['user', userId]);
+
+      // optimistic remove from categories
+      queryClient.setQueryData<ICategory[]>(['categories'], (old = []) =>
+        old.filter((c) => c.id !== id),
+      );
+
+      // optimistic remove from user categoryOrder
+      if (previousUser) {
+        queryClient.setQueryData<IUserInfo>(['user', userId], {
+          ...previousUser,
+          categoryOrder: previousUser.categoryOrder.filter((x) => x !== id),
+        });
+      }
+
+      return { previousCategories, previousUser };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousCategories) {
+        queryClient.setQueryData(['categories'], ctx.previousCategories);
+      }
+      if (ctx?.previousUser) {
+        queryClient.setQueryData(['user', userId], ctx.previousUser);
+      }
+
+      const msg = err.response?.data?.message;
+      toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Delete failed', {
+        type: 'error',
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
+    },
+    onSuccess: () => {
+      toast('Category deleted', { type: 'info' });
     },
   });
 
@@ -212,13 +263,22 @@ const CategoryPage = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editCategory.name) return;
+    if (!editCategory.name?.trim()) return;
 
     if (editCategory.id === 0) {
       await createCategoryMutation.mutateAsync(editCategory);
     } else {
       await updateCategoryMutation.mutateAsync(editCategory);
     }
+  };
+
+  const handleDelete = async (cat: ICategory) => {
+    const ok = window.confirm(`Delete category "${cat.name}"?`);
+    if (!ok) return;
+
+    try {
+      await deleteCategoryMutation.mutateAsync(cat.id);
+    } catch {}
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -250,13 +310,13 @@ const CategoryPage = () => {
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 300, tolerance: 8 },
     }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  /* ===================== EFFECT ===================== */
+  /* ===================== ORDER BUILD ===================== */
 
   useEffect(() => {
     if (!categories.length || !user) return;
@@ -267,8 +327,22 @@ const CategoryPage = () => {
       if (found) ordered.push(found);
     });
 
-    setSortedCategories(ordered);
+    // add any categories not in order list (safe fallback)
+    const leftovers = categories.filter(
+      (c) => !ordered.some((o) => o.id === c.id),
+    );
+
+    setSortedCategories([...ordered, ...leftovers]);
   }, [categories, user]);
+
+  /* ===================== UI HELPERS ===================== */
+
+  const categoriesByType = useMemo(() => {
+    const map: Record<string, ICategory[]> = {};
+    Object.values(ECategoryType).forEach((t) => (map[t] = []));
+    sortedCategories.forEach((c) => map[c.type]?.push(c));
+    return map;
+  }, [sortedCategories]);
 
   /* ===================== UI ===================== */
 
@@ -288,8 +362,9 @@ const CategoryPage = () => {
             <div className="flex-1 bg-info-100 dark:bg-info-700 rounded-md p-3">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg capitalize">{type}</h3>
+
                 <button
-                  className="flex items-center gap-1 text-sm"
+                  className="flex items-center gap-1 text-sm px-2 py-1 rounded-md hover:bg-white/40 dark:hover:bg-black/20"
                   onClick={() => {
                     setEditCategory({
                       id: 0,
@@ -300,25 +375,53 @@ const CategoryPage = () => {
                     });
                     setOpen(true);
                   }}
+                  type="button"
                 >
                   <AiOutlinePlus /> Add
                 </button>
               </div>
 
               <SortableContext
-                items={sortedCategories.filter((c) => c.type === type)}
+                items={categoriesByType[type].map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {sortedCategories
-                  .filter((c) => c.type === type)
-                  .map((c) => (
-                    <CategoryRow
-                      key={c.id}
-                      category={c}
-                      setOpen={setOpen}
-                      setEditCategory={setEditCategory}
-                    />
+                <div className="space-y-2">
+                  {categoriesByType[type].map((c) => (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <CategoryRow
+                          category={c}
+                          setOpen={setOpen}
+                          setEditCategory={setEditCategory}
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded-md bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-600 dark:hover:bg-zinc-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditCategory(c);
+                          setOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded-md bg-rose-300 hover:bg-rose-400 text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(c);
+                        }}
+                        disabled={deleteCategoryMutation.isPending}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   ))}
+                </div>
               </SortableContext>
             </div>
 
