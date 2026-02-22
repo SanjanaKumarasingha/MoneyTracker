@@ -11,7 +11,6 @@ import {
   ChartData,
   ChartOptions,
   ArcElement,
-  ChartType,
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import Annotation from 'chartjs-plugin-annotation';

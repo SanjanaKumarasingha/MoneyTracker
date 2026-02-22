@@ -382,7 +382,6 @@ const CategoryPage = () => {
               </div>
 
               <SortableContext
-                // ✅ dnd-kit best practice: pass ids
                 items={categoriesByType[type].map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -397,7 +396,6 @@ const CategoryPage = () => {
                         />
                       </div>
 
-                      {/* ✅ Update + Delete UI */}
                       <button
                         type="button"
                         className="text-xs px-2 py-1 rounded-md bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-600 dark:hover:bg-zinc-500"

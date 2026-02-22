@@ -11,6 +11,7 @@ type CustomSelectorProps = {
   filter?: boolean;
   value: any;
   titlePosition?: 'top' | 'left';
+  disabled?: boolean;   
   callbackAction: (value: string) => void;
 };
 
