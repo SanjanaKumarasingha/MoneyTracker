@@ -35,10 +35,6 @@ export class UsersService {
     return await this.userRepository.save(user);
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.userRepository.find();
-  }
-
   async findByUsername(username): Promise<User | undefined> {
     return await this.userRepository.findOne({
       where: { username },
@@ -84,9 +80,5 @@ export class UsersService {
       id: updateCategoryOrderDto.id,
       categoryOrder: updateCategoryOrderDto.categoryOrder,
     });
-  }
-
-  async delete(user: User) {
-    return await this.userRepository.softDelete(user.id);
   }
 }
