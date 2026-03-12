@@ -24,8 +24,10 @@ const WalletModal = ({
   setEditWallet,
 }: WalletModalProps) => {
   const queryClient = useQueryClient();
-
   const { userId } = useAuth();
+
+  const glassCard =
+    'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow text-white';
 
   // Create wallet mutation
   const createWalletMutation = useMutation<
@@ -35,7 +37,6 @@ const WalletModal = ({
   >({
     mutationFn: createWallet,
     onMutate: async ({ id, name, currency }) => {
-      // Optimistically update the cache
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
         if (oldData) {
           return [...oldData, { id, name, currency } as IWallet];
@@ -48,7 +49,6 @@ const WalletModal = ({
       };
     },
     onError: (error, variables, context) => {
-      // Revert the cache to the previous state on error
       const typedContext = context as {
         previousWallets: IWallet[] | undefined;
       };
@@ -62,14 +62,14 @@ const WalletModal = ({
       toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onSuccess(data, variables, context) {
+    onSuccess(data) {
       toast(
         `Wallet is created\nName: ${data.name}\nCurrency:${data.currency}`,
         { type: 'success' },
       );
+      setOpen(false);
     },
     retry: 3,
   });
@@ -82,7 +82,6 @@ const WalletModal = ({
   >({
     mutationFn: updateWallet,
     onMutate: async ({ id, name, currency }) => {
-      // Optimistically update the cache
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
         if (oldData) {
           oldData.forEach((old) => {
@@ -100,7 +99,6 @@ const WalletModal = ({
       };
     },
     onError: (error, variables, context) => {
-      // Revert the cache to the previous state on error
       const typedContext = context as {
         previousWallets: IWallet[] | undefined;
       };
@@ -114,10 +112,9 @@ const WalletModal = ({
       toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onSuccess(data, variables, context) {
+    onSuccess(data) {
       toast(
         `Wallet is updated\nName: ${data.name}\nCurrency:${data.currency}`,
         { type: 'success' },
@@ -129,16 +126,18 @@ const WalletModal = ({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     const wallet: Partial<IWallet> = {
       ...editWallet,
     };
+
     try {
       if (type === 'Create') {
         if (!userId) {
           toast('User ID is not available', { type: 'error' });
           return;
         }
-        // Call the mutation to create the wallet
+
         await createWalletMutation.mutateAsync({
           ...wallet,
           userId,
@@ -146,11 +145,8 @@ const WalletModal = ({
       } else {
         await updateWalletMutation.mutateAsync({ ...editWallet });
       }
-
-      // The onSuccess callback will automatically update the cache with the actual data
     } catch (error) {
       console.error('Error creating/editing wallet:', error);
-      // Handle error here and set appropriate error message if needed
     } finally {
       setEditWallet({ id: 0, name: '', currency: '' });
     }
@@ -171,7 +167,7 @@ const WalletModal = ({
         previousWallets: queryClient.getQueryData<IWallet[]>(['wallets']),
       };
     },
-    onSuccess(data, variables, context) {
+    onSuccess(data) {
       toast(
         `Wallet is deleted.\nName: ${data.name}\nCurrency:${data.currency}`,
         { type: 'info' },
@@ -180,69 +176,108 @@ const WalletModal = ({
     },
   });
 
-  if (type === 'Delete')
+  if (type === 'Delete') {
     return (
       <CustomModal setOpen={setOpen} size="Medium">
-        <div>
-          <span className="text-lg">Confirm to delete the wallet?</span>
+        <div className={`${glassCard} p-5`}>
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-white">Delete Wallet</h2>
+            <p className="mt-1 text-sm text-white/60">
+              Are you sure you want to delete this wallet?
+            </p>
+          </div>
 
-          <div className="flex justify-end pt-2">
+          <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+            This action cannot be undone.
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
             <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
+              type="button"
+              className="rounded-xl px-4 py-2 text-sm font-medium border border-white/10 bg-white/5 text-white hover:bg-white/10"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="rounded-xl px-4 py-2 text-sm font-medium bg-rose-500/30 border border-rose-400/20 text-rose-100 hover:bg-rose-500/40 active:bg-rose-500/50"
               onClick={async () => {
                 try {
                   await removeWalletMutation.mutateAsync(editWallet.id);
                 } catch (error) {}
               }}
+              type="button"
             >
-              DELETE
+              Delete
             </button>
           </div>
         </div>
       </CustomModal>
     );
+  }
 
   return (
     <CustomModal setOpen={setOpen}>
-      <div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-          <div className="text-2xl">
-            {type === 'Create' ? 'Add new wallet' : 'Edit wallet'}
+      <div className={`${glassCard} p-5`}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Header */}
+          <div>
+            <h2 className="text-2xl font-semibold text-white">
+              {type === 'Create' ? 'Add New Wallet' : 'Edit Wallet'}
+            </h2>
+            <p className="mt-1 text-sm text-white/60">
+              {type === 'Create'
+                ? 'Create a wallet to organize your transactions.'
+                : 'Update wallet name or currency.'}
+            </p>
           </div>
 
-          <CustomTextField
-            type={'text'}
-            name={'Name'}
-            value={editWallet.name}
-            callbackAction={(event) => {
-              setEditWallet((prev) => {
-                return {
-                  ...prev,
-                  name: event.target.value,
-                };
-              });
-            }}
-          />
+          {/* Inputs */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+            <CustomTextField
+              type={'text'}
+              name={'Name'}
+              value={editWallet.name}
+              callbackAction={(event) => {
+                setEditWallet((prev) => {
+                  return {
+                    ...prev,
+                    name: event.target.value,
+                  };
+                });
+              }}
+            />
 
-          <CustomSelector
-            title={'Currency'}
-            options={currencyList}
-            value={editWallet.currency}
-            callbackAction={(option) => {
-              setEditWallet((prev) => {
-                return { ...prev, currency: option };
-              });
-            }}
-            filter
-            placeholder="ISO Code of currency"
-          />
+            <CustomSelector
+              title={'Currency'}
+              options={currencyList}
+              value={editWallet.currency}
+              callbackAction={(option) => {
+                setEditWallet((prev) => {
+                  return { ...prev, currency: option };
+                });
+              }}
+              filter
+              placeholder="ISO Code of currency"
+            />
+          </div>
 
-          <div className="flex justify-end">
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-1">
             <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
+              type="button"
+              className="rounded-xl px-4 py-2 text-sm font-medium border border-white/10 bg-white/5 text-white hover:bg-white/10"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="rounded-xl px-4 py-2 text-sm font-medium bg-emerald-500/20 border border-emerald-400/20 text-emerald-100 hover:bg-emerald-500/30 active:bg-emerald-500/40"
               type="submit"
             >
-              {type === 'Create' ? 'CREATE' : 'UPDATE'}
+              {type === 'Create' ? 'Create Wallet' : 'Update Wallet'}
             </button>
           </div>
         </form>

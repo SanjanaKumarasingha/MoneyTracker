@@ -53,7 +53,7 @@ const WalletPage = (_prop: WalletPageProps) => {
           <div>
             <h1 className="text-xl font-semibold">Wallets</h1>
             <p className="text-sm text-white/60">
-              Manage your wallets and balances
+              Manage your wallets
             </p>
           </div>
 
