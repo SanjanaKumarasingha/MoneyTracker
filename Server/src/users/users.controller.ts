@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Request,
   UnauthorizedException,
   UseGuards,
   ClassSerializerInterceptor,
@@ -135,7 +136,11 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: number, @Request() req) {
+    if (+id !== req.user.id) {
+      throw new UnauthorizedException('Unauthorized to access this user.');
+    }
+
     return await this.usersService.findById(+id);
   }
 
@@ -144,20 +149,41 @@ export class UsersController {
   async updateCategoryOrder(
     @Param('id') id: number,
     @Body() updateCategoryOrder: UpdateCategoryOrderDto,
+    @Request() req,
   ) {
-    const user = await this.usersService.findById(id);
+    if (+id !== req.user.id) {
+      throw new UnauthorizedException(
+        'Unauthorized to update the order of category.',
+      );
+    }
+
+    const user = await this.usersService.findById(+id);
     if (!user) {
       throw new UnauthorizedException(
         'Unauthorized to update the order of category.',
       );
     }
-    return await this.usersService.updateCategoryOrder(updateCategoryOrder);
+
+    return await this.usersService.updateCategoryOrder({
+      id: user.id,
+      categoryOrder: updateCategoryOrder.categoryOrder,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  async update(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
-    const user = await this.usersService.findById(id);
+  async update(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req,
+  ) {
+    if (+id !== req.user.id) {
+      throw new UnauthorizedException(
+        'Unauthorized to update this user profile.',
+      );
+    }
+
+    const user = await this.usersService.findById(+id);
     if (!user) {
       throw new UnauthorizedException(
         'Unauthorized to update the order of category.',
@@ -172,8 +198,13 @@ export class UsersController {
   async updatePassword(
     @Param('id') id: number,
     @Body() updatePasswordDto: UpdatePasswordDto,
+    @Request() req,
   ) {
-    const user = await this.usersService.findById(id);
+    if (+id !== req.user.id) {
+      throw new UnauthorizedException('Unauthorized to update password.');
+    }
+
+    const user = await this.usersService.findById(+id);
     if (!user) {
       throw new UnauthorizedException(
         'Unauthorized to update the order of category.',

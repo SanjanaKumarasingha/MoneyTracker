@@ -43,6 +43,20 @@ export class CategoriesService {
     });
   }
 
+  async findOneForUser(id: number, userId: number) {
+    return await this.categoryRepository.findOne({
+      relations: {
+        user: true,
+      },
+      where: {
+        id,
+        user: {
+          id: userId,
+        },
+      },
+    });
+  }
+
   async update(id: number, updateCategoryDto: UpdateCategoryDto) {
     return await this.categoryRepository.save({
       id: id,

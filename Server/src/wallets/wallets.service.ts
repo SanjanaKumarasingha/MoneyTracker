@@ -37,7 +37,20 @@ export class WalletsService {
     const query = await this.walletRepository
       .createQueryBuilder('wallet')
       .leftJoinAndSelect('wallet.records', 'records')
+      .leftJoinAndSelect('wallet.user', 'user')
       .where('wallet.id = :id', { id });
+
+    return await query.getOne();
+  }
+
+  async findOneForUser(id: number, userId: number): Promise<Wallet> {
+    const query = await this.walletRepository
+      .createQueryBuilder('wallet')
+      .leftJoinAndSelect('wallet.records', 'records')
+      .leftJoinAndSelect('records.category', 'category')
+      .leftJoinAndSelect('wallet.user', 'user')
+      .where('wallet.id = :id', { id })
+      .andWhere('user.id = :userId', { userId });
 
     return await query.getOne();
   }

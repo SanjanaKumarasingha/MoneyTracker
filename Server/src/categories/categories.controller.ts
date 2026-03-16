@@ -11,7 +11,6 @@ import {
   ClassSerializerInterceptor,
   UseGuards,
   UseInterceptors,
-  BadRequestException,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -35,7 +34,7 @@ export class CategoriesController {
   async create(@Body() createCategoryDto: CreateCategoryDto, @Request() req) {
     const user = await this.usersService.findById(createCategoryDto.userId);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to create new category');
     }
     const category = await this.categoriesService.create(
@@ -58,8 +57,17 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await this.categoriesService.findOne(+id);
+  async findOne(@Param('id') id: number, @Request() req) {
+    const category = await this.categoriesService.findOneForUser(
+      +id,
+      req.user.id,
+    );
+
+    if (!category) {
+      throw new UnauthorizedException('You have no access to this category');
+    }
+
+    return category;
   }
 
   @Patch(':id')
@@ -68,18 +76,14 @@ export class CategoriesController {
     @Body() updateCategoryDto: UpdateCategoryDto,
     @Request() req,
   ) {
-    // Check category is existing
-    const category = await this.categoriesService.findOne(id);
+    const category = await this.categoriesService.findOneForUser(
+      +id,
+      req.user.id,
+    );
 
     if (!category) {
-      throw new BadRequestException('Category does not exist.');
-    }
-
-    const user = await this.usersService.findById(req.user.id);
-
-    if (!user) {
       throw new UnauthorizedException(
-        'You have no access to update this wallet',
+        'You have no access to update this category',
       );
     }
 
@@ -87,12 +91,16 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
-    // Check category is existing
-    const category = await this.categoriesService.findOne(id);
+  async remove(@Param('id') id: number, @Request() req) {
+    const category = await this.categoriesService.findOneForUser(
+      +id,
+      req.user.id,
+    );
 
     if (!category) {
-      throw new BadRequestException('Category does not exist.');
+      throw new UnauthorizedException(
+        'You have no access to delete this category',
+      );
     }
     return await this.categoriesService.remove(+id);
   }

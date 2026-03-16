@@ -11,7 +11,6 @@ import {
   UseInterceptors,
   Request,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
 import { RecordsService } from './records.service';
 import { CreateRecordDto } from './dto/create-record.dto';
@@ -41,53 +40,87 @@ export class RecordsController {
     const user = await this.usersService.findById(req.user.id);
 
     if (!user) {
-      throw new UnauthorizedException('Unable to create category');
+      throw new UnauthorizedException('Unable to create record');
     }
+
+    const wallet = await this.walletsService.findOneForUser(
+      createRecordDto.wallet.id,
+      req.user.id,
+    );
+
+    const category = await this.categoriesService.findOneForUser(
+      createRecordDto.category.id,
+      req.user.id,
+    );
+
+    if (!wallet || !category) {
+      throw new UnauthorizedException('Unable to create record');
+    }
+
     return this.recordsService.create(createRecordDto);
   }
 
   @Get('/wallet/:id')
-  async findAll(@Param('id') id: number) {
-    const wallet = await this.walletsService.findOne(id);
+  async findAll(@Param('id') id: number, @Request() req) {
+    const wallet = await this.walletsService.findOneForUser(+id, req.user.id);
 
     if (!wallet) {
-      throw new BadRequestException('Wallet does not exist');
+      throw new UnauthorizedException('You have no access to this wallet');
     }
 
     return await this.recordsService.findAll(wallet);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.recordsService.findOne(+id);
+  async findOne(@Param('id') id: number, @Request() req) {
+    const record = await this.recordsService.findOneForUser(+id, req.user.id);
+
+    if (!record) {
+      throw new UnauthorizedException('You have no access to this record');
+    }
+
+    return record;
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: number,
     @Body() updateRecordDto: UpdateRecordDto,
+    @Request() req,
   ) {
-    const record = await this.recordsService.findOne(id);
+    const record = await this.recordsService.findOneForUser(+id, req.user.id);
 
     if (!record) {
-      throw new BadRequestException('Record does not exist');
+      throw new UnauthorizedException(
+        'You have no access to update this record',
+      );
     }
 
     return await this.recordsService.update(+id, updateRecordDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id') id: number, @Request() req) {
+    const record = await this.recordsService.findOneForUser(+id, req.user.id);
+
+    if (!record) {
+      throw new UnauthorizedException(
+        'You have no access to delete this record',
+      );
+    }
+
     return await this.recordsService.remove(+id);
   }
 
   @Get('/category/:categoryId/remarks')
-  async getRemarks(@Param('categoryId') categoryId: number) {
-    // Get all the remarks of that category
-    const category = await this.categoriesService.findOne(categoryId);
+  async getRemarks(@Param('categoryId') categoryId: number, @Request() req) {
+    const category = await this.categoriesService.findOneForUser(
+      +categoryId,
+      req.user.id,
+    );
 
     if (!category) {
-      throw new BadRequestException('The category does not exist');
+      throw new UnauthorizedException('You have no access to this category');
     }
 
     const records = await this.recordsService.getRemarks(category);

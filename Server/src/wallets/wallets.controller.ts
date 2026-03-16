@@ -10,7 +10,6 @@ import {
   UseGuards,
   UseInterceptors,
   Request,
-  BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
@@ -40,7 +39,7 @@ export class WalletsController {
     // Validate the user
     const user = await this.usersService.findById(createWalletDto.userId);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to create wallet');
     }
     return await this.walletsService.create(createWalletDto, user);
@@ -48,9 +47,9 @@ export class WalletsController {
 
   @Get('/user/:id')
   async findAll(@Request() req, @Param('id') id: number) {
-    const user = await this.usersService.findById(id);
+    const user = await this.usersService.findById(+id);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to fetch wallet list');
     }
 
@@ -68,15 +67,8 @@ export class WalletsController {
     @Body() updateWalletDto: UpdateWalletDto,
     @Request() req,
   ) {
-    // Check wallet is existing
-    const wallet = await this.walletsService.findOne(id);
+    const wallet = await this.walletsService.findOneForUser(+id, req.user.id);
     if (!wallet) {
-      throw new BadRequestException('Wallet does not exist.');
-    }
-
-    const user = await this.usersService.findById(req.user.id);
-
-    if (!user) {
       throw new UnauthorizedException(
         'You have no access to update this wallet',
       );
@@ -86,12 +78,11 @@ export class WalletsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
-    // Check wallet is existing
-    const wallet = await this.walletsService.findOne(id);
+  async remove(@Param('id') id: number, @Request() req) {
+    const wallet = await this.walletsService.findOneForUser(+id, req.user.id);
 
     if (!wallet) {
-      throw new BadRequestException('Wallet does not exist.');
+      throw new UnauthorizedException('You have no access to delete this wallet');
     }
 
     return await this.walletsService.remove(wallet.id);

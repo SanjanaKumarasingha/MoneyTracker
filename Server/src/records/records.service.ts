@@ -42,6 +42,25 @@ export class RecordsService {
     return await this.recordRepository.findOne({ where: { id } });
   }
 
+  async findOneForUser(id: number, userId: number) {
+    return await this.recordRepository.findOne({
+      relations: {
+        wallet: {
+          user: true,
+        },
+        category: true,
+      },
+      where: {
+        id,
+        wallet: {
+          user: {
+            id: userId,
+          },
+        },
+      },
+    });
+  }
+
   async update(id: number, updateRecordDto: UpdateRecordDto) {
     return await this.recordRepository.save({
       id: id,
