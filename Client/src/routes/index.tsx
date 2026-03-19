@@ -1,9 +1,10 @@
-import { Outlet, createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import AuthLayout from '../layout/AuthLayout';
 import ErrorPage from '../pages/ErrorPage';
 import Home from '../pages/Home';
 import Chart from '../pages/Chart';
 import LoginPage from '../pages/LoginPage';
+import PublicLayout from '../layout/PublicLayout';
 import Layout from '../layout/Layout';
 import RegisterPage from '../pages/RegisterPage';
 import WalletPage from '../pages/WalletPage';
@@ -85,11 +86,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '',
-    element: (
-      <Layout mode="layout">
-        <Outlet />
-      </Layout>
-    ),
+    element: <PublicLayout />,
     children: routes.publicRoute.map((route) => {
       return { path: route.path, element: route.element };
     }),

@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import clsx from 'clsx';
 import NavbarOverlay from '../components/NavbarOverlay';
 import { useMenu } from '../provider/MenuOpenProvider';
-import Footer from '../components/Footer';
+import { useDarkMode } from '../provider/DarkModeProvider';
 
 type LayoutProps = {
   children: ReactElement;
@@ -13,24 +13,37 @@ type LayoutProps = {
 
 const Layout = ({ children, mode }: LayoutProps) => {
   const { isSideBarOpen } = useMenu();
+  const { isDarkMode } = useDarkMode();
 
   return (
-    <div className="min-h-screen font-Barlow flex flex-col bg-white dark:bg-zinc-900 text-zinc-900 dark:text-primary-50">
-      <div className="grid grid-cols-5  p-2 gap-2 transition-all select-none flex-1">
+    <div
+      className={clsx(
+        'min-h-screen font-Barlow transition-colors duration-500',
+        isDarkMode ? 'bg-[#06121f] text-white' : 'bg-[#f3f7fb] text-slate-900',
+      )}
+    >
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-24 top-[-120px] h-[360px] w-[360px] rounded-full bg-blue-500/20 blur-[110px]" />
+        <div className="absolute right-[-80px] top-[140px] h-[320px] w-[320px] rounded-full bg-emerald-400/15 blur-[100px]" />
+        <div className="absolute bottom-[-120px] left-[35%] h-[280px] w-[280px] rounded-full bg-cyan-400/10 blur-[100px]" />
+      </div>
+
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-3 sm:px-4">
+        <div className="grid flex-1 grid-cols-1 gap-3 select-none sm:grid-cols-[270px_minmax(0,1fr)]">
         {mode === 'dashboard' && (
-          <div className="sm:block hidden">
+          <div className="hidden sm:block">
             <Navbar />
           </div>
         )}
 
         <div
           className={clsx(
-            'flex-1 flex flex-col gap-2 ',
-            mode === 'dashboard' ? 'sm:col-span-4 col-span-5' : 'col-span-5',
+            'flex min-w-0 flex-1 flex-col gap-3',
+            mode === 'dashboard' ? '' : 'sm:col-span-2',
           )}
         >
           <Header />
-          <div className="rounded-lg flex-1">{children}</div>
+          <main className="flex-1">{children}</main>
         </div>
 
         <div
@@ -42,8 +55,7 @@ const Layout = ({ children, mode }: LayoutProps) => {
           <NavbarOverlay />
         </div>
       </div>
-      <div className="mt-auto">
-        <Footer />
+
       </div>
     </div>
   );

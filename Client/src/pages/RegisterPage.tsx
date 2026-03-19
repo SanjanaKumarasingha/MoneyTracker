@@ -5,6 +5,7 @@ import { register } from "../apis";
 import CustomTextField from "../components/Custom/CustomTextField";
 import { IUser, IUserInfo, ApiError } from "../types";
 import { AxiosError } from "axios";
+import { useNavigate } from "react-router-dom";
 
 export interface NewUser extends IUser {
   email: string;
@@ -12,6 +13,7 @@ export interface NewUser extends IUser {
 }
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState<NewUser>({
     username: "",
     password: "",
@@ -63,7 +65,6 @@ const RegisterPage = () => {
 
     const username = userInfo.username.trim();
     const email = userInfo.email.trim();
-    console.log("dhgfdhghg")
 
     if (!isFormValid) {
       setAlert({ message: "Please fill up all the blanks", type: "error" });
@@ -142,7 +143,14 @@ const RegisterPage = () => {
             setVisibleControl={setShowConfirmPassword}
           />
 
-          <div className="flex justify-end pt-1">
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              className="text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
+              onClick={() => navigate("/login")}
+            >
+              Already have an account? Login
+            </button>
             <button
               type="submit"
               disabled={createUser.isPending || !isFormValid}

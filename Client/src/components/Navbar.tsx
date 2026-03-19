@@ -20,44 +20,39 @@ export const navItems: INavItem[] = [
 ];
 
 function Navbar() {
-  const glass =
-    'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow';
-
   return (
     <aside
       className={clsx(
-        glass,
-        'h-full text-white/90',
-        // deep navy base glow
-        'bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950/70',
+        'dashboard-panel sticky top-3 h-full overflow-hidden text-white/90',
+        'bg-gradient-to-b from-slate-950/78 via-slate-950/52 to-slate-950/78',
       )}
     >
-      {/* Brand */}
       <NavLink
         to="/"
-        className="block px-6 py-5 select-none focus:outline-none focus:ring-2 focus:ring-emerald-400/40 rounded-2xl"
+        className="block rounded-[24px] px-5 py-5 select-none focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
       >
-        <div className="flex items-center gap-3">
-          {/* Logo dot */}
-          <div className="h-9 w-9 rounded-xl bg-emerald-400/15 border border-emerald-300/20 flex items-center justify-center">
-            <div className="h-2 w-2 rounded-full bg-emerald-300/70" />
+        <div className="flex items-center gap-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/15">
+            <div className="h-4 w-4 rounded-[6px] bg-gradient-to-br from-emerald-300 to-cyan-300 shadow-[0_0_18px_rgba(52,211,153,0.45)]" />
           </div>
 
           <div className="leading-tight">
-            <p className="text-lg font-semibold tracking-wide">Expense</p>
-            <p className="text-lg font-semibold tracking-wide text-emerald-100/90">
-              Tracker
+            <p className="dashboard-kicker text-white/40">Money Tracker</p>
+            <p className="text-lg font-semibold tracking-wide text-white">
+              Finance OS
             </p>
           </div>
         </div>
       </NavLink>
 
-      {/* Menu */}
-      <nav className="px-3 pb-4">
-        {/* <p className="px-3 pt-2 pb-2 text-xs uppercase tracking-widest text-white/50">
-          Menu
-        </p> */}
+      <div className="mx-5 mb-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-4">
+        <p className="text-sm font-medium text-white/75">Track spending with structure</p>
+        <p className="mt-1 text-xs leading-5 text-white/45">
+          Keep wallets, records, and reporting aligned in one place.
+        </p>
+      </div>
 
+      <nav className="px-3 pb-4">
         <div className="flex flex-col gap-2">
           {navItems.map((item) => (
             <NavLink
@@ -66,12 +61,12 @@ function Navbar() {
               end={item.path === '/'}
               className={({ isActive }) =>
                 clsx(
-                  'group flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+                  'group flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200',
                   'border border-transparent',
                   'hover:bg-white/10 hover:border-white/10',
                   'active:scale-[0.99]',
                   isActive
-                    ? 'bg-emerald-400/15 border-emerald-300/20 text-emerald-50'
+                    ? 'bg-gradient-to-r from-emerald-400/18 to-cyan-400/12 border-emerald-300/20 text-emerald-50 shadow-[0_16px_35px_rgba(16,185,129,0.12)]'
                     : 'text-white/80',
                 )
               }
@@ -88,12 +83,10 @@ function Navbar() {
 
               <span className="text-sm font-medium">{item.name}</span>
 
-              {/* Active indicator */}
               <span
                 className={clsx(
                   'ml-auto h-2 w-2 rounded-full transition-opacity duration-200',
                   'bg-emerald-300/70',
-                  // visible only on active link
                   'opacity-0 group-[.active]:opacity-100',
                 )}
               />
