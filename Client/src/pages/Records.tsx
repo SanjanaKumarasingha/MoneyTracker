@@ -1,28 +1,29 @@
 import { useRef, useState } from 'react';
-import { useAppDispatch } from '../hooks';
-import { IoSettingsOutline } from 'react-icons/io5';
-import { ICategory, IRecord } from '../types';
 import { AiOutlinePlus } from 'react-icons/ai';
-import RecordModal from '../components/record/RecordModal';
 import { DateTime } from 'luxon';
-import IconSelector from '../components/IconSelector';
+import { IoSettingsOutline } from 'react-icons/io5';
 import clsx from 'clsx';
+
+import { ICategory, IRecord } from '../types';
+import { useAppDispatch } from '../hooks';
+import { useDarkMode } from '../provider/DarkModeProvider';
+import { useRecord } from '../provider/RecordDataProvider';
+import { updateFavWallet } from '../store/walletSlice';
+
+import RecordModal from '../components/record/RecordModal';
+import IconSelector from '../components/IconSelector';
 import CustomAccordion from '../components/Custom/CustomAccordion';
 import CustomModal from '../components/Custom/CustomModal';
 import CustomSelector from '../components/Custom/CustomSelector';
-import { updateFavWallet } from '../store/walletSlice';
-import { useRecord } from '../provider/RecordDataProvider';
 
 type Props = {};
 
 const Records = (props: Props) => {
   const [open, setOpen] = useState(false);
-
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [openSelectWallet, setOpenSelectWallet] = useState(false);
 
   const headerRef = useRef<HTMLDivElement>(null);
-
-  const [openSelectWallet, setOpenSelectWallet] = useState(false);
 
   const [editRecord, setEditRecord] = useState<IRecord>({
     id: 0,
@@ -36,95 +37,178 @@ const Records = (props: Props) => {
 
   const { wallets, favWallet, income, expense, total, dateRecords } =
     useRecord();
-
+  const { isDarkMode } = useDarkMode();
   const dispatch = useAppDispatch();
 
   return (
-    <div className="relative h-full">
+    <div className="dashboard-page">
       {favWallet ? (
-        <div className="bg-primary-500 p-2 rounded-md text-white relative">
+        <div className="dashboard-panel relative overflow-hidden">
+          <div className="absolute right-[-32px] top-[-26px] h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="relative">
-            <div>{favWallet.name}</div>
-            <div className="flex items-center justify-between">
-              <p>Income:</p> <p>{income.toFixed(2)}</p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p
+                  className={clsx(
+                    'dashboard-kicker',
+                    isDarkMode ? 'text-white/40' : 'text-slate-500',
+                  )}
+                >
+                  Current wallet
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold">{favWallet.name}</h2>
+                <p
+                  className={clsx(
+                    'mt-1 text-sm',
+                    isDarkMode ? 'text-white/60' : 'text-slate-500',
+                  )}
+                >
+                  Review cash flow and drill into daily activity.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className={clsx(
+                  'dashboard-chip',
+                  isDarkMode
+                    ? 'text-white/75 hover:bg-white/10'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50',
+                )}
+                onClick={() => {
+                  setOpenSelectWallet(true);
+                }}
+              >
+                <IoSettingsOutline strokeWidth={1.4} />
+                Switch wallet
+              </button>
             </div>
-            <div className="flex items-center justify-between">
-              <p>Expense:</p> <p>{expense.toFixed(2)}</p>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/10 p-4">
+                <p className="text-sm text-emerald-100/70">Income</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {favWallet.currency} {income.toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rose-400/15 bg-rose-400/10 p-4">
+                <p className="text-sm text-rose-100/70">Expense</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {favWallet.currency} {expense.toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4">
+                <p className="text-sm text-cyan-100/70">Balance</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {favWallet.currency} {total.toFixed(2)}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <p>Balance:</p> <p>{total.toFixed(2)}</p>
-            </div>
-            <div className="absolute text-primary-100 text-opacity-25 text-6xl top-0 right-0">
+
+            <div className="absolute bottom-0 right-0 text-7xl font-semibold text-white/5">
               {favWallet.currency}
             </div>
           </div>
-          <div
-            className="absolute top-1 right-1 rounded-full p-1 hover:bg-primary-300 active:bg-primary-100 h-fit"
-            onClick={() => {
-              // Update the fav wallet
-              // update the dispatch -> local storage
-              setOpenSelectWallet(true);
-            }}
-          >
-            <IoSettingsOutline strokeWidth={1} className="cursor-pointer" />
-          </div>
         </div>
       ) : (
-        <div>Please create a wallet first to create records.</div>
+        <div className="dashboard-panel">
+          Please create a wallet first to create records.
+        </div>
       )}
 
-      <div
-        className="absolute bottom-0 right-0 w-fit p-1 text-2xl text-white rounded-full bg-primary-400 hover:bg-primary-300 active:bg-primary-200 cursor-pointer"
-        onClick={() => {
-          setEditRecord((prev) => ({
-            ...prev,
-            id: 0,
-            price: 0,
-            remarks: '',
-          }));
-          setOpen(true);
-        }}
-      >
-        <AiOutlinePlus />
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <div>
+          <p
+            className={clsx(
+              'dashboard-kicker',
+              isDarkMode ? 'text-white/40' : 'text-slate-500',
+            )}
+          >
+            Timeline
+          </p>
+          <h3 className="mt-2 text-xl font-semibold">Daily records</h3>
+        </div>
+
+        <button
+          type="button"
+          className="rounded-2xl border border-emerald-300/20 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20"
+          onClick={() => {
+            setEditRecord((prev) => ({
+              ...prev,
+              id: 0,
+              price: 0,
+              remarks: '',
+            }));
+            setOpen(true);
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <AiOutlinePlus />
+            Add record
+          </span>
+        </button>
       </div>
+
       {Object.keys(dateRecords).length > 0 ? (
-        <div className="bg-primary-300 dark:bg-primary-600 rounded-md p-2 mt-1">
+        <div className="dashboard-panel mt-4">
           {dateRecords.map(({ date, records }, index) => (
             <div key={index} className="py-1">
               <CustomAccordion
                 header={
                   <div
                     ref={headerRef}
-                    className="accordion-header flex justify-between items-center"
+                    className="accordion-header flex items-center justify-between rounded-2xl px-1 py-2"
                     onClick={() => {
-                      setEditRecord((prev) => ({ ...prev, date: date }));
+                      setEditRecord((prev) => ({ ...prev, date }));
                     }}
                   >
-                    <div>{date}</div>
                     <div>
-                      ${' '}
-                      {records
-                        .reduce((acc, cur) => {
-                          const price =
-                            cur.category.type === 'expense'
-                              ? -Number(cur.price)
-                              : Number(cur.price);
-                          return acc + price;
-                        }, 0)
-                        .toFixed(2)}
+                      <div className="font-medium">{date}</div>
+                      <div
+                        className={clsx(
+                          'text-xs',
+                          isDarkMode ? 'text-white/45' : 'text-slate-500',
+                        )}
+                      >
+                        {records.length} transaction{records.length > 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={clsx(
+                          'text-xs uppercase tracking-[0.24em]',
+                          isDarkMode ? 'text-white/35' : 'text-slate-400',
+                        )}
+                      >
+                        Net
+                      </div>
+                      <div className="font-semibold">
+                        {favWallet?.currency}{' '}
+                        {records
+                          .reduce((acc, cur) => {
+                            const price =
+                              cur.category.type === 'expense'
+                                ? -Number(cur.price)
+                                : Number(cur.price);
+                            return acc + price;
+                          }, 0)
+                          .toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 }
-                customClass="bg-primary-100 dark:bg-primary-400"
+                customClass={clsx(
+                  'rounded-3xl border px-3 py-2',
+                  isDarkMode
+                    ? 'border-white/10 bg-white/5'
+                    : 'border-slate-200 bg-white/80',
+                )}
                 triggerUpdate={favWallet}
                 hideArrow
                 controlled={{
                   expanded: selectedDate === date,
-                  handleChange: (
-                    open: boolean,
-                    e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-                  ) => {
-                    if (open) {
+                  handleChange: (openValue: boolean) => {
+                    if (openValue) {
                       setSelectedDate('');
                     } else {
                       setSelectedDate(date);
@@ -132,15 +216,18 @@ const Records = (props: Props) => {
                   },
                 }}
               >
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {records.map((record) => (
                     <div
                       key={record.id}
                       className={clsx(
-                        'flex items-center justify-between p-1 bg-white dark:bg-primary-200 rounded-md cursor-pointer hover:bg-primary-50',
+                        'flex items-center justify-between rounded-2xl border px-3 py-3 cursor-pointer transition',
+                        isDarkMode
+                          ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                          : 'border-slate-200 bg-slate-50 hover:bg-white',
                         record.category.type === 'expense'
-                          ? 'text-rose-400 '
-                          : 'text-info-400 dark:text-info-600',
+                          ? 'text-rose-300'
+                          : 'text-emerald-300',
                       )}
                       onClick={() => {
                         setEditRecord(record);
@@ -148,23 +235,35 @@ const Records = (props: Props) => {
                         setOpen(true);
                       }}
                     >
-                      <div className={clsx('flex items-center gap-2')}>
+                      <div className="flex items-center gap-3">
                         <div
                           className={clsx(
-                            'p-1 rounded-full text-white bg-amber-400',
+                            'rounded-2xl border p-2',
+                            isDarkMode
+                              ? 'border-white/10 bg-white/10 text-white'
+                              : 'border-slate-200 bg-white text-slate-700',
                           )}
                         >
                           <IconSelector name={record.category.icon} />
                         </div>
-                        <span className="flex items-baseline gap-2">
-                          <span>{record.category.name}</span>
-                          <span className="text-sm">{record.remarks}</span>
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-white dark:text-white">
+                            {record.category.name}
+                          </span>
+                          <span
+                            className={clsx(
+                              'text-sm',
+                              isDarkMode ? 'text-white/45' : 'text-slate-500',
+                            )}
+                          >
+                            {record.remarks || 'No remarks'}
+                          </span>
+                        </div>
                       </div>
 
-                      <span>
-                        {record.category.type === 'expense' && '-'}${' '}
-                        {record.price}
+                      <span className="font-semibold">
+                        {record.category.type === 'expense' && '-'}
+                        {favWallet?.currency} {record.price}
                       </span>
                     </div>
                   ))}
@@ -174,7 +273,7 @@ const Records = (props: Props) => {
           ))}
         </div>
       ) : (
-        <div>No records</div>
+        <div className="dashboard-panel mt-4">No records</div>
       )}
 
       {open && (

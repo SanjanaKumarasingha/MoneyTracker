@@ -8,8 +8,8 @@ export async function addCategory(
   return res.data;
 }
 
-export async function fetchCategories(): Promise<ICategory[]> {
-  const response = await Axios.get('/v1/categories');
+export async function fetchCategories(walletId: number): Promise<ICategory[]> {
+  const response = await Axios.get(`/v1/categories/wallet/${walletId}`);
   return response.data;
 }
 

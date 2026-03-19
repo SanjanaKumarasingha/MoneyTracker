@@ -9,6 +9,8 @@ import CustomTextField from '../Custom/CustomTextField';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../provider/AuthProvider';
+import { useAppDispatch } from '../../hooks';
+import { updateFavWallet } from '../../store/walletSlice';
 
 type WalletModalProps = {
   type: 'Create' | 'Edit' | 'Delete';
@@ -25,6 +27,7 @@ const WalletModal = ({
 }: WalletModalProps) => {
   const queryClient = useQueryClient();
   const { userId } = useAuth();
+  const dispatch = useAppDispatch();
 
   const glassCard =
     'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow text-white';
@@ -37,7 +40,9 @@ const WalletModal = ({
   >({
     mutationFn: createWallet,
     onMutate: async ({ id, name, currency }) => {
-      queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+
+      queryClient.setQueryData<IWallet[]>(['wallets', userId], (oldData) => {
         if (oldData) {
           return [...oldData, { id, name, currency } as IWallet];
         }
@@ -45,7 +50,7 @@ const WalletModal = ({
       });
 
       return {
-        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets']),
+        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets', userId]),
       };
     },
     onError: (error, variables, context) => {
@@ -55,16 +60,17 @@ const WalletModal = ({
 
       if (typedContext.previousWallets) {
         queryClient.setQueryData<IWallet[]>(
-          ['wallets'],
+          ['wallets', userId],
           typedContext.previousWallets,
         );
       }
       toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
     onSuccess(data) {
+      dispatch(updateFavWallet(data.id));
       toast(
         `Wallet is created\nName: ${data.name}\nCurrency:${data.currency}`,
         { type: 'success' },
@@ -82,7 +88,9 @@ const WalletModal = ({
   >({
     mutationFn: updateWallet,
     onMutate: async ({ id, name, currency }) => {
-      queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+
+      queryClient.setQueryData<IWallet[]>(['wallets', userId], (oldData) => {
         if (oldData) {
           oldData.forEach((old) => {
             if (old.id === id) {
@@ -95,7 +103,7 @@ const WalletModal = ({
       });
 
       return {
-        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets']),
+        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets', userId]),
       };
     },
     onError: (error, variables, context) => {
@@ -105,14 +113,14 @@ const WalletModal = ({
 
       if (typedContext.previousWallets) {
         queryClient.setQueryData<IWallet[]>(
-          ['wallets'],
+          ['wallets', userId],
           typedContext.previousWallets,
         );
       }
       toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
     onSuccess(data) {
       toast(
@@ -156,7 +164,9 @@ const WalletModal = ({
     mutationFn: deleteWallet,
     onError(error, variables, context) {},
     onMutate: async (variables) => {
-      queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+
+      queryClient.setQueryData<IWallet[]>(['wallets', userId], (oldData) => {
         if (oldData) {
           return oldData.filter((prev) => prev.id !== variables);
         }
@@ -164,7 +174,7 @@ const WalletModal = ({
       });
 
       return {
-        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets']),
+        previousWallets: queryClient.getQueryData<IWallet[]>(['wallets', userId]),
       };
     },
     onSuccess(data) {
@@ -173,6 +183,9 @@ const WalletModal = ({
         { type: 'info' },
       );
       setOpen(false);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
   });
 

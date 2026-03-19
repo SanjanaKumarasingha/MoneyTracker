@@ -15,6 +15,8 @@ export interface IWallet {
   id: number;
   name: string;
   currency: string;
+  categoryOrder?: number[];
+  categories?: ICategory[];
 }
 
 export type TCategoryType = 'expense' | 'income';
@@ -50,7 +52,7 @@ export interface ICreateWallet extends IWallet {
 }
 
 export interface ICreateCategory extends ICategory {
-  userId: number;
+  walletId: number;
 }
 
 export interface ICreateRecord extends IRecord {
@@ -62,7 +64,7 @@ export interface IUserInfo {
   id: number;
   username: string;
   email: string;
-  categoryOrder: number[];
+  categoryOrder?: number[];
 }
 
 export interface IUpdatePasswordDto extends IUserInfo {

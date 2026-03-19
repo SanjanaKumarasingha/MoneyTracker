@@ -17,11 +17,13 @@ import { useRecord } from '../../provider/RecordDataProvider';
 import CategorySelector from '../record/CategorySelector';
 import PercentRow from './PercentRow';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import {
+  buildDoughnutData,
+  buildDoughnutOptions,
+  chartGlassCardClass,
+} from './chartTheme';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
-
-const glassCard =
-  'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow p-4';
 
 const PieChart = () => {
   const {
@@ -61,49 +63,15 @@ const PieChart = () => {
 
   /* ======================= CHART ======================= */
 
-  const data: ChartData<'doughnut'> = {
-    labels,
-    datasets: [
-      {
-        data: values,
-        backgroundColor: [
-          'rgba(16, 185, 129, 0.3)',   // emerald
-          'rgba(59, 130, 246, 0.3)',   // blue
-          'rgba(14, 165, 233, 0.3)',   // sky
-          'rgba(99, 102, 241, 0.3)',   // indigo
-          'rgba(34, 197, 94, 0.3)',    // green
-          'rgba(6, 182, 212, 0.3)',    // cyan
-        ],
-        borderColor: [
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(14, 165, 233, 0.8)',
-          'rgba(99, 102, 241, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(6, 182, 212, 0.8)',
-        ],
-        borderWidth: 1.5,
-      },
-    ],
-  };
+  const data: ChartData<'doughnut'> = useMemo(
+    () => buildDoughnutData(labels, values, `${categoryType} distribution`),
+    [categoryType, labels, values],
+  );
 
-  const options: ChartOptions<'doughnut'> = {
-    cutout: '45%',
-    plugins: {
-      legend: {
-        labels: {
-          color: 'rgba(255,255,255,0.8)',
-          font: { family: 'Barlow' },
-        },
-      },
-      datalabels: {
-        color: 'white',
-        font: { size: 14 },
-        formatter: (_value, context) =>
-          context.chart.data.labels?.[context.dataIndex] ?? '',
-      },
-    },
-  };
+  const options: ChartOptions<'doughnut'> = useMemo(
+    () => buildDoughnutOptions('dark'),
+    [],
+  );
 
   /* ======================= UI ======================= */
 
@@ -112,7 +80,7 @@ const PieChart = () => {
   return (
     <div className="flex flex-col lg:flex-row gap-6 text-white">
       {/* LEFT PANEL */}
-      <div className={clsx(glassCard, 'w-full lg:w-1/2')}>
+      <div className={clsx(chartGlassCardClass, 'w-full lg:w-1/2')}>
         <CategorySelector
           options={Object.values(ECategoryType)}
           value={categoryType}
@@ -166,13 +134,15 @@ const PieChart = () => {
               No records for {groupByCategoryRecords.date}
             </div>
           ) : (
-            <Doughnut options={options} data={data} />
+            <div className="mx-auto h-[280px] max-w-[320px] sm:h-[320px]">
+              <Doughnut options={options} data={data} />
+            </div>
           )}
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      <div className={clsx(glassCard, 'flex-1')}>
+      <div className={clsx(chartGlassCardClass, 'flex-1')}>
         <div className="flex justify-between items-center mb-4">
           <span className="text-xl font-semibold">
             Total {categoryType}

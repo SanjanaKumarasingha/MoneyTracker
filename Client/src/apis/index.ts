@@ -7,6 +7,16 @@ export const Axios = axios.create({
   withCredentials: true,
 });
 
+Axios.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('access_token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export async function signIn(user: IUser): Promise<LoginResponse> {
   const res = await Axios.post('/v1/auth/login', {
     ...user,

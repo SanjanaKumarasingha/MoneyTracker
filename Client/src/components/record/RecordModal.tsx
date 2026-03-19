@@ -4,7 +4,6 @@ import {
   ICategory,
   ICreateRecord,
   IRecord,
-  IUserInfo,
   IWallet,
   IWalletRecordWithCategory,
 } from '../../types';
@@ -21,7 +20,6 @@ import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { fetchCategories } from '../../apis/category';
-import { profile } from '../../apis';
 import { useAppDispatch } from '../../hooks';
 import { ECategoryType } from '../../common/category-type';
 import clsx from 'clsx';
@@ -78,14 +76,9 @@ const RecordModal = ({
   /* ===================== QUERIES ===================== */
 
   const { data: categories = [] } = useQuery<ICategory[]>({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-  });
-
-  const { data: user } = useQuery<IUserInfo>({
-    queryKey: ['user', userId],
-    queryFn: () => profile(userId!),
-    enabled: !!userId,
+    queryKey: ['categories', wallet?.id],
+    queryFn: () => fetchCategories(wallet!.id),
+    enabled: !!wallet?.id,
   });
 
   const { data: remarks = [] } = useQuery<string[]>({
@@ -121,13 +114,16 @@ const RecordModal = ({
   >({
     mutationFn: createRecord,
     onMutate: async ({ id, price, remarks, date }) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
 
       const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
+        queryClient.getQueryData<IWalletRecordWithCategory[]>([
+          'wallets',
+          userId,
+        ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
-        ['wallets'],
+        ['wallets', userId],
         (old = []) => {
           const walletIndex = old.findIndex((w) => w.id === wallet?.id);
 
@@ -155,7 +151,7 @@ const RecordModal = ({
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
+        queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
@@ -163,7 +159,7 @@ const RecordModal = ({
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
     onSuccess: (_data, vars) => {
       toast(`${vars.category.name} is added`, { type: 'success' });
@@ -185,13 +181,16 @@ const RecordModal = ({
   >({
     mutationFn: updateRecord,
     onMutate: async ({ id, price, remarks, date }) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
 
       const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
+        queryClient.getQueryData<IWalletRecordWithCategory[]>([
+          'wallets',
+          userId,
+        ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
-        ['wallets'],
+        ['wallets', userId],
         (old = []) => {
           const walletIndex = old.findIndex((w) => w.id === wallet?.id);
           if (walletIndex < 0) return old;
@@ -221,7 +220,7 @@ const RecordModal = ({
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
+        queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
@@ -229,7 +228,7 @@ const RecordModal = ({
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
     onSuccess: () => {
       toast('Record is updated', { type: 'success' });
@@ -244,13 +243,16 @@ const RecordModal = ({
   >({
     mutationFn: deleteRecord,
     onMutate: async (recordId) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
+      await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
 
       const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
+        queryClient.getQueryData<IWalletRecordWithCategory[]>([
+          'wallets',
+          userId,
+        ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
-        ['wallets'],
+        ['wallets', userId],
         (old = []) => {
           const walletIndex = old.findIndex((w) => w.id === wallet?.id);
           if (walletIndex < 0) return old;
@@ -269,7 +271,7 @@ const RecordModal = ({
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
+        queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Delete failed', {
@@ -282,7 +284,7 @@ const RecordModal = ({
       setOpen(false);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
   });
 
@@ -348,15 +350,35 @@ const RecordModal = ({
   }, [value, setEditRecord]);
 
   useEffect(() => {
-    if (!categories.length || !user) return;
+    if (!categories.length) {
+      setSortedCategories([]);
+      return;
+    }
 
     const ordered: ICategory[] = [];
-    user.categoryOrder.forEach((id) => {
+    (wallet?.categoryOrder ?? []).forEach((id) => {
       const found = categories.find((c) => c.id === Number(id));
       if (found) ordered.push(found);
     });
-    setSortedCategories(ordered);
-  }, [categories, user]);
+
+    const leftovers = categories.filter(
+      (c) => !ordered.some((item) => item.id === c.id),
+    );
+
+    setSortedCategories([...ordered, ...leftovers]);
+  }, [categories, wallet?.categoryOrder]);
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    const stillExists = categories.some(
+      (category) => category.id === selectedCategory.id,
+    );
+
+    if (!stillExists) {
+      setSelectedCategory(null);
+    }
+  }, [categories, selectedCategory]);
 
   /* ===================== UI (GLASS) ===================== */
 

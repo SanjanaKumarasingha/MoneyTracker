@@ -23,6 +23,10 @@ import { useDarkMode } from '../provider/DarkModeProvider';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
 import { updateFavWallet } from '../store/walletSlice';
+import {
+  buildDoughnutData,
+  buildDoughnutOptions,
+} from '../components/chart/chartTheme';
 
 type Props = {};
 
@@ -63,68 +67,19 @@ function Home(props: Props) {
   }, [groupByCategoryRecords, updateGroupingScale]);
 
   const options: ChartOptions<'doughnut'> = useMemo(
-    () => ({
-      cutout: '68%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            font: { family: 'Barlow' },
-            color: isDarkMode
-              ? 'rgba(255,255,255,0.75)'
-              : 'rgba(0,0,0,0.70)',
-            boxWidth: 10,
-            boxHeight: 10,
-          },
-        },
-        datalabels: {
-          display: true,
-          font: { size: 12, family: 'Barlow' },
-          formatter: function (_value, context) {
-            return (context.chart.data.labels as string[])[context.dataIndex];
-          },
-          anchor: 'end',
-          align: 'start',
-          color: isDarkMode
-            ? 'rgba(255,255,255,0.70)'
-            : 'rgba(0,0,0,0.60)',
-        },
-      },
-    }),
+    () => buildDoughnutOptions(isDarkMode ? 'dark' : 'light'),
     [isDarkMode],
   );
 
   const data: ChartData<'doughnut'> = useMemo(
-    () => ({
-      labels: Object.keys(groupByCategoryRecords?.records?.expense ?? {}),
-      datasets: [
-        {
-          label: 'Expenses',
-          data: Object.values(
-            groupByCategoryRecords?.records?.expense ?? {},
-          ).map((e) =>
-            e.reduce((acc, cur) => acc + Number(cur.price), 0),
-          ),
-          backgroundColor: [
-            'rgba(34, 197, 94, 0.60)',
-            'rgba(45, 125, 255, 0.55)',
-            'rgba(16, 185, 129, 0.55)',
-            'rgba(59, 130, 246, 0.50)',
-            'rgba(99, 102, 241, 0.45)',
-            'rgba(244, 63, 94, 0.45)',
-          ],
-          borderColor: [
-            'rgba(34, 197, 94, 0.95)',
-            'rgba(45, 125, 255, 0.90)',
-            'rgba(16, 185, 129, 0.90)',
-            'rgba(59, 130, 246, 0.85)',
-            'rgba(99, 102, 241, 0.80)',
-            'rgba(244, 63, 94, 0.80)',
-          ],
-          borderWidth: 1,
-        },
-      ],
-    }),
+    () =>
+      buildDoughnutData(
+        Object.keys(groupByCategoryRecords?.records?.expense ?? {}),
+        Object.values(groupByCategoryRecords?.records?.expense ?? {}).map((e) =>
+          e.reduce((acc, cur) => acc + Number(cur.price), 0),
+        ),
+        'Expenses',
+      ),
     [groupByCategoryRecords],
   );
 
@@ -230,16 +185,22 @@ function Home(props: Props) {
 
             <button
               className={clsx(
-                'rounded-xl px-3 py-2 text-sm font-semibold transition disabled:opacity-50',
+                'rounded-xl px-3 py-2 text-sm font-semibold transition',
                 isDarkMode
                   ? 'glass glow-green text-emerald-200 hover:bg-white/10'
                   : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm',
               )}
-              disabled={!favWallet?.id}
-              onClick={() => setOpen(true)}
+              onClick={() => {
+                if (!favWallet?.id) {
+                  navigate('/wallets');
+                  return;
+                }
+
+                setOpen(true);
+              }}
             >
               <span className="inline-flex items-center gap-2">
-                <AiOutlinePlus /> Add Record
+                <AiOutlinePlus /> {favWallet?.id ? 'Add Record' : 'Create Wallet'}
               </span>
             </button>
           </div>
@@ -288,7 +249,18 @@ function Home(props: Props) {
               </div>
             </div>
 
-            {noRecords ? (
+            {!favWallet ? (
+              <div
+                className={clsx(
+                  'rounded-xl border p-4 text-sm',
+                  isDarkMode
+                    ? 'border-white/10 bg-white/5 text-white/60'
+                    : 'border-slate-200 bg-white/60 text-slate-500',
+                )}
+              >
+                Create your first wallet to unlock dashboard charts.
+              </div>
+            ) : noRecords ? (
               <div
                 className={clsx(
                   'rounded-xl border p-4 text-sm',
@@ -348,16 +320,33 @@ function Home(props: Props) {
                     ? 'glass hover:bg-white/10 active:bg-white/5'
                     : 'border border-slate-200 bg-white hover:bg-slate-50',
                 )}
-                onClick={() => setOpen(true)}
-                disabled={!favWallet?.id}
-                title="Add new record"
+                onClick={() => {
+                  if (!favWallet?.id) {
+                    navigate('/wallets');
+                    return;
+                  }
+
+                  setOpen(true);
+                }}
+                title={favWallet?.id ? 'Add new record' : 'Create a wallet first'}
               >
                 <AiOutlinePlus />
               </button>
             </div>
 
             <div className="space-y-2">
-              {records.length === 0 ? (
+              {!favWallet ? (
+                <div
+                  className={clsx(
+                    'rounded-xl border p-4 text-sm',
+                    isDarkMode
+                      ? 'border-white/10 bg-white/5 text-white/60'
+                      : 'border-slate-200 bg-white/60 text-slate-500',
+                  )}
+                >
+                  Start by creating a wallet, then add categories and records.
+                </div>
+              ) : records.length === 0 ? (
                 <div
                   className={clsx(
                     'rounded-xl border p-4 text-sm',

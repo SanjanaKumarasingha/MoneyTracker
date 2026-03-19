@@ -26,8 +26,12 @@ import { ICategory } from '../../types';
 import CategorySelector from '../record/CategorySelector';
 import CustomSelector from '../Custom/CustomSelector';
 import CoreChart from './CoreChart';
+import {
+  buildCartesianOptions,
+  chartGlassCardClass,
+  getSeriesPalette,
+} from './chartTheme';
 
-import { useDarkMode } from '../../provider/DarkModeProvider';
 import { displayDate } from '../../common/format-date';
 import { GroupByScale } from '../../common/group-scale.enum';
 
@@ -47,15 +51,11 @@ ChartJS.register(
 type TrendCategoryType = 'expense' | 'income' | 'all';
 type TrendChartType = 'bar' | 'line';
 
-const glassCard =
-  'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow p-4 text-white';
-
 const pillBtn =
   'px-3 py-1 rounded-xl text-sm border border-white/10 hover:bg-white/10 active:bg-white/15 transition';
 
 const Trend = () => {
-  const { isDarkMode } = useDarkMode();
-  const { filterForTrend } = useRecord();
+  const { filterForTrend, favWallet } = useRecord();
 
   const [categoryType, setCategoryType] = useState<TrendCategoryType>('expense');
   const [chartType, setChartType] = useState<TrendChartType>('bar');
@@ -63,8 +63,9 @@ const Trend = () => {
   const [category, setCategory] = useState<ICategory | undefined>(undefined);
 
   const { data: categories = [] } = useQuery<ICategory[]>({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
+    queryKey: ['categories', favWallet?.id],
+    queryFn: () => fetchCategories(favWallet!.id),
+    enabled: !!favWallet?.id,
   });
 
   // ✅ when switching to "all", category filtering doesn't make sense
@@ -95,80 +96,10 @@ const Trend = () => {
 
   const avg = values.length > 0 ? total / values.length : 0;
 
-  const palette = useMemo(() => {
-    // Dark blue + tree green vibe
-    if (categoryType === 'expense') {
-      return {
-        line: 'rgba(34, 197, 94, 0.9)', // green
-        fill: 'rgba(34, 197, 94, 0.25)',
-      };
-    }
-    if (categoryType === 'income') {
-      return {
-        line: 'rgba(59, 130, 246, 0.9)', // blue
-        fill: 'rgba(59, 130, 246, 0.25)',
-      };
-    }
-    return {
-      line: 'rgba(16, 185, 129, 0.9)', // emerald
-      fill: 'rgba(16, 185, 129, 0.25)',
-    };
-  }, [categoryType]);
+  const palette = useMemo(() => getSeriesPalette(categoryType), [categoryType]);
 
   const options: ChartOptions<'bar' | 'line'> = useMemo(
-    () => ({
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        title: { display: false },
-        datalabels: {
-          display: chartType === 'bar',
-          color: 'rgba(255,255,255,0.75)',
-        },
-        annotation: {
-          annotations:
-            values.length === 0
-              ? {}
-              : {
-                  avgLine: {
-                    type: 'line',
-                    scaleID: 'y',
-                    value: avg,
-                    borderColor: 'rgba(255,255,255,0.35)',
-                    borderDash: [10, 6],
-                    borderWidth: 2,
-                    label: {
-                      display: false,
-                      content: `Avg: ${avg.toFixed(2)}`,
-                      color: 'white',
-                      backgroundColor: 'rgba(0,0,0,0.4)',
-                      padding: 6,
-                      position: 'start',
-                    },
-                    enter({ element }) {
-                      element.label!.options.display = true;
-                      return true;
-                    },
-                    leave({ element }) {
-                      element.label!.options.display = false;
-                      return true;
-                    },
-                  },
-                },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: 'rgba(255,255,255,0.7)' },
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: 'rgba(255,255,255,0.12)' },
-          ticks: { color: 'rgba(255,255,255,0.7)' },
-        },
-      },
-    }),
+    () => buildCartesianOptions(chartType, avg, values.length > 0),
     [chartType, values.length, avg],
   );
 
@@ -198,7 +129,7 @@ const Trend = () => {
       : categories.filter((c) => c.type === categoryType).map((c) => c.name);
 
   return (
-    <div className={glassCard}>
+    <div className={chartGlassCardClass}>
       {/* Header row */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-xl font-semibold">Trend</div>
@@ -293,7 +224,9 @@ const Trend = () => {
             No records for {yearLabel}
           </div>
         ) : (
-          <CoreChart chartType={chartType} options={options} data={data} />
+          <div className="h-[320px] sm:h-[360px]">
+            <CoreChart chartType={chartType} options={options} data={data} />
+          </div>
         )}
       </div>
     </div>

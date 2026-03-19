@@ -15,12 +15,14 @@ type CategoryRowProps = {
   category: ICategory;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setEditCategory: React.Dispatch<React.SetStateAction<ICategory>>;
+  walletId?: number;
 };
 
 const CategoryRow = ({
   category: { id, name, icon, enable, type },
   setOpen,
   setEditCategory,
+  walletId,
 }: CategoryRowProps) => {
   const enableRef = useRef<HTMLSpanElement>(null);
 
@@ -49,8 +51,9 @@ const CategoryRow = ({
   >({
     mutationFn: updateCategory,
     onMutate: async (newCategory) => {
-      // Optimistically update the cache
-      queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
+      queryClient.setQueryData<ICategory[]>(
+        ['categories', walletId],
+        (oldData) => {
         if (oldData) {
           oldData.forEach((old) => {
             if (old.id === newCategory.id) {
@@ -62,10 +65,14 @@ const CategoryRow = ({
         }
         console.log(oldData);
         return oldData;
-      });
+      },
+      );
 
       return {
-        previousWallets: queryClient.getQueryData<ICategory[]>(['categories']),
+        previousCategories: queryClient.getQueryData<ICategory[]>([
+          'categories',
+          walletId,
+        ]),
       };
     },
     onError: (error, variables, context) => {
@@ -76,15 +83,14 @@ const CategoryRow = ({
 
       if (typedContext.previousCategories) {
         queryClient.setQueryData<ICategory[]>(
-          ['categories'],
+          ['categories', walletId],
           typedContext.previousCategories,
         );
       }
       toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories', walletId] });
     },
     retry: 3,
   });

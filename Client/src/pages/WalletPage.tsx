@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { HiOutlineTrash } from 'react-icons/hi';
+import clsx from 'clsx';
+import { useNavigate } from 'react-router-dom';
 
 import { IWallet } from '../types';
 import WalletModal from '../components/wallet/WalletModal';
 import { useRecord } from '../provider/RecordDataProvider';
+import { useAppDispatch } from '../hooks';
+import { updateFavWallet } from '../store/walletSlice';
 
 type WalletPageProps = {};
 
 const WalletPage = (_prop: WalletPageProps) => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const [editWallet, setEditWallet] = useState<IWallet>({
     id: 0,
@@ -19,7 +24,8 @@ const WalletPage = (_prop: WalletPageProps) => {
 
   const [type, setType] = useState<'Create' | 'Edit' | 'Delete'>('Create');
 
-  const { wallets } = useRecord();
+  const dispatch = useAppDispatch();
+  const { wallets, favWallet } = useRecord();
 
   const openCreate = () => {
     setType('Create');
@@ -85,29 +91,33 @@ const WalletPage = (_prop: WalletPageProps) => {
                     return acc;
                   }, 0) ?? 0;
 
+                const categorySummary = Object.entries(
+                  (records ?? []).reduce<Record<string, number>>((acc, record) => {
+                    acc[record.category.name] = (acc[record.category.name] ?? 0) + 1;
+                    return acc;
+                  }, {}),
+                )
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 3);
+
                 return (
                   <div
                     key={id}
-                    className="group relative rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:bg-white/10 hover:-translate-y-[1px] cursor-pointer"
-                    onClick={() => openEdit({ id, name, currency })}
+                    className={clsx(
+                      'group relative rounded-2xl border p-4 transition-all hover:bg-white/10 hover:-translate-y-[1px] cursor-pointer',
+                      favWallet?.id === id
+                        ? 'border-emerald-400/30 bg-emerald-400/10'
+                        : 'border-white/10 bg-white/5',
+                    )}
+                    onClick={() => {
+                      dispatch(updateFavWallet(id));
+                      navigate('/categories');
+                    }}
                   >
                     {/* currency watermark */}
                     <div className="pointer-events-none absolute right-3 bottom-2 text-6xl font-bold text-white/5 select-none">
                       {currency}
                     </div>
-
-                    {/* delete button (stop click bubbling so it won't open edit) */}
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 rounded-xl p-2 text-white/60 hover:text-white hover:bg-white/10 active:bg-white/5 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDelete(id);
-                      }}
-                      aria-label="Delete wallet"
-                    >
-                      <HiOutlineTrash strokeWidth={1.5} />
-                    </button>
 
                     <div className="flex flex-col gap-2">
                       <div className="text-sm text-white/60">Wallet</div>
@@ -123,8 +133,55 @@ const WalletPage = (_prop: WalletPageProps) => {
                         </div>
                       </div>
 
-                      <div className="mt-2 text-xs text-white/50">
-                        Click to edit • Trash to delete
+                      <div className="mt-2">
+                        <div className="text-sm text-white/60">Categories</div>
+                        {categorySummary.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {categorySummary.map(([categoryName, count]) => (
+                              <span
+                                key={categoryName}
+                                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80"
+                              >
+                                {categoryName} ({count})
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-xs text-white/45">
+                            No categories used yet
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 hover:bg-white/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit({ id, name, currency });
+                          }}
+                        >
+                          Edit Wallet
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs text-rose-100 hover:bg-rose-400/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDelete(id);
+                          }}
+                          aria-label="Delete wallet"
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <HiOutlineTrash strokeWidth={1.5} />
+                            Delete
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-white/50">
+                        Click card to open this wallet's categories page
                       </div>
                     </div>
                   </div>

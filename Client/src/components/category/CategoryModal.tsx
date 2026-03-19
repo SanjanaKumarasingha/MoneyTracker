@@ -5,18 +5,20 @@ import { EIconName } from '../../common/icon-name.enum';
 import CustomModal from '../Custom/CustomModal';
 import CustomTextField from '../Custom/CustomTextField';
 import IconSelector from '../IconSelector';
-import { ICategory, IUserInfo } from '../../types';
+import { ICategory } from '../../types';
 import { ECategoryType } from '../../common/category-type';
 import { PiTrashThin } from 'react-icons/pi';
 import { deleteCategory } from '../../apis/category';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../provider/AuthProvider';
 
 type CategoryModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   editCategory: ICategory;
   setEditCategory: React.Dispatch<React.SetStateAction<ICategory>>;
   callback: (event: React.FormEvent<HTMLFormElement>) => void;
+  walletId?: number;
 };
 
 const CategoryModal = ({
@@ -24,8 +26,10 @@ const CategoryModal = ({
   callback,
   editCategory,
   setEditCategory,
+  walletId,
 }: CategoryModalProps) => {
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
 
   const [edit, setEdit] = useState<boolean>(false);
   const [openDelete, setOpenDelete] = useState<boolean>(false);
@@ -34,30 +38,21 @@ const CategoryModal = ({
     mutationFn: deleteCategory,
     onError(error, variables, context) {},
     onMutate: async (variables) => {
-      queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
-        if (oldData) {
-          return oldData.filter((prev) => prev.id !== variables);
-        }
-        return oldData;
-      });
-
-      queryClient.setQueryData<IUserInfo>(['user'], (oldData) => {
-        if (oldData) {
-          return {
-            ...oldData,
-            categoryOrder: oldData.categoryOrder.filter(
-              (id) => id !== variables,
-            ),
-          } as IUserInfo;
-        }
-        return oldData;
-      });
+      queryClient.setQueryData<ICategory[]>(
+        ['categories', walletId],
+        (oldData) => {
+          if (oldData) {
+            return oldData.filter((prev) => prev.id !== variables);
+          }
+          return oldData;
+        },
+      );
 
       return {
         previousCategories: queryClient.getQueryData<ICategory[]>([
           'categories',
+          walletId,
         ]),
-        previousUser: queryClient.getQueryData<IUserInfo>(['user']),
       };
     },
     onSuccess(data, variables, context) {
@@ -66,9 +61,8 @@ const CategoryModal = ({
       setOpen(false);
     },
     onSettled: () => {
-      // Refetch the data to ensure it's up to date
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['categories', walletId] });
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     },
   });
 

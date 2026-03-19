@@ -37,7 +37,7 @@ ChartJS.register(
 
 const CoreChart = ({ chartType, options, data }: CoreChartProps) => {
   return (
-    <>
+    <div className="h-full w-full">
       {chartType === 'bar' ? (
         <Bar
           options={options as ChartOptions<'bar'>}
@@ -49,7 +49,7 @@ const CoreChart = ({ chartType, options, data }: CoreChartProps) => {
           data={data as ChartData<'line'>}
         />
       )}
-    </>
+    </div>
   );
 };
 

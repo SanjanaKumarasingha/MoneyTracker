@@ -35,3 +35,15 @@ export async function deleteWallet(id: number) {
 
   return response.data;
 }
+
+export async function updateWalletCategoryOrder(order: {
+  id: number;
+  categoryOrder: number[];
+}): Promise<IWallet> {
+  const response = await Axios.patch(`/v1/wallets/${order.id}/category-order`, {
+    id: order.id,
+    categoryOrder: order.categoryOrder,
+  });
+
+  return response.data;
+}
