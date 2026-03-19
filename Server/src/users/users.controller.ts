@@ -15,10 +15,6 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { IconName, CategoryType } from '../enums';
-import { CategoriesService } from '../categories/categories.service';
-
-import { CreateCategoryDto } from '../categories/dto/create-category.dto';
 import { UpdateCategoryOrderDto } from './dto/update-category-order';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -28,10 +24,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('users')
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly categoriesService: CategoriesService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
@@ -54,82 +47,6 @@ export class UsersController {
     }
 
     const user = await this.usersService.create(createUserDto);
-
-    // Pre-insert some category
-    const categories: CreateCategoryDto[] = [
-      {
-        name: 'Transportation',
-        icon: IconName.BUS,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Restaurant',
-        icon: IconName.RESTAURANT,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Health',
-        icon: IconName.HEALTH,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Clothing',
-        icon: IconName.SHIRT,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Shopping',
-        icon: IconName.SHOPPING_CART,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Education',
-        icon: IconName.GRADUATION,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Travel',
-        icon: IconName.AIRPLANE,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Utils',
-        icon: IconName.UTILS,
-        userId: user.id,
-        type: CategoryType.EXPENSE,
-      },
-      {
-        name: 'Bank',
-        icon: IconName.BANK,
-        userId: user.id,
-        type: CategoryType.INCOME,
-      },
-      {
-        name: 'Income',
-        icon: IconName.COIN,
-        userId: user.id,
-        type: CategoryType.INCOME,
-      },
-    ];
-
-    const categoryOrder = [];
-    for await (const category of categories) {
-      const newCategory = await this.categoriesService.create(category, user);
-      categoryOrder.push(newCategory.id);
-    }
-
-    // Update the category order of the user
-    await this.usersService.updateCategoryOrder({
-      id: user.id,
-      categoryOrder: categoryOrder,
-    });
 
     return user;
   }

@@ -7,5 +7,5 @@ export class CreateCategoryDto extends PickType(Category, [
   'type',
 ]) {
   @ApiProperty({ type: 'number' })
-  userId: number;
+  walletId: number;
 }

@@ -15,6 +15,7 @@ import {
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
+import { UpdateWalletCategoryOrderDto } from './dto/update-wallet-category-order.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
@@ -75,6 +76,25 @@ export class WalletsController {
     }
 
     return this.walletsService.update(+id, updateWalletDto);
+  }
+
+  @Patch(':id/category-order')
+  async updateCategoryOrder(
+    @Param('id') id: number,
+    @Body() updateWalletCategoryOrderDto: UpdateWalletCategoryOrderDto,
+    @Request() req,
+  ) {
+    const wallet = await this.walletsService.findOneForUser(+id, req.user.id);
+
+    if (!wallet) {
+      throw new UnauthorizedException(
+        'You have no access to update this wallet category order',
+      );
+    }
+
+    return await this.walletsService.updateCategoryOrder(wallet.id, [
+      ...updateWalletCategoryOrderDto.categoryOrder,
+    ]);
   }
 
   @Delete(':id')

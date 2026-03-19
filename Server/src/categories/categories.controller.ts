@@ -18,6 +18,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UsersService } from '../users/users.service';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { WalletsService } from '../wallets/wallets.service';
 
 @ApiTags('Category')
 @ApiBearerAuth()
@@ -28,32 +29,37 @@ export class CategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
     private readonly usersService: UsersService,
+    private readonly walletsService: WalletsService,
   ) {}
 
   @Post()
   async create(@Body() createCategoryDto: CreateCategoryDto, @Request() req) {
-    const user = await this.usersService.findById(createCategoryDto.userId);
+    const user = await this.usersService.findById(req.user.id);
+    const wallet = await this.walletsService.findOneForUser(
+      createCategoryDto.walletId,
+      req.user.id,
+    );
 
-    if (!user || user.id !== req.user.id) {
+    if (!user || !wallet) {
       throw new UnauthorizedException('Unable to create new category');
     }
     const category = await this.categoriesService.create(
       createCategoryDto,
       user,
+      wallet,
     );
 
-    // Update the category order
-    await this.usersService.updateCategoryOrder({
-      id: user.id,
-      categoryOrder: [...user.categoryOrder, category.id],
-    });
+    await this.walletsService.updateCategoryOrder(wallet.id, [
+      ...(wallet.categoryOrder ?? []),
+      category.id,
+    ]);
 
     return category;
   }
 
-  @Get()
-  async findAll(@Request() req) {
-    return await this.categoriesService.findAll(req.user.id);
+  @Get('/wallet/:walletId')
+  async findAll(@Param('walletId') walletId: number, @Request() req) {
+    return await this.categoriesService.findAll(+walletId, req.user.id);
   }
 
   @Get(':id')

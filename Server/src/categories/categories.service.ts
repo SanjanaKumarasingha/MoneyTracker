@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
 
 @Injectable()
 export class CategoriesService {
@@ -13,11 +14,12 @@ export class CategoriesService {
     private categoryRepository: Repository<Category>,
   ) {}
 
-  async create(createCategoryDto: CreateCategoryDto, user: User) {
+  async create(createCategoryDto: CreateCategoryDto, user: User, wallet: Wallet) {
     const category = await this.categoryRepository.create({
       name: createCategoryDto.name,
       icon: createCategoryDto.icon,
       user: user,
+      wallet,
       enable: true,
       type: createCategoryDto.type,
     });
@@ -25,11 +27,19 @@ export class CategoriesService {
     return await this.categoryRepository.save(category);
   }
 
-  async findAll(userId: number) {
+  async findAll(walletId: number, userId: number) {
     return await this.categoryRepository.find({
+      relations: {
+        wallet: {
+          user: true,
+        },
+      },
       where: {
-        user: {
-          id: userId,
+        wallet: {
+          id: walletId,
+          user: {
+            id: userId,
+          },
         },
       },
     });
@@ -46,12 +56,16 @@ export class CategoriesService {
   async findOneForUser(id: number, userId: number) {
     return await this.categoryRepository.findOne({
       relations: {
-        user: true,
+        wallet: {
+          user: true,
+        },
       },
       where: {
         id,
-        user: {
-          id: userId,
+        wallet: {
+          user: {
+            id: userId,
+          },
         },
       },
     });

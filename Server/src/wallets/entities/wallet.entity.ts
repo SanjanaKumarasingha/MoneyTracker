@@ -15,6 +15,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Record } from '../../records/entities/record.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 @Entity({ name: 'wallets' })
 export class Wallet extends BaseEntity {
@@ -31,6 +32,10 @@ export class Wallet extends BaseEntity {
   @ApiProperty()
   @IsISO4217CurrencyCode()
   currency: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  @ApiProperty({ nullable: true })
+  categoryOrder: number[];
 
   @CreateDateColumn({ type: 'timestamp' })
   @Exclude()
@@ -51,6 +56,9 @@ export class Wallet extends BaseEntity {
 
   @OneToMany(() => Record, (record) => record.wallet)
   records: Record[];
+
+  @OneToMany(() => Category, (category) => category.wallet)
+  categories: Category[];
 
   constructor(partial: Partial<Wallet>) {
     super();

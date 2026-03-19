@@ -57,7 +57,17 @@ export class RecordsController {
       throw new UnauthorizedException('Unable to create record');
     }
 
-    return this.recordsService.create(createRecordDto);
+    if (category.wallet?.id !== wallet.id) {
+      throw new UnauthorizedException(
+        'Selected category does not belong to this wallet',
+      );
+    }
+
+    return this.recordsService.create({
+      ...createRecordDto,
+      wallet,
+      category,
+    });
   }
 
   @Get('/wallet/:id')
