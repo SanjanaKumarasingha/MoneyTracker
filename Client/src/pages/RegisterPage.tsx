@@ -6,6 +6,8 @@ import CustomTextField from "../components/Custom/CustomTextField";
 import { IUser, IUserInfo, ApiError } from "../types";
 import { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
+import clsx from "clsx";
+import { useDarkMode } from "../provider/DarkModeProvider";
 
 export interface NewUser extends IUser {
   email: string;
@@ -14,6 +16,7 @@ export interface NewUser extends IUser {
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { isDarkMode } = useDarkMode();
   const [userInfo, setUserInfo] = useState<NewUser>({
     username: "",
     password: "",
@@ -89,8 +92,22 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 font-Barlow">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-zinc-800/40">
+    <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.1fr_minmax(0,420px)]">
+      <section className="hidden rounded-[32px] px-8 py-10 lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <p className={clsx("dashboard-kicker", isDarkMode ? "text-white/40" : "text-slate-500")}>
+            Get started
+          </p>
+          <h1 className="mt-4 max-w-lg text-4xl font-semibold leading-tight">
+            Build a clearer money routine from the first wallet onward.
+          </h1>
+          <p className={clsx("mt-4 max-w-xl text-base", isDarkMode ? "text-white/60" : "text-slate-600")}>
+            Create your account, add a wallet, and keep records organized with a layout that works on both desktop and mobile.
+          </p>
+        </div>
+      </section>
+
+      <div className="auth-card mx-auto max-w-md">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
           Create account
         </h1>
@@ -143,10 +160,10 @@ const RegisterPage = () => {
             setVisibleControl={setShowConfirmPassword}
           />
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              className="text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
+              className="text-left text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
               onClick={() => navigate("/login")}
             >
               Already have an account? Login

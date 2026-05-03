@@ -5,6 +5,7 @@ import { HiOutlineWallet } from 'react-icons/hi2';
 import { AiOutlineBarChart } from 'react-icons/ai';
 import { TbReportSearch } from 'react-icons/tb';
 import clsx from 'clsx';
+import { useDarkMode } from '../provider/DarkModeProvider';
 
 interface INavItem {
   name: string;
@@ -20,11 +21,15 @@ export const navItems: INavItem[] = [
 ];
 
 function Navbar() {
+  const { isDarkMode } = useDarkMode();
+
   return (
     <aside
       className={clsx(
-        'dashboard-panel sticky top-3 h-full overflow-hidden text-white/90',
-        'bg-gradient-to-b from-slate-950/78 via-slate-950/52 to-slate-950/78',
+        'dashboard-panel sticky top-3 h-full overflow-hidden',
+        isDarkMode
+          ? 'bg-gradient-to-b from-slate-950/78 via-slate-950/52 to-slate-950/78 text-white/90'
+          : 'bg-gradient-to-b from-white/95 via-slate-50/90 to-slate-100/90 text-slate-800',
       )}
     >
       <NavLink
@@ -37,17 +42,26 @@ function Navbar() {
           </div>
 
           <div className="leading-tight">
-            <p className="dashboard-kicker text-white/40">Money Tracker</p>
-            <p className="text-lg font-semibold tracking-wide text-white">
+            <p className={clsx('dashboard-kicker', isDarkMode ? 'text-white/40' : 'text-slate-400')}>
+              Money Tracker
+            </p>
+            <p className={clsx('text-lg font-semibold tracking-wide', isDarkMode ? 'text-white' : 'text-slate-900')}>
               Finance OS
             </p>
           </div>
         </div>
       </NavLink>
 
-      <div className="mx-5 mb-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-4">
-        <p className="text-sm font-medium text-white/75">Track spending with structure</p>
-        <p className="mt-1 text-xs leading-5 text-white/45">
+      <div
+        className={clsx(
+          'mx-5 mb-4 rounded-2xl border px-4 py-4',
+          isDarkMode ? 'border-white/8 bg-white/5' : 'border-slate-200 bg-white/80',
+        )}
+      >
+        <p className={clsx('text-sm font-medium', isDarkMode ? 'text-white/75' : 'text-slate-700')}>
+          Track spending with structure
+        </p>
+        <p className={clsx('mt-1 text-xs leading-5', isDarkMode ? 'text-white/45' : 'text-slate-500')}>
           Keep wallets, records, and reporting aligned in one place.
         </p>
       </div>
@@ -63,11 +77,17 @@ function Navbar() {
                 clsx(
                   'group flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200',
                   'border border-transparent',
-                  'hover:bg-white/10 hover:border-white/10',
+                  isDarkMode
+                    ? 'hover:bg-white/10 hover:border-white/10'
+                    : 'hover:bg-slate-100 hover:border-slate-200',
                   'active:scale-[0.99]',
                   isActive
-                    ? 'bg-gradient-to-r from-emerald-400/18 to-cyan-400/12 border-emerald-300/20 text-emerald-50 shadow-[0_16px_35px_rgba(16,185,129,0.12)]'
-                    : 'text-white/80',
+                    ? isDarkMode
+                      ? 'bg-gradient-to-r from-emerald-400/18 to-cyan-400/12 border-emerald-300/20 text-emerald-50 shadow-[0_16px_35px_rgba(16,185,129,0.12)]'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-[0_12px_30px_rgba(16,185,129,0.08)]'
+                    : isDarkMode
+                    ? 'text-white/80'
+                    : 'text-slate-600',
                 )
               }
             >
@@ -86,7 +106,7 @@ function Navbar() {
               <span
                 className={clsx(
                   'ml-auto h-2 w-2 rounded-full transition-opacity duration-200',
-                  'bg-emerald-300/70',
+                  isDarkMode ? 'bg-emerald-300/70' : 'bg-emerald-500',
                   'opacity-0 group-[.active]:opacity-100',
                 )}
               />

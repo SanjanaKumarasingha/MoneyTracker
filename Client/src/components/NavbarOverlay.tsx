@@ -1,43 +1,84 @@
-import React from 'react';
 import { navItems } from './Navbar';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useMenu } from '../provider/MenuOpenProvider';
 import OpenCloseIcon from './OpenCloseIcon';
 import { useDarkMode } from '../provider/DarkModeProvider';
+import clsx from 'clsx';
 
 type Props = {};
 
 function NavbarOverlay(props: Props) {
-  // const navigate = useNavigate();
   const { isSideBarOpen, toggle } = useMenu();
   const { isDarkMode } = useDarkMode();
 
   return (
-    <div className="w-full h-full bg-zinc-900 bg-opacity-80">
-      <div className="p-3" onClick={toggle}>
-        <OpenCloseIcon
-          isOpen={isSideBarOpen}
-          size={24}
-          color={isDarkMode ? 'white' : 'black'}
-          stroke={4}
-        />
-      </div>
-      <Link to="/">
-        <div className="text-2xl py-2 px-4 cursor-pointer w-fit text-primary-300 font-semibold hover:scale-103 scale-100 transition-all duration-300">
-          <p>Expense</p>
-          <p>Tracker</p>
+    <div
+      className={clsx(
+        'flex h-full w-full flex-col backdrop-blur-xl',
+        isDarkMode ? 'bg-slate-950/92 text-white' : 'bg-white/96 text-slate-900',
+      )}
+    >
+      <div className="flex items-center justify-between px-4 py-4">
+        <div>
+          <p className={clsx('dashboard-kicker', isDarkMode ? 'text-white/40' : 'text-slate-400')}>
+            Navigation
+          </p>
+          <p className="mt-1 text-lg font-semibold">Money Tracker</p>
         </div>
-      </Link>
-      <div className="pt-4 text-lg flex flex-col gap-2 px-2 text-white">
+
+        <button
+          type="button"
+          className={clsx(
+            'rounded-2xl p-2',
+            isDarkMode ? 'bg-white/5' : 'bg-slate-100',
+          )}
+          onClick={toggle}
+        >
+          <OpenCloseIcon
+            isOpen={isSideBarOpen}
+            size={24}
+            color={isDarkMode ? 'white' : 'black'}
+            stroke={4}
+          />
+        </button>
+      </div>
+
+      <div className="px-4">
+        <div
+          className={clsx(
+            'rounded-3xl border px-4 py-4',
+            isDarkMode ? 'border-white/8 bg-white/5' : 'border-slate-200 bg-slate-50',
+          )}
+        >
+          <p className="text-sm font-medium">Everything important, one tap away</p>
+          <p className={clsx('mt-1 text-sm', isDarkMode ? 'text-white/55' : 'text-slate-500')}>
+            Use the quick sections below to manage wallets, records, and charts from mobile.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-4 pt-5">
         {navItems.map((item) => (
-          <Link
-            to={item.path}
+          <NavLink
             key={item.name}
-            className="flex gap-2 items-center cursor-pointer hover:bg-primary-200 active:bg-primary-100 rounded-md m-1 p-1 hover:scale-105 scale-100 transition-all duration-300 "
+            to={item.path}
+            onClick={toggle}
+            className={({ isActive }) =>
+              clsx(
+                'flex items-center gap-3 rounded-2xl px-4 py-3 text-base transition',
+                isActive
+                  ? isDarkMode
+                    ? 'bg-emerald-400/14 text-emerald-100'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isDarkMode
+                  ? 'text-white hover:bg-white/6'
+                  : 'text-slate-700 hover:bg-slate-100',
+              )
+            }
           >
             <span className="text-2xl">{item.icon}</span>
             {item.name}
-          </Link>
+          </NavLink>
         ))}
       </div>
     </div>

@@ -85,27 +85,59 @@ const Records = (props: Props) => {
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/10 p-4">
-                <p className="text-sm text-emerald-100/70">Income</p>
+              <div
+                className={clsx(
+                  'rounded-2xl border p-4',
+                  isDarkMode
+                    ? 'border-emerald-400/15 bg-emerald-400/10'
+                    : 'border-emerald-100 bg-emerald-50',
+                )}
+              >
+                <p className={clsx('text-sm', isDarkMode ? 'text-emerald-100/70' : 'text-emerald-700/80')}>
+                  Income
+                </p>
                 <p className="mt-2 text-2xl font-semibold">
                   {favWallet.currency} {income.toFixed(2)}
                 </p>
               </div>
-              <div className="rounded-2xl border border-rose-400/15 bg-rose-400/10 p-4">
-                <p className="text-sm text-rose-100/70">Expense</p>
+              <div
+                className={clsx(
+                  'rounded-2xl border p-4',
+                  isDarkMode
+                    ? 'border-rose-400/15 bg-rose-400/10'
+                    : 'border-rose-100 bg-rose-50',
+                )}
+              >
+                <p className={clsx('text-sm', isDarkMode ? 'text-rose-100/70' : 'text-rose-700/80')}>
+                  Expense
+                </p>
                 <p className="mt-2 text-2xl font-semibold">
                   {favWallet.currency} {expense.toFixed(2)}
                 </p>
               </div>
-              <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4">
-                <p className="text-sm text-cyan-100/70">Balance</p>
+              <div
+                className={clsx(
+                  'rounded-2xl border p-4',
+                  isDarkMode
+                    ? 'border-cyan-400/15 bg-cyan-400/10'
+                    : 'border-cyan-100 bg-cyan-50',
+                )}
+              >
+                <p className={clsx('text-sm', isDarkMode ? 'text-cyan-100/70' : 'text-cyan-700/80')}>
+                  Balance
+                </p>
                 <p className="mt-2 text-2xl font-semibold">
                   {favWallet.currency} {total.toFixed(2)}
                 </p>
               </div>
             </div>
 
-            <div className="absolute bottom-0 right-0 text-7xl font-semibold text-white/5">
+            <div
+              className={clsx(
+                'absolute bottom-0 right-0 text-7xl font-semibold',
+                isDarkMode ? 'text-white/5' : 'text-slate-200/80',
+              )}
+            >
               {favWallet.currency}
             </div>
           </div>
@@ -131,7 +163,12 @@ const Records = (props: Props) => {
 
         <button
           type="button"
-          className="rounded-2xl border border-emerald-300/20 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20"
+          className={clsx(
+            'rounded-2xl border px-4 py-3 text-sm font-semibold transition',
+            isDarkMode
+              ? 'border-emerald-300/20 bg-emerald-400/15 text-emerald-100 hover:bg-emerald-400/20'
+              : 'border-emerald-200 bg-emerald-500 text-white hover:bg-emerald-600',
+          )}
           onClick={() => {
             setEditRecord((prev) => ({
               ...prev,
@@ -246,13 +283,18 @@ const Records = (props: Props) => {
                         >
                           <IconSelector name={record.category.icon} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-white dark:text-white">
+                        <div className="min-w-0 flex flex-col">
+                          <span
+                            className={clsx(
+                              'truncate font-medium',
+                              isDarkMode ? 'text-white' : 'text-slate-800',
+                            )}
+                          >
                             {record.category.name}
                           </span>
                           <span
                             className={clsx(
-                              'text-sm',
+                              'truncate text-sm',
                               isDarkMode ? 'text-white/45' : 'text-slate-500',
                             )}
                           >
@@ -261,7 +303,7 @@ const Records = (props: Props) => {
                         </div>
                       </div>
 
-                      <span className="font-semibold">
+                      <span className="shrink-0 font-semibold">
                         {record.category.type === 'expense' && '-'}
                         {favWallet?.currency} {record.price}
                       </span>
@@ -288,10 +330,10 @@ const Records = (props: Props) => {
 
       {openSelectWallet && (
         <CustomModal setOpen={setOpenSelectWallet}>
-          <div>
-            <p className="text-2xl">Select your wallet</p>
+          <div className={clsx(isDarkMode ? 'text-white' : 'text-slate-900')}>
+            <p className="text-2xl font-semibold">Select your wallet</p>
 
-            <div className="py-2">
+            <div className="py-3">
               <p className="font-semibold">Current wallet:</p>
 
               <div>Name: {favWallet?.name}</div>

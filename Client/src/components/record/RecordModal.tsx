@@ -4,6 +4,7 @@ import {
   ICategory,
   ICreateRecord,
   IRecord,
+  IRecordWithCategory,
   IWallet,
   IWalletRecordWithCategory,
 } from '../../types';
@@ -110,17 +111,25 @@ const RecordModal = ({
     IRecord,
     AxiosError<ApiError>,
     ICreateRecord,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    {
+      previousWallets?: IWalletRecordWithCategory[];
+      previousRecords?: IRecordWithCategory[];
+    }
   >({
     mutationFn: createRecord,
     onMutate: async ({ id, price, remarks, date }) => {
       await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+      await queryClient.cancelQueries({ queryKey: ['records', wallet?.id] });
 
       const previousWallets =
         queryClient.getQueryData<IWalletRecordWithCategory[]>([
           'wallets',
           userId,
         ]);
+      const previousRecords = queryClient.getQueryData<IRecordWithCategory[]>([
+        'records',
+        wallet?.id,
+      ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets', userId],
@@ -147,11 +156,32 @@ const RecordModal = ({
         },
       );
 
-      return { previousWallets };
+      queryClient.setQueryData<IRecordWithCategory[]>(
+        ['records', wallet?.id],
+        (old = []) => {
+        if (!selectedCategory) return old;
+
+        return [
+          {
+            id,
+            price,
+            remarks,
+            date,
+            category: selectedCategory,
+          } as IRecordWithCategory,
+          ...old,
+        ];
+      },
+      );
+
+      return { previousWallets, previousRecords };
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
         queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
+      }
+      if (ctx?.previousRecords) {
+        queryClient.setQueryData(['records', wallet?.id], ctx.previousRecords);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
@@ -160,6 +190,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
+      queryClient.invalidateQueries({ queryKey: ['records', wallet?.id] });
     },
     onSuccess: (_data, vars) => {
       toast(`${vars.category.name} is added`, { type: 'success' });
@@ -177,17 +208,25 @@ const RecordModal = ({
     IRecord,
     AxiosError<ApiError>,
     IRecord,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    {
+      previousWallets?: IWalletRecordWithCategory[];
+      previousRecords?: IRecordWithCategory[];
+    }
   >({
     mutationFn: updateRecord,
     onMutate: async ({ id, price, remarks, date }) => {
       await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+      await queryClient.cancelQueries({ queryKey: ['records', wallet?.id] });
 
       const previousWallets =
         queryClient.getQueryData<IWalletRecordWithCategory[]>([
           'wallets',
           userId,
         ]);
+      const previousRecords = queryClient.getQueryData<IRecordWithCategory[]>([
+        'records',
+        wallet?.id,
+      ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets', userId],
@@ -216,11 +255,29 @@ const RecordModal = ({
         },
       );
 
-      return { previousWallets };
+      queryClient.setQueryData<IRecordWithCategory[]>(
+        ['records', wallet?.id],
+        (old = []) =>
+        old.map((record) =>
+          record.id === id
+            ? {
+                ...record,
+                price,
+                remarks,
+                date,
+              }
+            : record,
+        ),
+      );
+
+      return { previousWallets, previousRecords };
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
         queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
+      }
+      if (ctx?.previousRecords) {
+        queryClient.setQueryData(['records', wallet?.id], ctx.previousRecords);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
@@ -229,6 +286,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
+      queryClient.invalidateQueries({ queryKey: ['records', wallet?.id] });
     },
     onSuccess: () => {
       toast('Record is updated', { type: 'success' });
@@ -239,17 +297,25 @@ const RecordModal = ({
     void,
     AxiosError<ApiError>,
     number,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    {
+      previousWallets?: IWalletRecordWithCategory[];
+      previousRecords?: IRecordWithCategory[];
+    }
   >({
     mutationFn: deleteRecord,
     onMutate: async (recordId) => {
       await queryClient.cancelQueries({ queryKey: ['wallets', userId] });
+      await queryClient.cancelQueries({ queryKey: ['records', wallet?.id] });
 
       const previousWallets =
         queryClient.getQueryData<IWalletRecordWithCategory[]>([
           'wallets',
           userId,
         ]);
+      const previousRecords = queryClient.getQueryData<IRecordWithCategory[]>([
+        'records',
+        wallet?.id,
+      ]);
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets', userId],
@@ -267,11 +333,20 @@ const RecordModal = ({
         },
       );
 
-      return { previousWallets };
+      queryClient.setQueryData<IRecordWithCategory[]>(
+        ['records', wallet?.id],
+        (old = []) =>
+        old.filter((record) => record.id !== recordId),
+      );
+
+      return { previousWallets, previousRecords };
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.previousWallets) {
         queryClient.setQueryData(['wallets', userId], ctx.previousWallets);
+      }
+      if (ctx?.previousRecords) {
+        queryClient.setQueryData(['records', wallet?.id], ctx.previousRecords);
       }
       const msg = err.response?.data?.message;
       toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Delete failed', {
@@ -285,6 +360,7 @@ const RecordModal = ({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
+      queryClient.invalidateQueries({ queryKey: ['records', wallet?.id] });
     },
   });
 

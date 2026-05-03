@@ -37,6 +37,13 @@ export const DarkModeProvider = ({ children }: any) => {
   };
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY);
+    const handleSystemModeChange = (event: MediaQueryListEvent) => {
+      if (!localStorage.getItem('DarkMode')) {
+        classToggle(event.matches);
+      }
+    };
+
     if (localStorage.getItem('DarkMode')) {
       if (localStorage.getItem('DarkMode') === 'dark') {
         classToggle(true);
@@ -46,21 +53,14 @@ export const DarkModeProvider = ({ children }: any) => {
         classToggle(getMatches(COLOR_SCHEME_QUERY));
       }
     } else {
-      const isDarkOS = getMatches(COLOR_SCHEME_QUERY);
-      window
-        .matchMedia(COLOR_SCHEME_QUERY)
-        .addEventListener('change', (event) => classToggle(event.matches));
-
-      classToggle(isDarkOS);
-      return () => {
-        // Need to remove the eventListener in useEffect if addEventListener is added
-        // Otherwise it will have many eventListener
-        // setInterval() also
-        window
-          .matchMedia(COLOR_SCHEME_QUERY)
-          .removeEventListener('change', () => {});
-      };
+      classToggle(getMatches(COLOR_SCHEME_QUERY));
     }
+
+    mediaQuery.addEventListener('change', handleSystemModeChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemModeChange);
+    };
   }, []);
 
   const handleChange = () => {

@@ -8,6 +8,8 @@ import CustomTextField from "../components/Custom/CustomTextField";
 import { AxiosError } from "axios";
 import { setIsSignedIn } from "../store/userSlice";
 import { LoginResponse, IUser, ApiError } from "../types";
+import clsx from "clsx";
+import { useDarkMode } from "../provider/DarkModeProvider";
 
 const LoginPage = () => {
   const { isSignedIn } = useAppSelector((state) => state.user);
@@ -19,6 +21,7 @@ const LoginPage = () => {
 
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { isDarkMode } = useDarkMode();
 
   const isFormValid = useMemo(
     () => username.trim().length > 0 && password.length > 0,
@@ -64,8 +67,22 @@ const LoginPage = () => {
   if (isSignedIn) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 font-Barlow">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-zinc-800/40">
+    <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1.1fr_minmax(0,420px)]">
+      <section className="hidden rounded-[32px] px-8 py-10 lg:flex lg:flex-col lg:justify-between">
+        <div>
+          <p className={clsx("dashboard-kicker", isDarkMode ? "text-white/40" : "text-slate-500")}>
+            Money Tracker
+          </p>
+          <h1 className="mt-4 max-w-lg text-4xl font-semibold leading-tight">
+            Stay on top of your spending without fighting the interface.
+          </h1>
+          {/* <p className={clsx("mt-4 max-w-xl text-base", isDarkMode ? "text-white/60" : "text-slate-600")}>
+            A cleaner dashboard, wallet-based tracking, and mobile-friendly navigation make the app easier to use every day.
+          </p> */}
+        </div>
+      </section>
+
+      <div className="auth-card mx-auto max-w-md">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Welcome back</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Sign in to continue tracking your income and expenses.
@@ -91,10 +108,10 @@ const LoginPage = () => {
             setVisibleControl={setShowPassword}
           />
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              className="text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
+              className="text-left text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
               onClick={() => navigate("/register")}
             >
               Don’t have an account? Register

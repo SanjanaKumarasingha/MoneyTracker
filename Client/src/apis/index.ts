@@ -3,7 +3,7 @@ import { NewUser } from '../pages/RegisterPage';
 import { IUpdatePasswordDto, IUser, IUserInfo, LoginResponse } from '../types';
 
 export const Axios = axios.create({
-  baseURL: process.env.REACT_APP_BASE_URL,
+  baseURL: process.env.REACT_APP_BASE_URL || '/api',
   withCredentials: true,
 });
 

@@ -52,7 +52,7 @@ const Header = () => {
         <div className="flex flex-col leading-tight">
           <span
             className={clsx(
-              'dashboard-kicker',
+              'dashboard-kicker hidden sm:block',
               isDarkMode ? 'text-white/45' : 'text-slate-500',
             )}
           >
@@ -70,7 +70,7 @@ const Header = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="hidden text-right sm:block">
+        <div className="hidden text-right lg:block">
           <p
             className={clsx(
               'text-xs uppercase tracking-[0.3em]',
@@ -90,7 +90,7 @@ const Header = () => {
         </div>
         <div
           className={clsx(
-            'hidden h-8 w-px sm:block',
+            'hidden h-8 w-px lg:block',
             isDarkMode ? 'bg-white/10' : 'bg-slate-200',
           )}
         />

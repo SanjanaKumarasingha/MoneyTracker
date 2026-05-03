@@ -9,6 +9,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const isProduction = configService.get<string>('NODE_ENV') == 'production';
+  const port = Number(configService.get<string>('PORT') ?? 5000);
   app.useGlobalPipes(new ValidationPipe());
 
   app.setGlobalPrefix('api/v1', {
@@ -36,6 +37,6 @@ async function bootstrap() {
     SwaggerModule.setup('api', app, document);
   }
 
-  await app.listen(5000);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
