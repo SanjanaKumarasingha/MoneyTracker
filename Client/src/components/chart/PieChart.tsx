@@ -83,9 +83,9 @@ const PieChart = (props: Props) => {
             {Object.values(GroupByScale).map((gbs) => (
               <button
                 className={clsx(
-                  'hover:bg-rose-100 rounded-md p-1 active:bg-rose-50  dark:hover:bg-opacity-40 dark:active:bg-opacity-70',
+                  'hover:bg-primary-100 rounded-md p-1 active:bg-primary-50  dark:hover:bg-opacity-40 dark:active:bg-opacity-70',
                   {
-                    'bg-rose-200 dark:bg-rose-400': groupBy === gbs,
+                    'bg-primary-200 dark:bg-primary-400': groupBy === gbs,
                   },
                 )}
                 key={gbs}
@@ -102,7 +102,7 @@ const PieChart = (props: Props) => {
 
           <div className="flex justify-between">
             <div
-              className=" text-white bg-info-300 rounded-full p-1 hover:bg-info-200 active:bg-info-100 cursor-pointer"
+              className=" text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
               onClick={() => {
                 updateCurrentDate('minus');
               }}
@@ -111,7 +111,7 @@ const PieChart = (props: Props) => {
             </div>
             <div>{groupByCategoryRecords.date}</div>
             <div
-              className=" right-0 text-white bg-info-300 rounded-full p-1 hover:bg-info-200 active:bg-info-100 cursor-pointer"
+              className=" right-0 text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
               onClick={() => {
                 updateCurrentDate('plus');
               }}
@@ -155,8 +155,8 @@ const PieChart = (props: Props) => {
         className={clsx(
           'flex-1',
           categoryType === ECategoryType.EXPENSE
-            ? 'text-rose-400'
-            : 'text-info-400',
+            ? 'text-danger-500'
+            : 'text-success-500',
         )}
       >
         <p className="text-3xl justify-between flex items-center">

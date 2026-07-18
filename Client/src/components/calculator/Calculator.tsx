@@ -20,7 +20,7 @@ const Calculator = ({ callback }: CalculatorProps) => {
           <button
             key={index}
             className={clsx(
-              'bg-info-100 rounded-md py-2 hover:bg-info-200 active:bg-info-100 dark:bg-info-700 dark:hover:bg-info-600 dark:active:bg-info-500',
+              'bg-zinc-100 rounded-md py-2 hover:bg-zinc-200 active:bg-zinc-100 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:active:bg-zinc-500',
               {
                 'col-span-2': key === 'AC' || key === '=',
               },

@@ -32,7 +32,7 @@ const CustomAlert = ({ type, content }: CustomAlertProps) => {
         type === 'error'
           ? 'text-red-500 bg-red-100'
           : type === 'warning'
-          ? 'text-amber-500 bg-amber-100'
+          ? 'text-primary-500 bg-primary-100'
           : type === 'success'
           ? 'text-emerald-500 bg-emerald-100'
           : 'text-secondary-400 bg-secondary-100',

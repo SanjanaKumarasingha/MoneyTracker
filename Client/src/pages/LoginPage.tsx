@@ -4,10 +4,15 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { signIn } from "../apis";
 import CustomAlert from "../components/Custom/CustomAlert";
-import CustomTextField from "../components/Custom/CustomTextField";
 import { AxiosError } from "axios";
 import { setIsSignedIn } from "../store/userSlice";
 import { LoginResponse, IUser, ApiError } from "../types";
+import { Button, Input } from "../components/ui";
+
+type FieldErrors = {
+  username?: string;
+  password?: string;
+};
 
 const LoginPage = () => {
   const { isSignedIn } = useAppSelector((state) => state.user);
@@ -15,7 +20,7 @@ const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -49,6 +54,11 @@ const LoginPage = () => {
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const nextFieldErrors: FieldErrors = {};
+    if (!username.trim()) nextFieldErrors.username = "Username is required";
+    if (!password) nextFieldErrors.password = "Password is required";
+    setFieldErrors(nextFieldErrors);
+
     if (!isFormValid) {
       setError("Username / Password is missing");
       return;
@@ -74,40 +84,53 @@ const LoginPage = () => {
         <form className="mt-5 flex flex-col gap-3" onSubmit={handleSignIn}>
           {error && <CustomAlert type="error" content={error} />}
 
-          <CustomTextField
+          <Input
             type="text"
-            name="Username"
+            label="Username"
+            autoComplete="username"
             value={username}
-            callbackAction={(event) => setUsername(event.target.value)}
+            error={fieldErrors.username}
+            onChange={(event) => {
+              setUsername(event.target.value);
+              if (fieldErrors.username) {
+                setFieldErrors((prev) => ({ ...prev, username: undefined }));
+              }
+            }}
           />
 
-          <CustomTextField
+          <Input
             type="password"
-            name="Password"
+            label="Password"
+            autoComplete="current-password"
             value={password}
-            callbackAction={(event) => setPassword(event.target.value)}
-            visibleControl
-            visible={showPassword}
-            setVisibleControl={setShowPassword}
+            error={fieldErrors.password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              if (fieldErrors.password) {
+                setFieldErrors((prev) => ({ ...prev, password: undefined }));
+              }
+            }}
           />
 
           <div className="flex items-center justify-between pt-1">
-            <button
+            <Button
               type="button"
-              className="text-xs text-info-600 hover:text-info-700 dark:text-info-300 dark:hover:text-info-200"
+              variant="ghost"
+              size="sm"
+              className="px-0 py-0 text-xs text-primary-600 hover:bg-transparent hover:underline dark:text-primary-300"
               onClick={() => navigate("/register")}
             >
               Don’t have an account? Register
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={!isFormValid || login.isPending}
-              className="rounded-md bg-info-500 px-3 py-2 text-sm font-medium text-white
-                         hover:bg-info-400 active:bg-info-600 disabled:cursor-not-allowed disabled:opacity-60"
+              isLoading={login.isPending}
             >
               {login.isPending ? "Logging in..." : "Login"}
-            </button>
+            </Button>
           </div>
 
           {/* Optional small hint area */}

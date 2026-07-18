@@ -394,8 +394,8 @@ const RecordModal = ({
             className={clsx(
               'rounded-md my-2 w-full overflow-auto',
               categoryType === ECategoryType.EXPENSE
-                ? 'bg-rose-50 dark:bg-rose-900 dark:bg-opacity-70'
-                : 'bg-info-50 dark:bg-info-900',
+                ? 'bg-danger-50 dark:bg-danger-900 dark:bg-opacity-70'
+                : 'bg-primary-50 dark:bg-primary-900',
             )}
           >
             <div
@@ -410,24 +410,24 @@ const RecordModal = ({
                     className={clsx(
                       'rounded-md p-1 shadow cursor-pointer flex gap-2 items-center',
                       {
-                        'bg-rose-400 text-rose-50 dark:bg-rose-700 shadow-rose-300 dark:shadow-rose-600 hover:bg-rose-300 active:bg-rose-400':
+                        'bg-danger-400 text-danger-50 dark:bg-danger-700 shadow-danger-300 dark:shadow-danger-600 hover:bg-danger-300 active:bg-danger-400':
                           categoryType === ECategoryType.EXPENSE &&
                           selectedCategory?.id === category.id,
                       },
 
                       {
-                        'bg-rose-100 text-rose-400 dark:bg-rose-400 dark:text-rose-100 shadow-rose-300 hover:bg-rose-200 active:bg-rose-100':
+                        'bg-danger-100 text-danger-400 dark:bg-danger-400 dark:text-danger-100 shadow-danger-300 hover:bg-danger-200 active:bg-danger-100':
                           categoryType === ECategoryType.EXPENSE &&
                           selectedCategory?.id !== category.id,
                       },
 
                       {
-                        'bg-info-400 text-info-50 dark:bg-info-700 dark:shadow-info-600 shadow-info-300 hover:bg-info-300 active:bg-info-100':
+                        'bg-primary-400 text-primary-50 dark:bg-primary-700 dark:shadow-primary-600 shadow-primary-300 hover:bg-primary-300 active:bg-primary-100':
                           categoryType === ECategoryType.INCOME &&
                           selectedCategory?.id === category.id,
                       },
                       {
-                        'bg-info-100 text-info-400 dark:bg-info-400 dark:text-info-100 shadow-info-300 hover:bg-info-200 active:bg-info-100':
+                        'bg-primary-100 text-primary-400 dark:bg-primary-400 dark:text-primary-100 shadow-primary-300 hover:bg-primary-200 active:bg-primary-100':
                           categoryType === ECategoryType.INCOME &&
                           selectedCategory?.id !== category.id,
                       },
@@ -464,7 +464,7 @@ const RecordModal = ({
               <div className="flex gap-4 flex-wrap justify-between">
                 Date:{' '}
                 <div
-                  className=" p-1 text-xs text-info-400 rounded-md bg-transparent cursor-pointer hover:bg-info-100 dark:bg-opacity-25"
+                  className=" p-1 text-xs text-primary-400 rounded-md bg-transparent cursor-pointer hover:bg-primary-100 dark:bg-opacity-25"
                   onClick={() => {
                     setEditRecord((prev) => ({
                       ...prev,
@@ -490,12 +490,12 @@ const RecordModal = ({
                   }
                 }}
                 selected={new Date(editRecord.date)}
-                className=" outline-none border border-info-600 rounded-md p-2 bg-transparent"
+                className=" outline-none border border-zinc-300 rounded-md p-2 bg-transparent"
               />
             </div>
           </div>
-          <div className="relative bg-info-100 dark:bg-zinc-700 text-lg rounded-md p-1 text-right truncate overflow-auto mb-2">
-            <span className="absolute left-1 text-info-600 dark:text-info-300 opacity-30 font-semibold">
+          <div className="relative bg-zinc-100 dark:bg-zinc-700 text-lg rounded-md p-1 text-right truncate overflow-auto mb-2">
+            <span className="absolute left-1 text-zinc-600 dark:text-zinc-300 opacity-30 font-semibold">
               {wallet && wallet.currency}
             </span>
 
@@ -527,7 +527,7 @@ const RecordModal = ({
             <div className="text-sm pt-2 flex flex-wrap gap-2">
               {remarks?.map((remark) => (
                 <span
-                  className="bg-info-100 rounded-lg p-1 cursor-pointer hover:bg-info-200"
+                  className="bg-primary-100 rounded-lg p-1 cursor-pointer hover:bg-primary-200"
                   onClick={() => {
                     setEditRecord((prev) => {
                       return {
@@ -546,7 +546,7 @@ const RecordModal = ({
           {/* Submit button and choose continue or close */}
           <div className="flex justify-end py-2 items-center gap-2">
             <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
+              className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none"
               type="button"
               onClick={(e) => {
                 if (editRecord.id === 0) {
@@ -560,7 +560,7 @@ const RecordModal = ({
             </button>
 
             <button
-              className="bg-rose-400 w-fit p-1 rounded-md text-white hover:bg-rose-300 cursor-pointer active:bg-rose-500 select-none"
+              className="bg-danger-400 w-fit p-1 rounded-md text-white hover:bg-danger-300 cursor-pointer active:bg-danger-500 select-none"
               type="button"
               onClick={(e) => {
                 handleSubmit(e, 'Once');
@@ -579,7 +579,7 @@ const RecordModal = ({
 
             <div className="flex justify-end pt-2">
               <button
-                className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
+                className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none"
                 onClick={async () => {
                   try {
                     await removeRecordMutation.mutateAsync(editRecord.id);

@@ -259,7 +259,7 @@ export const RecordDateProvider = ({ children }: any) => {
       favWallet: tmpWallet,
       income: walletIncome,
       expense: walletExpense,
-      total: walletExpense + walletIncome,
+      total: walletIncome - walletExpense,
       dateRecords,
     };
   }, [id, wallets]);

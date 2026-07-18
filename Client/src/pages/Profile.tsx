@@ -3,13 +3,18 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { profile, updateUser } from '../apis';
 import { IUserInfo } from '../types';
 import { useState } from 'react';
-import CustomTextField from '../components/Custom/CustomTextField';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { queryClient } from '../App';
 import { useAuth } from '../provider/AuthProvider';
+import { Button, Card, Input } from '../components/ui';
 
 type Props = {};
+
+type FieldErrors = {
+  username?: string;
+  email?: string;
+};
 
 const Profile = (props: Props) => {
   const { userId } = useAuth();
@@ -25,6 +30,8 @@ const Profile = (props: Props) => {
   const [editUser, setEditUser] = useState<IUserInfo>(
     user ?? { id: 0, username: '', email: '', categoryOrder: [] },
   );
+
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Update user mutation
   const updateUserMutation = useMutation<
@@ -74,92 +81,111 @@ const Profile = (props: Props) => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const nextFieldErrors: FieldErrors = {};
+    if (!editUser.username) nextFieldErrors.username = 'Username is required';
+    if (!editUser.email) nextFieldErrors.email = 'Email is required';
+    setFieldErrors(nextFieldErrors);
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      toast('Email / Username is missing', { type: 'error' });
+      return;
+    }
+
     try {
-      if (editUser.email && editUser.username) {
-        await updateUserMutation.mutateAsync({
-          user: editUser,
-          id: editUser.id,
-        });
-      } else {
-        toast('Email / Username is missing', { type: 'error' });
-      }
+      await updateUserMutation.mutateAsync({
+        user: editUser,
+        id: editUser.id,
+      });
     } catch (error) {}
+  };
+
+  const handleCancel = () => {
+    setEdit(false);
+    setFieldErrors({});
+    setEditUser(
+      user ?? { id: 0, username: '', email: '', categoryOrder: [] },
+    );
   };
 
   return (
     <div>
       <BackButton />
-      <form onSubmit={handleSubmit} className="p-2">
-        <div className="flex items-center gap-3">
-          Username:
-          {!edit ? (
-            <span
-              onClick={() => {
-                setEdit(true);
-              }}
-            >
-              {user?.username}
+      <Card className="mt-2" padding="md">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+              Username
             </span>
-          ) : (
-            <CustomTextField
-              type={'text'}
-              value={editUser!['username']}
-              callbackAction={(event) => {
-                setEditUser((prev) => {
-                  return {
+            {!edit ? (
+              <div
+                className="cursor-pointer rounded-md border border-transparent px-2 py-1.5 text-zinc-900 hover:border-primary-300 dark:text-zinc-100"
+                onClick={() => setEdit(true)}
+              >
+                {user?.username}
+              </div>
+            ) : (
+              <Input
+                type="text"
+                value={editUser.username}
+                error={fieldErrors.username}
+                onChange={(event) => {
+                  setEditUser((prev) => ({
                     ...prev,
                     username: event.target.value,
-                  };
-                });
-              }}
-            />
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          Email:
-          {!edit ? (
-            <span
-              onClick={() => {
-                setEdit(true);
-              }}
-            >
-              {user?.email}
+                  }));
+                  if (fieldErrors.username) {
+                    setFieldErrors((prev) => ({ ...prev, username: undefined }));
+                  }
+                }}
+              />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+              Email
             </span>
-          ) : (
-            <CustomTextField
-              type={'email'}
-              value={editUser!['email']}
-              callbackAction={(event) => {
-                setEditUser((prev) => {
-                  return {
+            {!edit ? (
+              <div
+                className="cursor-pointer rounded-md border border-transparent px-2 py-1.5 text-zinc-900 hover:border-primary-300 dark:text-zinc-100"
+                onClick={() => setEdit(true)}
+              >
+                {user?.email}
+              </div>
+            ) : (
+              <Input
+                type="email"
+                value={editUser.email}
+                error={fieldErrors.email}
+                onChange={(event) => {
+                  setEditUser((prev) => ({
                     ...prev,
                     email: event.target.value,
-                  };
-                });
-              }}
-            />
-          )}
-        </div>
-        {edit && (
-          <div className="flex justify-end pt-2 gap-2">
-            <button
-              className="bg-zinc-400 w-fit p-1 rounded-md text-white hover:bg-zinc-300 cursor-pointer active:bg-zinc-500 select-none"
-              onClick={async () => {
-                setEdit(false);
-                setEditUser(
-                  user ?? { id: 0, username: '', email: '', categoryOrder: [] },
-                );
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-            <button className="bg-rose-400 w-fit p-1 rounded-md text-white hover:bg-rose-300 cursor-pointer active:bg-rose-500 select-none">
-              Update
-            </button>
+                  }));
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                }}
+              />
+            )}
           </div>
-        )}
-      </form>
+
+          {edit && (
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={updateUserMutation.isPending}
+              >
+                Update
+              </Button>
+            </div>
+          )}
+        </form>
+      </Card>
     </div>
   );
 };

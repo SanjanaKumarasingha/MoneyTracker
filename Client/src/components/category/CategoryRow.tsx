@@ -10,6 +10,7 @@ import { updateCategory } from '../../apis/category';
 import clsx from 'clsx';
 import { ICategory } from '../../types';
 import { useRef } from 'react';
+import { Card } from '../ui';
 
 type CategoryRowProps = {
   category: ICategory;
@@ -90,49 +91,52 @@ const CategoryRow = ({
   });
 
   return (
-    <div
-      className={clsx(
-        'flex justify-between items-center text-4xl text-white rounded-md p-1',
-        type === 'income' ? 'bg-info-400' : 'bg-rose-400',
-      )}
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={(event) => {
-        if (
-          enableRef.current &&
-          !enableRef.current.contains(event.target as Node)
-        ) {
-          setOpen(true);
-          setEditCategory({ id, name, icon, enable, type });
-        }
-      }}
-    >
-      <div className="flex gap-2 items-center">
-        <PiDotsSixVerticalBold className="text-base" />
-        <IconSelector name={icon} />
-        <p className="text-sm">{name}</p>
-      </div>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <Card
+        padding="sm"
+        className="flex justify-between items-center cursor-pointer"
+        onClick={(event) => {
+          if (
+            enableRef.current &&
+            !enableRef.current.contains(event.target as Node)
+          ) {
+            setOpen(true);
+            setEditCategory({ id, name, icon, enable, type });
+          }
+        }}
+      >
+        <div className="flex gap-2 items-center">
+          <PiDotsSixVerticalBold className="text-base text-zinc-400 dark:text-zinc-500" />
+          <div
+            className={clsx(
+              'flex items-center justify-center text-lg text-white rounded-full p-1.5',
+              type === 'income' ? 'bg-success-500' : 'bg-danger-500',
+            )}
+          >
+            <IconSelector name={icon} />
+          </div>
+          <p className="text-sm">{name}</p>
+        </div>
 
-      <span ref={enableRef}>
-        <CustomSwitch
-          on={enable}
-          toggle={async () => {
-            try {
-              await updateCategoryMutation.mutateAsync({
-                id,
-                icon,
-                name,
-                enable: !enable,
-                type,
-              });
-            } catch (error) {}
-          }}
-          size={20}
-          enableColor="peer-checked:bg-primary-300"
-        />
-      </span>
+        <span ref={enableRef}>
+          <CustomSwitch
+            on={enable}
+            toggle={async () => {
+              try {
+                await updateCategoryMutation.mutateAsync({
+                  id,
+                  icon,
+                  name,
+                  enable: !enable,
+                  type,
+                });
+              } catch (error) {}
+            }}
+            size={20}
+            enableColor="peer-checked:bg-primary-300"
+          />
+        </span>
+      </Card>
     </div>
   );
 };

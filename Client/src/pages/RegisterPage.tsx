@@ -2,14 +2,21 @@ import React, { useMemo, useState } from "react";
 import CustomAlert, { CustomAlertType } from "../components/Custom/CustomAlert";
 import { useMutation } from "@tanstack/react-query";
 import { register } from "../apis";
-import CustomTextField from "../components/Custom/CustomTextField";
 import { IUser, IUserInfo, ApiError } from "../types";
 import { AxiosError } from "axios";
+import { Button, Input } from "../components/ui";
 
 export interface NewUser extends IUser {
   email: string;
   confirmPassword: string;
 }
+
+type FieldErrors = {
+  username?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
 
 const RegisterPage = () => {
   const [userInfo, setUserInfo] = useState<NewUser>({
@@ -24,8 +31,7 @@ const RegisterPage = () => {
     type: "warning",
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const isValidEmail = (email: string): boolean => /\S+@\S+\.\S+/.test(email);
 
@@ -63,7 +69,18 @@ const RegisterPage = () => {
 
     const username = userInfo.username.trim();
     const email = userInfo.email.trim();
-    console.log("dhgfdhghg")
+
+    const nextFieldErrors: FieldErrors = {};
+    if (!username) nextFieldErrors.username = "Username is required";
+    if (!email) nextFieldErrors.email = "Email is required";
+    else if (!isValidEmail(email)) nextFieldErrors.email = "Invalid email";
+    if (!userInfo.password) nextFieldErrors.password = "Password is required";
+    if (!userInfo.confirmPassword) {
+      nextFieldErrors.confirmPassword = "Please confirm your password";
+    } else if (userInfo.password !== userInfo.confirmPassword) {
+      nextFieldErrors.confirmPassword = "Passwords do not match!";
+    }
+    setFieldErrors(nextFieldErrors);
 
     if (!isFormValid) {
       setAlert({ message: "Please fill up all the blanks", type: "error" });
@@ -100,57 +117,71 @@ const RegisterPage = () => {
         <form className="mt-5 flex flex-col gap-3" onSubmit={handleRegister}>
           {alert.message && <CustomAlert type={alert.type} content={alert.message} />}
 
-          <CustomTextField
+          <Input
             type="text"
-            name="Username"
+            label="Username"
+            autoComplete="username"
             value={userInfo.username}
-            callbackAction={(event) =>
-              setUserInfo((prev) => ({ ...prev, username: event.target.value }))
-            }
+            error={fieldErrors.username}
+            onChange={(event) => {
+              setUserInfo((prev) => ({ ...prev, username: event.target.value }));
+              if (fieldErrors.username) {
+                setFieldErrors((prev) => ({ ...prev, username: undefined }));
+              }
+            }}
           />
 
-          <CustomTextField
+          <Input
             type="email"
-            name="Email"
+            label="Email"
+            autoComplete="email"
             value={userInfo.email}
-            callbackAction={(event) =>
-              setUserInfo((prev) => ({ ...prev, email: event.target.value }))
-            }
+            error={fieldErrors.email}
+            onChange={(event) => {
+              setUserInfo((prev) => ({ ...prev, email: event.target.value }));
+              if (fieldErrors.email) {
+                setFieldErrors((prev) => ({ ...prev, email: undefined }));
+              }
+            }}
           />
 
-          <CustomTextField
+          <Input
             type="password"
-            name="Password"
+            label="Password"
+            autoComplete="new-password"
             value={userInfo.password}
-            callbackAction={(event) =>
-              setUserInfo((prev) => ({ ...prev, password: event.target.value }))
-            }
-            visibleControl
-            visible={showPassword}
-            setVisibleControl={setShowPassword}
+            error={fieldErrors.password}
+            onChange={(event) => {
+              setUserInfo((prev) => ({ ...prev, password: event.target.value }));
+              if (fieldErrors.password) {
+                setFieldErrors((prev) => ({ ...prev, password: undefined }));
+              }
+            }}
           />
 
-          <CustomTextField
+          <Input
             type="password"
-            name="Confirm Password"
+            label="Confirm Password"
+            autoComplete="new-password"
             value={userInfo.confirmPassword}
-            callbackAction={(event) =>
-              setUserInfo((prev) => ({ ...prev, confirmPassword: event.target.value }))
-            }
-            visibleControl
-            visible={showConfirmPassword}
-            setVisibleControl={setShowConfirmPassword}
+            error={fieldErrors.confirmPassword}
+            onChange={(event) => {
+              setUserInfo((prev) => ({ ...prev, confirmPassword: event.target.value }));
+              if (fieldErrors.confirmPassword) {
+                setFieldErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+              }
+            }}
           />
 
           <div className="flex justify-end pt-1">
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={createUser.isPending || !isFormValid}
-              className="rounded-md bg-info-500 px-3 py-2 text-sm font-medium text-white
-                         hover:bg-info-400 active:bg-info-600 disabled:cursor-not-allowed disabled:opacity-60"
+              isLoading={createUser.isPending}
             >
               {createUser.isPending ? "Registering..." : "Register"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-xs text-zinc-400 dark:text-zinc-500">

@@ -28,7 +28,7 @@ const CustomTextField = ({
       {name && <div>{name}: </div>}
 
       <div
-        className={clsx('border border-info-600 rounded-md px-2', {
+        className={clsx('border border-zinc-300 rounded-md px-2', {
           'flex justify-between items-center': visibleControl,
         })}
       >
@@ -49,7 +49,7 @@ const CustomTextField = ({
             {visible ? (
               <AiOutlineEyeInvisible
                 strokeWidth={1}
-                className="text-info-500 cursor-pointer hover:text-info-800 active:text-info-600"
+                className="text-zinc-400 cursor-pointer hover:text-zinc-600 active:text-zinc-500"
                 onClick={() => {
                   setVisibleControl((prev) => !prev);
                 }}
@@ -57,7 +57,7 @@ const CustomTextField = ({
             ) : (
               <AiOutlineEye
                 strokeWidth={1}
-                className="text-info-500 cursor-pointer hover:text-info-800 active:text-info-600"
+                className="text-zinc-400 cursor-pointer hover:text-zinc-600 active:text-zinc-500"
                 onClick={() => {
                   setVisibleControl((prev) => !prev);
                 }}

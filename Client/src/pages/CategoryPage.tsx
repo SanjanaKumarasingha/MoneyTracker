@@ -34,10 +34,12 @@ import CategoryRow from '../components/category/CategoryRow';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { AiOutlinePlus } from 'react-icons/ai';
+import { PiTagThin } from 'react-icons/pi';
 import { ECategoryType } from '../common/category-type';
 import CategoryModal from '../components/category/CategoryModal';
 import { EIconName } from '../common/icon-name.enum';
 import { useAuth } from '../provider/AuthProvider';
+import { Button, Card, EmptyState, SkeletonCard } from '../components/ui';
 
 type ApiError = {
   error: string;
@@ -63,7 +65,9 @@ const CategoryPage = () => {
 
   /* ===================== QUERIES ===================== */
 
-  const { data: categories = [] } = useQuery<ICategory[]>({
+  const { data: categories = [], isLoading: isCategoriesLoading } = useQuery<
+    ICategory[]
+  >({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
@@ -277,62 +281,92 @@ const CategoryPage = () => {
       <BackButton />
 
       <div className="flex flex-col md:flex-row gap-3 mt-3">
-        {Object.values(ECategoryType).map((type) => (
-          <DndContext
-            key={type}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-            onDragStart={handleDragStart}
-          >
-            <div className="flex-1 bg-info-100 dark:bg-info-700 rounded-md p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg capitalize">{type}</h3>
-                <button
-                  className="flex items-center gap-1 text-sm"
-                  onClick={() => {
-                    setEditCategory({
-                      id: 0,
-                      name: '',
-                      enable: true,
-                      type,
-                      icon: EIconName.MONEY,
-                    });
-                    setOpen(true);
-                  }}
-                >
-                  <AiOutlinePlus /> Add
-                </button>
+        {Object.values(ECategoryType).map((type) => {
+          if (isCategoriesLoading) {
+            return (
+              <div key={type} className="flex-1 flex flex-col gap-2">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
               </div>
+            );
+          }
 
-              <SortableContext
-                items={sortedCategories.filter((c) => c.type === type)}
-                strategy={verticalListSortingStrategy}
-              >
-                {sortedCategories
-                  .filter((c) => c.type === type)
-                  .map((c) => (
-                    <CategoryRow
-                      key={c.id}
-                      category={c}
-                      setOpen={setOpen}
-                      setEditCategory={setEditCategory}
-                    />
-                  ))}
-              </SortableContext>
-            </div>
+          const typeCategories = sortedCategories.filter(
+            (c) => c.type === type,
+          );
 
-            <DragOverlay>
-              {activeCategory && (
-                <CategoryRow
-                  category={activeCategory}
-                  setOpen={setOpen}
-                  setEditCategory={setEditCategory}
-                />
-              )}
-            </DragOverlay>
-          </DndContext>
-        ))}
+          const openCreateModal = () => {
+            setEditCategory({
+              id: 0,
+              name: '',
+              enable: true,
+              type,
+              icon: EIconName.MONEY,
+            });
+            setOpen(true);
+          };
+
+          return (
+            <DndContext
+              key={type}
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              onDragStart={handleDragStart}
+            >
+              <Card padding="md" className="flex-1">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg capitalize">{type}</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="!gap-1"
+                    onClick={openCreateModal}
+                  >
+                    <AiOutlinePlus /> Add
+                  </Button>
+                </div>
+
+                {typeCategories.length === 0 ? (
+                  <EmptyState
+                    icon={<PiTagThin />}
+                    title={`No ${type} categories yet`}
+                    description={`Add a ${type} category to start organizing your records.`}
+                    actionLabel="Add category"
+                    onAction={openCreateModal}
+                  />
+                ) : (
+                  <SortableContext
+                    items={typeCategories}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-2">
+                      {typeCategories.map((c) => (
+                        <CategoryRow
+                          key={c.id}
+                          category={c}
+                          setOpen={setOpen}
+                          setEditCategory={setEditCategory}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                )}
+              </Card>
+
+              <DragOverlay>
+                {activeCategory && (
+                  <CategoryRow
+                    category={activeCategory}
+                    setOpen={setOpen}
+                    setEditCategory={setEditCategory}
+                  />
+                )}
+              </DragOverlay>
+            </DndContext>
+          );
+        })}
       </div>
 
       {open && (

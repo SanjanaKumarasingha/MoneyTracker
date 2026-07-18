@@ -9,7 +9,7 @@ type PercentRowProps = {
 
 const PercentRow = ({ iconName, value, total }: PercentRowProps) => {
   return (
-    <div className="flex items-center justify-between border-b border-b-zinc300">
+    <div className="flex items-center justify-between border-b border-b-zinc-300 dark:border-b-zinc-700">
       <div className="flex items-center gap-3">
         <IconSelector name={iconName} />
         <div> {value.toFixed(2)}</div>

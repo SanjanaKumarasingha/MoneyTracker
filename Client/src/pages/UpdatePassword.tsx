@@ -2,18 +2,24 @@ import BackButton from '../components/BackButton';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { profile, updatePassword } from '../apis';
 import { IUpdatePasswordDto, IUserInfo } from '../types';
-import CustomTextField from '../components/Custom/CustomTextField';
 import { useState } from 'react';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { queryClient } from '../App';
 import { useAuth } from '../provider/AuthProvider';
+import { Button, Card, Input } from '../components/ui';
 
 type Props = {};
 
 interface IConfirmPassword extends IUpdatePasswordDto {
   confirmNewPassword: string;
 }
+
+type FieldErrors = {
+  oldPassword?: string;
+  newPassword?: string;
+  confirmNewPassword?: string;
+};
 
 const UpdatePassword = (props: Props) => {
   const { userId } = useAuth();
@@ -23,7 +29,6 @@ const UpdatePassword = (props: Props) => {
     queryFn: () => profile(userId!),
     enabled: !!userId,
   });
-
 
   const [password, setPassword] = useState<IConfirmPassword>({
     id: user?.id ?? 0,
@@ -35,10 +40,7 @@ const UpdatePassword = (props: Props) => {
     confirmNewPassword: '',
   });
 
-  const [showOldPassword, setShowOldPassword] = useState<boolean>(false);
-  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
-  const [showConfirmNewPassword, setShowConfirmNewPassword] =
-    useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Update user mutation
   const updatePasswordMutation = useMutation<
@@ -74,90 +76,116 @@ const UpdatePassword = (props: Props) => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const nextFieldErrors: FieldErrors = {};
+
+    if (!password.oldPassword) {
+      nextFieldErrors.oldPassword = 'Original password is required';
+    }
+    if (!password.newPassword) {
+      nextFieldErrors.newPassword = 'New password is required';
+    }
+    if (!password.confirmNewPassword) {
+      nextFieldErrors.confirmNewPassword = 'Please confirm your new password';
+    }
+
+    if (
+      !nextFieldErrors.oldPassword &&
+      !nextFieldErrors.newPassword &&
+      password.oldPassword === password.newPassword
+    ) {
+      nextFieldErrors.newPassword =
+        'The new password is same as the old password';
+    }
+
+    if (
+      !nextFieldErrors.newPassword &&
+      !nextFieldErrors.confirmNewPassword &&
+      password.newPassword !== password.confirmNewPassword
+    ) {
+      nextFieldErrors.confirmNewPassword = 'New password does not match';
+    }
+
+    setFieldErrors(nextFieldErrors);
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      return;
+    }
+
     try {
-      if (
-        password.oldPassword &&
-        password.newPassword &&
-        password.confirmNewPassword
-      ) {
-        if (password.oldPassword === password.newPassword) {
-          toast('The new password is same as the old password', {
-            type: 'warning',
-          });
-        } else if (password.newPassword !== password.confirmNewPassword) {
-          toast('New password does not match', { type: 'error' });
-        } else {
-          await updatePasswordMutation.mutateAsync(password);
-        }
-      } else {
-        toast('Please fill up all the blank', { type: 'error' });
-      }
+      await updatePasswordMutation.mutateAsync(password);
     } catch (error) {}
   };
 
   return (
     <div>
       <BackButton />
-      <form className="p-2 space-y-2" onSubmit={handleSubmit}>
-        <CustomTextField
-          name="Original Password"
-          direction="horizontal"
-          type={'password'}
-          value={password['oldPassword']}
-          callbackAction={(event) => {
-            setPassword((prev) => {
-              return {
+      <Card className="mt-2" padding="md">
+        <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+          <Input
+            type="password"
+            label="Original Password"
+            autoComplete="current-password"
+            value={password.oldPassword}
+            error={fieldErrors.oldPassword}
+            onChange={(event) => {
+              setPassword((prev) => ({
                 ...prev,
                 oldPassword: event.target.value,
-              };
-            });
-          }}
-          visibleControl
-          visible={showOldPassword}
-          setVisibleControl={setShowOldPassword}
-        />
+              }));
+              if (fieldErrors.oldPassword) {
+                setFieldErrors((prev) => ({ ...prev, oldPassword: undefined }));
+              }
+            }}
+          />
 
-        <CustomTextField
-          name="New Password"
-          direction="horizontal"
-          type={'password'}
-          value={password['newPassword']}
-          callbackAction={(event) => {
-            setPassword((prev) => {
-              return {
+          <Input
+            type="password"
+            label="New Password"
+            autoComplete="new-password"
+            value={password.newPassword}
+            error={fieldErrors.newPassword}
+            onChange={(event) => {
+              setPassword((prev) => ({
                 ...prev,
                 newPassword: event.target.value,
-              };
-            });
-          }}
-          visibleControl
-          visible={showNewPassword}
-          setVisibleControl={setShowNewPassword}
-        />
+              }));
+              if (fieldErrors.newPassword) {
+                setFieldErrors((prev) => ({ ...prev, newPassword: undefined }));
+              }
+            }}
+          />
 
-        <CustomTextField
-          name="Confirm New Password"
-          direction="horizontal"
-          type={'password'}
-          value={password['confirmNewPassword']}
-          callbackAction={(event) => {
-            setPassword((prev) => {
-              return {
+          <Input
+            type="password"
+            label="Confirm New Password"
+            autoComplete="new-password"
+            value={password.confirmNewPassword}
+            error={fieldErrors.confirmNewPassword}
+            onChange={(event) => {
+              setPassword((prev) => ({
                 ...prev,
                 confirmNewPassword: event.target.value,
-              };
-            });
-          }}
-          visibleControl
-          visible={showConfirmNewPassword}
-          setVisibleControl={setShowConfirmNewPassword}
-        />
-        <div className="flex justify-end pt-2 gap-2">
-          <button className="bg-rose-400 w-fit p-1 rounded-md text-white hover:bg-rose-300 cursor-pointer active:bg-rose-500 select-none">
-            Update
-          </button>
-        </div>
-      </form>
+              }));
+              if (fieldErrors.confirmNewPassword) {
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  confirmNewPassword: undefined,
+                }));
+              }
+            }}
+          />
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={updatePasswordMutation.isPending}
+            >
+              Update
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 };

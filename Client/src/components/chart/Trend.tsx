@@ -92,7 +92,7 @@ const Trend = (props: Props) => {
             type: 'line',
             scaleID: 'y',
             value: total / value.length,
-            borderColor: '#60B6C3',
+            borderColor: '#F59E0B',
             borderDash: [10, 5], // length, gap
             borderWidth: 2,
             label: {
@@ -142,22 +142,22 @@ const Trend = (props: Props) => {
         ),
         borderColor:
           categoryType === 'expense'
-            ? '#fecdd3'
+            ? '#FECACA'
             : categoryType === 'income'
-            ? '#DEF0F2'
-            : '#b9e1c2',
+            ? '#DCFCE7'
+            : '#FDE68A',
         backgroundColor:
           categoryType === 'expense'
-            ? '#fecdd3'
+            ? '#FECACA'
             : categoryType === 'income'
-            ? '#DEF0F2'
-            : '#b9e1c2',
+            ? '#DCFCE7'
+            : '#FDE68A',
         hoverBackgroundColor:
           categoryType === 'expense'
-            ? '#fb7185'
+            ? '#F87171'
             : categoryType === 'income'
-            ? '#9FD3DB'
-            : '#8acb9b',
+            ? '#86EFAC'
+            : '#FBBF24',
       },
     ],
   };
@@ -165,7 +165,7 @@ const Trend = (props: Props) => {
     <div>
       <div className="flex justify-between py-2">
         <div
-          className=" text-white bg-info-300 rounded-full p-1 hover:bg-info-200 active:bg-info-100 cursor-pointer"
+          className=" text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
           onClick={() => {
             setCurrentYear((prev) => prev - 1);
           }}
@@ -174,7 +174,7 @@ const Trend = (props: Props) => {
         </div>
         <div>{DateTime.now().plus({ year: currentYear }).year}</div>
         <div
-          className=" right-0 text-white bg-info-300 rounded-full p-1 hover:bg-info-200 active:bg-info-100 cursor-pointer"
+          className=" right-0 text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
           onClick={() => {
             setCurrentYear((prev) => prev + 1);
           }}
@@ -196,8 +196,8 @@ const Trend = (props: Props) => {
       <div className="py-2 flex gap-2 items-end">
         <CategorySelector
           color={{
-            selected: isDarkMode ? '#409CAA' : '#C0E2E7',
-            background: isDarkMode ? '#204E55' : '#DEF0F2',
+            selected: isDarkMode ? '#D97706' : '#FDE68A',
+            background: isDarkMode ? '#92400E' : '#FEF3C7',
           }}
           options={['bar', 'line']}
           value={chartType}

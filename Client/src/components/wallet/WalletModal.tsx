@@ -9,6 +9,7 @@ import CustomTextField from '../Custom/CustomTextField';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../provider/AuthProvider';
+import { Button, ConfirmDialog } from '../ui';
 
 type WalletModalProps = {
   type: 'Create' | 'Edit' | 'Delete';
@@ -70,6 +71,7 @@ const WalletModal = ({
         `Wallet is created\nName: ${data.name}\nCurrency:${data.currency}`,
         { type: 'success' },
       );
+      setOpen(false);
     },
     retry: 3,
   });
@@ -182,24 +184,21 @@ const WalletModal = ({
 
   if (type === 'Delete')
     return (
-      <CustomModal setOpen={setOpen} size="Medium">
-        <div>
-          <span className="text-lg">Confirm to delete the wallet?</span>
-
-          <div className="flex justify-end pt-2">
-            <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
-              onClick={async () => {
-                try {
-                  await removeWalletMutation.mutateAsync(editWallet.id);
-                } catch (error) {}
-              }}
-            >
-              DELETE
-            </button>
-          </div>
-        </div>
-      </CustomModal>
+      <ConfirmDialog
+        isOpen
+        title="Delete wallet"
+        message="Are you sure you want to delete this wallet? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isDestructive
+        isLoading={removeWalletMutation.isPending}
+        onCancel={() => setOpen(false)}
+        onConfirm={async () => {
+          try {
+            await removeWalletMutation.mutateAsync(editWallet.id);
+          } catch (error) {}
+        }}
+      />
     );
 
   return (
@@ -237,13 +236,25 @@ const WalletModal = ({
             placeholder="ISO Code of currency"
           />
 
-          <div className="flex justify-end">
-            <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
-              type="submit"
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setOpen(false)}
             >
-              {type === 'Create' ? 'CREATE' : 'UPDATE'}
-            </button>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={
+                type === 'Create'
+                  ? createWalletMutation.isPending
+                  : updateWalletMutation.isPending
+              }
+            >
+              {type === 'Create' ? 'Create' : 'Update'}
+            </Button>
           </div>
         </form>
       </div>
