@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -243,7 +244,8 @@ export default function RecordFormModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>
             {isEditing ? 'Update' : 'New'}{' '}
@@ -353,6 +355,7 @@ export default function RecordFormModal({
             value={Number.isNaN(new Date(editRecord.date).getTime()) ? new Date() : new Date(editRecord.date)}
             mode="date"
             display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            themeVariant="light"
             onChange={(event, selectedDate) => {
               setShowDatePicker(Platform.OS === 'ios');
               if (event.type === 'dismissed') {
@@ -435,6 +438,7 @@ export default function RecordFormModal({
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={confirmDeleteVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>

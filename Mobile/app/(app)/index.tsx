@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -10,14 +9,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 
 import { fetchWallets } from '@/apis/wallet';
+import { fetchGoalsByWallet } from '@/apis/goal';
 import { useAuth } from '@/provider/AuthProvider';
 import { useAppDispatch } from '@/hooks';
 import { logout } from '@/store/userSlice';
 import { clearStoredToken } from '@/lib/secureStorage';
-import { IWalletRecordWithCategory } from '@/types';
+import { IGoalWithProgress, IWalletRecordWithCategory } from '@/types';
 import { colors } from '@/theme/colors';
+import LiquidGauge from '@/components/LiquidGauge';
+import Skeleton from '@/components/Skeleton';
 
 // Sum of a wallet's records: income records add to the balance, expense
 // records subtract — mirroring Client/src/pages/WalletPage.tsx's balance
@@ -43,9 +46,74 @@ function formatCurrency(amount: number, currency: string): string {
   }
 }
 
+// Wrapped in its own component (rather than computed inline in renderItem)
+// so it's legal to run its own goals query per wallet card.
+function WalletGaugeCard({ wallet }: { wallet: IWalletRecordWithCategory }) {
+  const balance = getWalletBalance(wallet);
+  const isNegative = balance < 0;
+  const recordCount = (wallet.records ?? []).length;
+
+  const { data: goals } = useQuery<IGoalWithProgress[]>({
+    queryKey: ['goals', wallet.id],
+    queryFn: () => fetchGoalsByWallet(wallet.id),
+  });
+
+  // Only a whole-wallet goal (no category) drives the gauge here; if
+  // several are active, the first one found is shown.
+  const activeGoal = goals?.find((goal) => !goal.category && goal.progress.isActive);
+
+  if (!activeGoal) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardRow}>
+          <Text style={styles.walletName}>{wallet.name}</Text>
+          <View style={styles.currencyBadge}>
+            <Text style={styles.currencyBadgeText}>{wallet.currency}</Text>
+          </View>
+        </View>
+        <Text style={[styles.balance, isNegative && styles.balanceNegative]}>
+          {formatCurrency(balance, wallet.currency)}
+        </Text>
+        <Text style={styles.recordCount}>
+          {recordCount} record{recordCount === 1 ? '' : 's'}
+        </Text>
+      </View>
+    );
+  }
+
+  const isLimit = activeGoal.type === 'spending_limit';
+
+  return (
+    <View style={[styles.card, styles.cardWithGauge]}>
+      <LiquidGauge
+        percent={activeGoal.progress.percent}
+        size={72}
+        fillColor={isLimit && activeGoal.progress.status === 'exceeded' ? colors.danger : colors.primary}
+        label={`${Math.round(activeGoal.progress.percent)}%`}
+      />
+      <View style={styles.gaugeCardBody}>
+        <View style={styles.cardRow}>
+          <Text style={styles.walletName}>{wallet.name}</Text>
+          <View style={styles.currencyBadge}>
+            <Text style={styles.currencyBadgeText}>{wallet.currency}</Text>
+          </View>
+        </View>
+        <Text style={[styles.balance, isNegative && styles.balanceNegative]}>
+          {formatCurrency(balance, wallet.currency)}
+        </Text>
+        <Text style={styles.goalCaption}>
+          {isLimit ? 'Limit' : 'Goal'}: {activeGoal.name ?? (isLimit ? 'Spending limit' : 'Save')}{' '}
+          {formatCurrency(Number(activeGoal.targetAmount), wallet.currency)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const { userId } = useAuth();
   const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const {
     data: wallets,
@@ -82,8 +150,17 @@ export default function HomeScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.listContent}>
+          {[0, 1, 2].map((key) => (
+            <View key={key} style={styles.card}>
+              <View style={styles.cardRow}>
+                <Skeleton width={120} height={16} />
+                <Skeleton width={40} height={18} borderRadius={999} />
+              </View>
+              <Skeleton width={140} height={24} style={{ marginTop: 10 }} />
+              <Skeleton width={80} height={12} style={{ marginTop: 6 }} />
+            </View>
+          ))}
         </View>
       ) : isError ? (
         <View style={styles.centered}>
@@ -96,8 +173,11 @@ export default function HomeScreen() {
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>No wallets yet</Text>
           <Text style={styles.emptySubtitle}>
-            Create a wallet from the web app to start tracking your money here.
+            Create your first wallet to start tracking your money.
           </Text>
+          <Pressable style={styles.retryButton} onPress={() => router.push('/wallets')}>
+            <Text style={styles.retryButtonText}>Go to Wallets</Text>
+          </Pressable>
         </View>
       ) : (
         <FlatList
@@ -107,27 +187,7 @@ export default function HomeScreen() {
           refreshControl={
             <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primary} />
           }
-          renderItem={({ item }) => {
-            const balance = getWalletBalance(item);
-            const isNegative = balance < 0;
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardRow}>
-                  <Text style={styles.walletName}>{item.name}</Text>
-                  <View style={styles.currencyBadge}>
-                    <Text style={styles.currencyBadgeText}>{item.currency}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.balance, isNegative && styles.balanceNegative]}>
-                  {formatCurrency(balance, item.currency)}
-                </Text>
-                <Text style={styles.recordCount}>
-                  {(item.records ?? []).length} record
-                  {(item.records ?? []).length === 1 ? '' : 's'}
-                </Text>
-              </View>
-            );
-          }}
+          renderItem={({ item }) => <WalletGaugeCard wallet={item} />}
         />
       )}
     </SafeAreaView>
@@ -222,6 +282,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
+  cardWithGauge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  gaugeCardBody: {
+    flex: 1,
+  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -253,6 +321,11 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   recordCount: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  goalCaption: {
     marginTop: 4,
     fontSize: 12,
     color: colors.textMuted,

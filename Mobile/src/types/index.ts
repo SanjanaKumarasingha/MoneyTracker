@@ -1,4 +1,6 @@
 import { EIconName } from './icon-name.enum';
+import { EGoalType } from './goal-type.enum';
+import { EGoalPeriodType } from './goal-period-type.enum';
 
 export interface ApiError {
   error: string;
@@ -84,4 +86,42 @@ export interface NewUser extends IUser {
 export enum ECategoryType {
   EXPENSE = 'expense',
   INCOME = 'income',
+}
+
+export interface IGoal {
+  id: number;
+  name: string | null;
+  type: EGoalType;
+  periodType: EGoalPeriodType;
+  targetAmount: number;
+  startDate: string;
+  endDate: string | null;
+  wallet: IWallet;
+  category: ICategory | null;
+}
+
+export interface ICreateGoal {
+  name: string | null;
+  type: EGoalType;
+  periodType: EGoalPeriodType;
+  targetAmount: number;
+  startDate: string;
+  endDate: string | null;
+  userId: number;
+  walletId: number;
+  categoryId?: number;
+}
+
+export interface IGoalProgress {
+  periodStart: string;
+  periodEnd: string;
+  isActive: boolean;
+  actual: number;
+  remaining: number;
+  percent: number;
+  status: 'met' | 'in-progress' | 'exceeded' | 'within-limit';
+}
+
+export interface IGoalWithProgress extends IGoal {
+  progress: IGoalProgress;
 }

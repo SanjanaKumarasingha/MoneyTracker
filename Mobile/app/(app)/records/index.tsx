@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -22,6 +21,7 @@ import { ICategory, IRecord, IRecordWithCategory, IWalletRecordWithCategory } fr
 import { colors } from '@/theme/colors';
 import IconSelector from '@/components/IconSelector';
 import RecordFormModal from '@/components/record/RecordFormModal';
+import Skeleton from '@/components/Skeleton';
 
 function formatMoney(amount: number): string {
   return amount.toFixed(2);
@@ -141,8 +141,11 @@ export default function RecordsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       {isWalletsLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.listContent}>
+          <Skeleton height={140} borderRadius={14} style={{ marginTop: 12 }} />
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} height={54} borderRadius={12} style={{ marginTop: 10 }} />
+          ))}
         </View>
       ) : !favWallet ? (
         <View style={styles.centered}>
@@ -174,8 +177,10 @@ export default function RecordsScreen() {
           </View>
 
           {isLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={colors.primary} />
+            <View style={styles.listContent}>
+              {[0, 1, 2, 3].map((key) => (
+                <Skeleton key={key} height={54} borderRadius={12} style={{ marginBottom: 10 }} />
+              ))}
             </View>
           ) : !records || records.length === 0 ? (
             <View style={styles.centered}>

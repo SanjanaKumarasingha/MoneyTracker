@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   Switch,
@@ -23,6 +22,7 @@ import { ECategoryType, ICategory, IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
 import IconSelector from '@/components/IconSelector';
 import CategoryFormModal from '@/components/category/CategoryFormModal';
+import Skeleton from '@/components/Skeleton';
 
 // Native counterpart to Client/src/pages/CategoryPage.tsx: same concept
 // (two type sections, drag to reorder, tap a row to edit/delete, "+" to
@@ -225,8 +225,10 @@ export default function CategoriesScreen() {
       </View>
 
       {isCategoriesLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.scrollContent}>
+          {[0, 1, 2, 3, 4].map((key) => (
+            <Skeleton key={key} height={46} borderRadius={12} style={{ marginBottom: 6 }} />
+          ))}
         </View>
       ) : isError ? (
         <View style={styles.centered}>

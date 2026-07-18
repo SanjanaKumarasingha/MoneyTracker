@@ -8,83 +8,75 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
-import { fetchWallets } from '@/apis/wallet';
-import { useAuth } from '@/provider/AuthProvider';
-import { IWalletRecordWithCategory } from '@/types';
+import { fetchGoalsByWallet } from '@/apis/goal';
+import { IGoalWithProgress } from '@/types';
+import { EGoalType } from '@/types/goal-type.enum';
 import { colors } from '@/theme/colors';
-import WalletFormModal from '@/components/wallet/WalletFormModal';
+import IconSelector from '@/components/IconSelector';
+import GoalFormModal from '@/components/goal/GoalFormModal';
 import Skeleton from '@/components/Skeleton';
 
-// Mirrors the balance calc used on the Home tab and in
-// Client/src/pages/WalletPage.tsx: income records add, expense records
-// subtract.
-function getWalletBalance(wallet: IWalletRecordWithCategory): number {
-  return (wallet.records ?? []).reduce((acc, record) => {
-    if (record.category.type === 'expense') {
-      return acc - Number(record.price);
-    }
-    return acc + Number(record.price);
-  }, 0);
+const PERIOD_LABELS: Record<string, string> = {
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+  custom: 'Custom',
+};
+
+const STATUS_LABELS: Record<IGoalWithProgress['progress']['status'], string> = {
+  met: 'Goal met',
+  'in-progress': 'In progress',
+  exceeded: 'Limit exceeded',
+  'within-limit': 'Within limit',
+};
+
+function statusColor(status: IGoalWithProgress['progress']['status']): string {
+  if (status === 'exceeded') return colors.danger;
+  if (status === 'met') return colors.success;
+  return colors.primary;
 }
 
-function formatCurrency(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
-}
-
-export default function WalletsScreen() {
-  const { userId } = useAuth();
-  const router = useRouter();
+export default function WalletGoalsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const walletId = Number(id);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<'Create' | 'Edit'>('Create');
-  const [selectedWallet, setSelectedWallet] = useState<IWalletRecordWithCategory | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState<IGoalWithProgress | null>(null);
 
   const {
-    data: wallets,
+    data: goals,
     isLoading,
     isError,
     isFetching,
     refetch,
-  } = useQuery<IWalletRecordWithCategory[]>({
-    queryKey: ['wallets', userId],
-    queryFn: () => fetchWallets(userId!),
-    enabled: !!userId,
+  } = useQuery<IGoalWithProgress[]>({
+    queryKey: ['goals', walletId],
+    queryFn: () => fetchGoalsByWallet(walletId),
+    enabled: !!walletId,
   });
 
   const openCreateModal = () => {
-    setSelectedWallet(null);
-    setModalMode('Create');
+    setSelectedGoal(null);
     setModalVisible(true);
   };
 
-  const openEditModal = (wallet: IWalletRecordWithCategory) => {
-    setSelectedWallet(wallet);
-    setModalMode('Edit');
+  const openEditModal = (goal: IGoalWithProgress) => {
+    setSelectedGoal(goal);
     setModalVisible(true);
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Wallets</Text>
-          <Text style={styles.headerSubtitle}>Create, rename, or remove wallets.</Text>
-        </View>
+        <Text style={styles.headerSubtitle}>Set savings targets or spending limits.</Text>
         <Pressable
           style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
           onPress={openCreateModal}
-          accessibilityLabel="Add wallet"
+          accessibilityLabel="Add goal"
         >
           <Ionicons name="add" size={22} color="#fff" />
         </Pressable>
@@ -92,72 +84,85 @@ export default function WalletsScreen() {
 
       {isLoading ? (
         <View style={styles.listContent}>
-          {[0, 1, 2].map((key) => (
+          {[0, 1].map((key) => (
             <View key={key} style={styles.card}>
               <View style={styles.cardRow}>
                 <Skeleton width={120} height={16} />
-                <Skeleton width={40} height={18} borderRadius={999} />
+                <Skeleton width={50} height={18} borderRadius={999} />
               </View>
-              <Skeleton width={140} height={24} style={{ marginTop: 10 }} />
-              <Skeleton width={100} height={12} style={{ marginTop: 6 }} />
+              <Skeleton height={8} borderRadius={999} style={{ marginTop: 12 }} />
+              <Skeleton width={100} height={12} style={{ marginTop: 8 }} />
             </View>
           ))}
         </View>
       ) : isError ? (
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Couldn&apos;t load your wallets.</Text>
+          <Text style={styles.errorText}>Couldn&apos;t load goals.</Text>
           <Pressable style={styles.retryButton} onPress={() => refetch()}>
             <Text style={styles.retryButtonText}>Try again</Text>
           </Pressable>
         </View>
-      ) : !wallets || wallets.length === 0 ? (
+      ) : !goals || goals.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>No wallets yet</Text>
+          <Text style={styles.emptyTitle}>No goals yet</Text>
           <Text style={styles.emptySubtitle}>
-            Tap the + button to create your first wallet.
+            Tap the + button to set a savings target or spending limit for this wallet.
           </Text>
           <Pressable style={styles.retryButton} onPress={openCreateModal}>
-            <Text style={styles.retryButtonText}>Create wallet</Text>
+            <Text style={styles.retryButtonText}>Add goal</Text>
           </Pressable>
         </View>
       ) : (
         <FlatList
-          data={wallets}
-          keyExtractor={(wallet) => String(wallet.id)}
+          data={goals}
+          keyExtractor={(goal) => String(goal.id)}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={colors.primary} />
           }
           renderItem={({ item }) => {
-            const balance = getWalletBalance(item);
-            const isNegative = balance < 0;
+            const percent = Math.max(0, Math.min(100, item.progress.percent));
             return (
               <Pressable
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                 onPress={() => openEditModal(item)}
               >
                 <View style={styles.cardRow}>
-                  <Text style={styles.walletName}>{item.name}</Text>
-                  <View style={styles.cardRowActions}>
-                    <Pressable
-                      style={({ pressed }) => [styles.goalsButton, pressed && styles.goalsButtonPressed]}
-                      onPress={() => router.push(`/wallets/${item.id}/goals`)}
-                      accessibilityLabel="Goals"
-                      hitSlop={8}
-                    >
-                      <Ionicons name="flag-outline" size={14} color={colors.primaryDark} />
-                    </Pressable>
-                    <View style={styles.currencyBadge}>
-                      <Text style={styles.currencyBadgeText}>{item.currency}</Text>
-                    </View>
+                  <View style={styles.cardTitleRow}>
+                    {item.category && (
+                      <IconSelector name={item.category.icon} size={16} color={colors.primaryDark} />
+                    )}
+                    <Text style={styles.goalName}>
+                      {item.name || (item.category ? item.category.name : 'Whole wallet')}
+                    </Text>
+                  </View>
+                  <View style={styles.typeBadge}>
+                    <Text style={styles.typeBadgeText}>
+                      {item.type === EGoalType.SAVING ? 'Saving' : 'Limit'}
+                    </Text>
                   </View>
                 </View>
-                <Text style={[styles.balance, isNegative && styles.balanceNegative]}>
-                  {formatCurrency(balance, item.currency)}
-                </Text>
-                <Text style={styles.recordCount}>
-                  {(item.records ?? []).length} record
-                  {(item.records ?? []).length === 1 ? '' : 's'} · tap to edit
+
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${percent}%`, backgroundColor: statusColor(item.progress.status) },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.cardFooterRow}>
+                  <Text style={styles.footerText}>
+                    {item.progress.actual.toFixed(2)} / {Number(item.targetAmount).toFixed(2)}
+                  </Text>
+                  <Text style={[styles.footerText, { color: statusColor(item.progress.status) }]}>
+                    {STATUS_LABELS[item.progress.status]}
+                  </Text>
+                </View>
+                <Text style={styles.periodText}>
+                  {PERIOD_LABELS[item.periodType] ?? item.periodType}
+                  {!item.progress.isActive ? ' · not active yet' : ''}
                 </Text>
               </Pressable>
             );
@@ -165,10 +170,10 @@ export default function WalletsScreen() {
         />
       )}
 
-      <WalletFormModal
+      <GoalFormModal
         visible={modalVisible}
-        mode={modalMode}
-        wallet={selectedWallet}
+        walletId={walletId}
+        goal={selectedGoal}
         onClose={() => setModalVisible(false)}
       />
     </SafeAreaView>
@@ -188,15 +193,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
   headerSubtitle: {
-    marginTop: 2,
     fontSize: 13,
     color: colors.textMuted,
+    flexShrink: 1,
   },
   addButton: {
     backgroundColor: colors.primary,
@@ -268,50 +268,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  cardRowActions: {
+  cardTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 1,
   },
-  goalsButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
-  goalsButtonPressed: {
-    backgroundColor: colors.border,
-  },
-  walletName: {
-    fontSize: 16,
+  goalName: {
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
   },
-  currencyBadge: {
+  typeBadge: {
     backgroundColor: colors.primarySoft,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  currencyBadgeText: {
-    fontSize: 12,
+  typeBadgeText: {
+    fontSize: 11,
     fontWeight: '700',
     color: colors.primaryDark,
   },
-  balance: {
-    marginTop: 10,
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.success,
+  progressTrack: {
+    marginTop: 12,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
   },
-  balanceNegative: {
-    color: colors.danger,
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
   },
-  recordCount: {
-    marginTop: 4,
+  cardFooterRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  footerText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  periodText: {
+    marginTop: 2,
+    fontSize: 11,
     color: colors.textMuted,
   },
 });
