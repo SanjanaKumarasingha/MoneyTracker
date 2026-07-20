@@ -1,5 +1,5 @@
 import { Axios } from './index';
-import { ICreateRecord, IRecord, IRecordWithCategory } from '../types';
+import { ICreateRecord, IRecord, IRecordWithCategory, IWalletSummary } from '../types';
 
 // The server's `date` column is a MySQL DATE (no time component); sending a
 // full ISO datetime string (e.g. from `new Date().toISOString()`) fails
@@ -49,6 +49,21 @@ export async function deleteRecord(id: number) {
 export async function getRemarks(categoryId: number): Promise<string[]> {
   const url = `/records/category/${categoryId}/remarks`;
   const response = await Axios.get(url);
+
+  return response.data;
+}
+
+// Pass either { month: 'YYYY-MM' } (omit entirely for the current month) or
+// an explicit { start, end } range ('YYYY-MM-DD') — the server computes the
+// matching previous period of the same length for the trend comparison
+// either way.
+export async function fetchWalletSummary(
+  walletId: number,
+  range?: { month?: string } | { start: string; end: string },
+): Promise<IWalletSummary> {
+  const response = await Axios.get(`/records/wallet/${walletId}/summary`, {
+    params: range,
+  });
 
   return response.data;
 }

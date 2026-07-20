@@ -125,3 +125,20 @@ export interface IGoalProgress {
 export interface IGoalWithProgress extends IGoal {
   progress: IGoalProgress;
 }
+
+export interface IWalletSummaryCategory {
+  categoryId: number;
+  name: string;
+  icon: EIconName;
+  type: TCategoryType;
+  amount: number;
+  previousAmount: number;
+}
+
+export interface IWalletSummary {
+  periodStart: string;
+  periodEnd: string;
+  income: number;
+  expense: number;
+  categories: IWalletSummaryCategory[];
+}

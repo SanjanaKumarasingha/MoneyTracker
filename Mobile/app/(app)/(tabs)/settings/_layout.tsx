@@ -19,6 +19,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="update-password" options={{ title: 'Update Password' }} />
+      <Stack.Screen name="categories" options={{ title: 'Categories' }} />
     </Stack>
   );
 }

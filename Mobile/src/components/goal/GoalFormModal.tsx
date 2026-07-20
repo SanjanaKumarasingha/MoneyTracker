@@ -15,6 +15,7 @@ import {
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Slider from '@react-native-community/slider';
 
 import { fetchCategories } from '@/apis/category';
 import { createGoal, deleteGoal, updateGoal } from '@/apis/goal';
@@ -43,6 +44,11 @@ const PERIOD_LABELS: Record<EGoalPeriodType, string> = {
   [EGoalPeriodType.YEARLY]: 'Yearly',
   [EGoalPeriodType.CUSTOM]: 'Custom range',
 };
+
+// Covers the vast majority of everyday spending-limit/saving targets; typed
+// entry above the slider still supports any larger exact figure.
+const AMOUNT_SLIDER_MAX = 100000;
+const AMOUNT_SLIDER_STEP = 10;
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -297,6 +303,18 @@ export default function GoalFormModal({
             placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
           />
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={AMOUNT_SLIDER_MAX}
+            step={AMOUNT_SLIDER_STEP}
+            value={Math.min(Math.max(Number(amountInput) || 0, 0), AMOUNT_SLIDER_MAX)}
+            onValueChange={(value) => setAmountInput(String(Math.round(value)))}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.primary}
+          />
+          <Text style={styles.sliderHint}>Drag to set, or type an exact amount above.</Text>
 
           <Text style={styles.label}>Period</Text>
           <View style={styles.periodGrid}>
@@ -444,6 +462,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: colors.text,
+  },
+  slider: {
+    marginTop: 4,
+    height: 36,
+  },
+  sliderHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: -2,
   },
   segmented: {
     flexDirection: 'row',

@@ -218,7 +218,6 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Categories</Text>
         <Text style={styles.headerSubtitle}>
           Long-press and drag to reorder. Tap a category to edit it.
         </Text>

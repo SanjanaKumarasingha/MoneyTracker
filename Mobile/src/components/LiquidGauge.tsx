@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, ClipPath, Defs, Path } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, LinearGradient, Path, Stop } from 'react-native-svg';
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -16,7 +16,12 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 type LiquidGaugeProps = {
   percent: number;
   size?: number;
-  fillColor?: string;
+  // Three-stop vertical gradient (top -> bottom) for the liquid itself.
+  // Defaults to a realistic blue "water" look; pass danger tones for an
+  // over-limit state instead of a flat color swap.
+  colorLight?: string;
+  colorMid?: string;
+  colorDeep?: string;
   trackColor?: string;
   label?: string;
 };
@@ -24,15 +29,18 @@ type LiquidGaugeProps = {
 const WAVE_AMPLITUDE = 4;
 const WAVE_STEPS = 24;
 
-// A transparent "vessel" (circle outline) partially filled with an animated
-// wave, clipped so the liquid never draws outside the circle. `percent`
+// A transparent glass "vessel" (circle outline) partially filled with an
+// animated water gradient, clipped so the liquid never draws outside the
+// circle, plus a static glossy highlight for a glass-sphere feel. `percent`
 // drives the fill height (animated with withTiming on change); the wave's
 // horizontal sloshing motion runs continuously and independently via a
 // looping phase value.
 export default function LiquidGauge({
   percent,
   size = 96,
-  fillColor = colors.primary,
+  colorLight = colors.waterHealthyLight,
+  colorMid = colors.waterHealthyMid,
+  colorDeep = colors.waterHealthyDeep,
   trackColor = colors.border,
   label,
 }: LiquidGaugeProps) {
@@ -57,6 +65,8 @@ export default function LiquidGauge({
 
   const radius = size / 2;
   const clipRadius = radius - 2;
+  const gradientId = `liquidGaugeGradient-${colorMid}`;
+  const clipId = `liquidGaugeClip-${size}`;
 
   const animatedProps = useAnimatedProps(() => {
     const baselineY = size * (1 - fillLevel.value / 100);
@@ -75,12 +85,26 @@ export default function LiquidGauge({
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Defs>
-          <ClipPath id="liquidGaugeClip">
+          <ClipPath id={clipId}>
             <Circle cx={radius} cy={radius} r={clipRadius} />
           </ClipPath>
+          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={colorLight} stopOpacity={0.9} />
+            <Stop offset="0.55" stopColor={colorMid} stopOpacity={0.92} />
+            <Stop offset="1" stopColor={colorDeep} stopOpacity={0.96} />
+          </LinearGradient>
         </Defs>
         <Circle cx={radius} cy={radius} r={clipRadius} stroke={trackColor} strokeWidth={2} fill="transparent" />
-        <AnimatedPath animatedProps={animatedProps} fill={fillColor} clipPath="url(#liquidGaugeClip)" />
+        <AnimatedPath animatedProps={animatedProps} fill={`url(#${gradientId})`} clipPath={`url(#${clipId})`} />
+        {/* Static glossy highlight — a glass-sphere reflection, independent of fill level. */}
+        <Ellipse
+          cx={radius - clipRadius * 0.32}
+          cy={radius - clipRadius * 0.45}
+          rx={clipRadius * 0.3}
+          ry={clipRadius * 0.18}
+          fill="#ffffff"
+          opacity={0.35}
+        />
       </Svg>
       {label ? (
         <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
@@ -102,8 +126,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
-    textShadowColor: 'rgba(255,255,255,0.8)',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowRadius: 3,
   },
 });

@@ -65,4 +65,101 @@ export class RecordsService {
       },
     });
   }
+
+  // Unlike findAll (capped at 6 most recent records for the record-list UI),
+  // this sums *every* record in the given period — Home's aggregate
+  // income/expense, the wallet-detail gauge, and the Report screen's category
+  // breakdown all need the true total, not a recent-records sample.
+  //
+  // Accepts either a calendar month (the original shortcut, still used by
+  // the wallet-detail gauge) or an explicit start/end range (what Report's
+  // weekly/yearly/custom period picker sends) — the "previous period" used
+  // for the trend comparison is the immediately preceding range of the same
+  // length in either case, computed with UTC date-only arithmetic
+  // throughout to avoid the timezone drift the goal-progress endpoint hit
+  // (see Server/src/goals/goal-period.util.ts).
+  async getWalletSummary(
+    walletId: number,
+    params: { month?: string } | { start: string; end: string },
+  ) {
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    let periodStart: string;
+    let periodEnd: string;
+    let prevStart: string;
+    let prevEnd: string;
+
+    if ('start' in params) {
+      periodStart = params.start;
+      periodEnd = params.end;
+      const startMs = new Date(periodStart).getTime();
+      const endMs = new Date(periodEnd).getTime();
+      const prevEndMs = startMs - MS_PER_DAY;
+      const prevStartMs = prevEndMs - (endMs - startMs);
+      prevStart = this.toDateOnly(new Date(prevStartMs));
+      prevEnd = this.toDateOnly(new Date(prevEndMs));
+    } else {
+      const month = params.month ?? new Date().toISOString().slice(0, 7);
+      const [year, mon] = month.split('-').map(Number);
+      periodStart = this.toDateOnly(new Date(Date.UTC(year, mon - 1, 1)));
+      periodEnd = this.toDateOnly(new Date(Date.UTC(year, mon, 0)));
+      const prevYear = mon === 1 ? year - 1 : year;
+      const prevMon = mon === 1 ? 12 : mon - 1;
+      prevStart = this.toDateOnly(new Date(Date.UTC(prevYear, prevMon - 1, 1)));
+      prevEnd = this.toDateOnly(new Date(Date.UTC(prevYear, prevMon, 0)));
+    }
+
+    const currentRows = await this.categoryTotals(walletId, periodStart, periodEnd);
+    const previousRows = await this.categoryTotals(walletId, prevStart, prevEnd);
+    const previousByCategory = new Map(
+      previousRows.map((r) => [Number(r.categoryId), Number(r.amount)]),
+    );
+
+    const categories = currentRows.map((r) => ({
+      categoryId: Number(r.categoryId),
+      name: r.name,
+      icon: r.icon,
+      type: r.type,
+      amount: Number(r.amount),
+      previousAmount: previousByCategory.get(Number(r.categoryId)) ?? 0,
+    }));
+
+    const income = categories
+      .filter((c) => c.type === 'income')
+      .reduce((sum, c) => sum + c.amount, 0);
+    const expense = categories
+      .filter((c) => c.type === 'expense')
+      .reduce((sum, c) => sum + c.amount, 0);
+
+    return { periodStart, periodEnd, income, expense, categories };
+  }
+
+  private async categoryTotals(walletId: number, start: string, end: string) {
+    return await this.recordRepository
+      .createQueryBuilder('record')
+      .leftJoin('record.wallet', 'wallet')
+      .leftJoin('record.category', 'category')
+      .where('wallet.id = :walletId', { walletId })
+      .andWhere('record.date >= :start', { start })
+      .andWhere('record.date <= :end', { end })
+      .select('category.id', 'categoryId')
+      .addSelect('category.name', 'name')
+      .addSelect('category.icon', 'icon')
+      .addSelect('category.type', 'type')
+      .addSelect('COALESCE(SUM(record.price), 0)', 'amount')
+      .groupBy('category.id')
+      .addGroupBy('category.name')
+      .addGroupBy('category.icon')
+      .addGroupBy('category.type')
+      .getRawMany<{
+        categoryId: string;
+        name: string;
+        icon: string;
+        type: string;
+        amount: string;
+      }>();
+  }
+
+  private toDateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
 }

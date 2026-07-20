@@ -136,6 +136,13 @@ export default function RecordFormModal({
     queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     if (wallet) {
       queryClient.invalidateQueries({ queryKey: ['records', wallet.id] });
+      // The wallet-detail gauge/income/expense and any goal progress are
+      // both derived server-side from records — without these, they'd keep
+      // showing pre-edit numbers until an unrelated refetch happened to
+      // touch them.
+      queryClient.invalidateQueries({ queryKey: ['walletSummary', wallet.id] });
+      queryClient.invalidateQueries({ queryKey: ['goals', wallet.id] });
+      queryClient.invalidateQueries({ queryKey: ['allGoals'] });
     }
   };
 

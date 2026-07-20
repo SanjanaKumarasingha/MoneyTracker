@@ -1,72 +1,17 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
 
-import { colors } from '@/theme/colors';
-
+// Wraps the tab navigator in a Stack so wallet/[id] and add-record can be
+// pushed WITHOUT the bottom tab bar — nesting them inside the Tabs itself
+// would keep the tab bar visible underneath, which is exactly what the
+// wallet detail screen (full-screen glass gauge, no distractions) and the
+// quick-add flow both need to avoid.
 export default function AppGroupLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerTintColor: colors.text,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wallets"
-        options={{
-          title: 'Wallets',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="records"
-        options={{
-          title: 'Records',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="categories"
-        options={{
-          title: 'Categories',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pricetags" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="charts"
-        options={{
-          title: 'Charts',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pie-chart" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="wallet/[id]" />
+      <Stack.Screen name="add-record" options={{ animation: 'none' }} />
+    </Stack>
   );
 }

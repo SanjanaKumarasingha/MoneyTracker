@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   ClassSerializerInterceptor,
   UseGuards,
   UseInterceptors,
@@ -55,6 +56,37 @@ export class RecordsController {
     }
 
     return await this.recordsService.findAll(wallet);
+  }
+
+  @Get('/wallet/:id/summary')
+  async getSummary(
+    @Param('id') id: number,
+    @Query('month') month?: string,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const wallet = await this.walletsService.findOne(id);
+
+    if (!wallet) {
+      throw new BadRequestException('Wallet does not exist');
+    }
+
+    if (start || end) {
+      if (!start || !end || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        throw new BadRequestException('start and end must both be provided in YYYY-MM-DD format');
+      }
+      if (new Date(end).getTime() < new Date(start).getTime()) {
+        throw new BadRequestException('end must not be before start');
+      }
+      return await this.recordsService.getWalletSummary(id, { start, end });
+    }
+
+    const resolvedMonth = month ?? new Date().toISOString().slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(resolvedMonth)) {
+      throw new BadRequestException('month must be in YYYY-MM format');
+    }
+
+    return await this.recordsService.getWalletSummary(id, { month: resolvedMonth });
   }
 
   @Get(':id')
