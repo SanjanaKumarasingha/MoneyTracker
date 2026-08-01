@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -24,18 +23,19 @@ type InfinityToggleProps = {
   rightColor?: string;
 };
 
-const CAPSULE_W = 118;
-const CAPSULE_H = 40;
-const WIDTH = CAPSULE_W * 2;
-const HEIGHT = CAPSULE_H;
-const STEP = CAPSULE_W;
+const WIDTH = 216;
+const HEIGHT = 44;
+const PADDING = 4;
+const BLOB_WIDTH = (WIDTH - PADDING * 2) / 2;
+const STEP = BLOB_WIDTH;
 
-// Two long capsule (pill) shapes touching directly, no gap between them —
-// their rounded ends meeting at the same line is what actually draws the
-// infinity/hourglass pinch, rather than a separate connecting neck shape.
-// Drag the blob from one capsule to the other (or just tap either side)
-// and it squeezes through that pinch point like jelly, then swells back
-// out to fill the capsule it lands in.
+// One continuous glass capsule with both labels living inside it (not two
+// separate touching pills with tiny tap targets below — tapping the
+// capsule itself used to do nothing since it only recognized a drag). A
+// frosted blob slides underneath whichever side is active and re-tints
+// itself leftColor/rightColor, squeezing through the middle as it
+// crosses. Tap either half of the pill to jump straight there, or drag
+// the blob — both gestures live on the same view now.
 export default function InfinityToggle({
   value,
   onChange,
@@ -51,7 +51,9 @@ export default function InfinityToggle({
     progress.value = withSpring(value === 'right' ? 1 : 0, { damping: 16, stiffness: 170 });
   }, [value, progress]);
 
-  const notify = (next: Side) => onChange(next);
+  const notify = (next: Side) => {
+    if (next !== value) onChange(next);
+  };
 
   const snapTo = (next: Side) => {
     'worklet';
@@ -59,7 +61,7 @@ export default function InfinityToggle({
     runOnJS(notify)(next);
   };
 
-  const gesture = Gesture.Pan()
+  const panGesture = Gesture.Pan()
     .onBegin(() => {
       startProgress.value = progress.value;
     })
@@ -71,8 +73,14 @@ export default function InfinityToggle({
       snapTo(progress.value >= 0.5 ? 'right' : 'left');
     });
 
-  const tapLeft = () => snapTo('left');
-  const tapRight = () => snapTo('right');
+  // A quick tap anywhere on the pill jumps straight to whichever half was
+  // tapped — raced against the pan gesture so a drag still wins once the
+  // finger actually moves.
+  const tapGesture = Gesture.Tap().onEnd((e) => {
+    snapTo(e.x < WIDTH / 2 ? 'left' : 'right');
+  });
+
+  const gesture = Gesture.Race(panGesture, tapGesture);
 
   const blobStyle = useAnimatedStyle(() => {
     const translateX = progress.value * STEP;
@@ -83,88 +91,63 @@ export default function InfinityToggle({
     const squeezeX = interpolate(progress.value, [0, 0.5, 1], [1, 1.22, 1]);
     return {
       backgroundColor: interpolateColor(progress.value, [0, 1], [leftColor, rightColor]),
+      borderColor: interpolateColor(progress.value, [0, 1], [leftColor, rightColor]),
       transform: [{ translateX }, { scaleX: squeezeX }, { scaleY: squeezeY }],
     };
   });
 
   const leftLabelStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [1, 0.4]),
+    opacity: interpolate(progress.value, [0, 1], [1, 0.42]),
   }));
   const rightLabelStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0.4, 1]),
+    opacity: interpolate(progress.value, [0, 1], [0.42, 1]),
   }));
 
   return (
-    <View style={styles.wrap}>
-      <GestureDetector gesture={gesture}>
-        <View style={styles.track}>
-          <Svg width={WIDTH} height={HEIGHT} style={StyleSheet.absoluteFillObject}>
-            <Rect
-              x={1}
-              y={1}
-              width={CAPSULE_W - 2}
-              height={CAPSULE_H - 2}
-              rx={(CAPSULE_H - 2) / 2}
-              fill={colors.cardSoft}
-              stroke={colors.border}
-              strokeWidth={1.5}
-            />
-            <Rect
-              x={CAPSULE_W + 1}
-              y={1}
-              width={CAPSULE_W - 2}
-              height={CAPSULE_H - 2}
-              rx={(CAPSULE_H - 2) / 2}
-              fill={colors.cardSoft}
-              stroke={colors.border}
-              strokeWidth={1.5}
-            />
-          </Svg>
-          <Animated.View style={[styles.blob, blobStyle]} pointerEvents="none" />
+    <GestureDetector gesture={gesture}>
+      <View style={styles.track}>
+        <Animated.View style={[styles.blob, blobStyle]} pointerEvents="none" />
+        <View style={styles.labelsRow} pointerEvents="none">
+          <Animated.View style={[styles.labelWrap, leftLabelStyle]}>
+            <Text style={styles.label}>{leftLabel}</Text>
+          </Animated.View>
+          <Animated.View style={[styles.labelWrap, rightLabelStyle]}>
+            <Text style={styles.label}>{rightLabel}</Text>
+          </Animated.View>
         </View>
-      </GestureDetector>
-
-      <View style={styles.labelsRow} pointerEvents="box-none">
-        <Animated.View style={[styles.labelHit, leftLabelStyle]} onTouchEnd={tapLeft}>
-          <Text style={styles.label}>{leftLabel}</Text>
-        </Animated.View>
-        <Animated.View style={[styles.labelHit, rightLabelStyle]} onTouchEnd={tapRight}>
-          <Text style={styles.label}>{rightLabel}</Text>
-        </Animated.View>
       </View>
-    </View>
+    </GestureDetector>
   );
 }
 
-const BLOB_W = CAPSULE_W - 10;
-const BLOB_H = CAPSULE_H - 10;
-
 const styles = StyleSheet.create({
-  wrap: {
-    alignItems: 'center',
-    gap: 8,
-  },
   track: {
     width: WIDTH,
     height: HEIGHT,
+    borderRadius: HEIGHT / 2,
+    backgroundColor: colors.cardSoft,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
   blob: {
     position: 'absolute',
-    left: 5,
-    top: 5,
-    width: BLOB_W,
-    height: BLOB_H,
-    borderRadius: BLOB_H / 2,
+    top: PADDING,
+    left: PADDING,
+    width: BLOB_WIDTH,
+    height: HEIGHT - PADDING * 2,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    opacity: 0.55,
   },
   labelsRow: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
-    width: WIDTH,
-    justifyContent: 'space-between',
   },
-  labelHit: {
-    width: CAPSULE_W,
+  labelWrap: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    justifyContent: 'center',
   },
   label: {
     fontSize: 11.5,

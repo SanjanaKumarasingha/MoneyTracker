@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Swipeable } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, Swipeable } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { fetchWallets } from '@/apis/wallet';
 import { deleteRecord, fetchWalletSummary } from '@/apis/record';
@@ -72,6 +73,55 @@ export default function WalletDetailScreen() {
   });
 
   const wallet = useMemo(() => wallets?.find((w) => w.id === walletId), [wallets, walletId]);
+
+  // Drag the gauge/summary area left/right to hop straight to the next or
+  // previous wallet (in the same order Home lists them) without a trip
+  // back through Home in between — the header title above is what tells
+  // you which wallet you landed on. Restricted to this one region (rather
+  // than the whole scroll view) so it can't fight the transaction rows'
+  // own Swipeable-to-delete gesture or the ScrollView's vertical scroll.
+  const walletOrder = useMemo(() => (wallets ?? []).map((w) => w.id), [wallets]);
+  const currentWalletIndex = walletOrder.indexOf(walletId);
+
+  const navigateToWallet = useCallback(
+    (direction: 1 | -1) => {
+      if (walletOrder.length < 2 || currentWalletIndex === -1) return;
+      const nextIndex = (currentWalletIndex + direction + walletOrder.length) % walletOrder.length;
+      const nextId = walletOrder[nextIndex];
+      if (nextId !== undefined && nextId !== walletId) {
+        router.replace(`/wallet/${nextId}`);
+      }
+    },
+    [walletOrder, currentWalletIndex, walletId, router],
+  );
+
+  const SWIPE_THRESHOLD = 70;
+  const dragX = useSharedValue(0);
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-12, 12])
+    .onUpdate((e) => {
+      dragX.value = e.translationX;
+    })
+    .onEnd((e) => {
+      if (e.translationX <= -SWIPE_THRESHOLD) {
+        runOnJS(navigateToWallet)(1);
+      } else if (e.translationX >= SWIPE_THRESHOLD) {
+        runOnJS(navigateToWallet)(-1);
+      }
+      dragX.value = withSpring(0, { damping: 18, stiffness: 180 });
+    });
+
+  const dragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: dragX.value * 0.4 }],
+  }));
+  const leftHintStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, Math.max(0, dragX.value / 60)),
+  }));
+  const rightHintStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, Math.max(0, -dragX.value / 60)),
+  }));
 
   const { data: summary } = useQuery<IWalletSummary>({
     queryKey: ['walletSummary', walletId],
@@ -189,33 +239,49 @@ export default function WalletDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.gaugeWrap}>
-          <LiquidGauge
-            size={128}
-            percent={ratio}
-            colorLight={band.light}
-            colorMid={band.mid}
-            colorDeep={band.deep}
-            label={`${ratio}%`}
-          />
-          <Text style={styles.gaugeCaption}>
-            {ratio >= 60 ? `${ratio}% of income still unspent this month` : `Only ${ratio}% of income left this month`}
-          </Text>
-        </View>
+        <View style={styles.swipeArea}>
+          {walletOrder.length > 1 && (
+            <>
+              <Animated.View style={[styles.swipeHint, styles.swipeHintLeft, leftHintStyle]} pointerEvents="none">
+                <Ionicons name="chevron-back" size={18} color={colors.primaryDark} />
+              </Animated.View>
+              <Animated.View style={[styles.swipeHint, styles.swipeHintRight, rightHintStyle]} pointerEvents="none">
+                <Ionicons name="chevron-forward" size={18} color={colors.primaryDark} />
+              </Animated.View>
+            </>
+          )}
+          <GestureDetector gesture={swipeGesture}>
+            <Animated.View style={[styles.swipeContent, dragStyle]}>
+              <View style={styles.gaugeWrap}>
+                <LiquidGauge
+                  size={128}
+                  percent={ratio}
+                  colorLight={band.light}
+                  colorMid={band.mid}
+                  colorDeep={band.deep}
+                  label={`${ratio}%`}
+                />
+                <Text style={styles.gaugeCaption}>
+                  {ratio >= 60 ? `${ratio}% of income still unspent this month` : `Only ${ratio}% of income left this month`}
+                </Text>
+              </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Balance</Text>
-            <Text style={styles.statFigure}>{formatCurrency(balance, wallet.currency)}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Income</Text>
-            <Text style={styles.statFigure}>{formatCurrency(income, wallet.currency)}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Expenses</Text>
-            <Text style={styles.statFigure}>{formatCurrency(expense, wallet.currency)}</Text>
-          </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Balance</Text>
+                  <Text style={styles.statFigure}>{formatCurrency(balance, wallet.currency)}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Income</Text>
+                  <Text style={styles.statFigure}>{formatCurrency(income, wallet.currency)}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Expenses</Text>
+                  <Text style={styles.statFigure}>{formatCurrency(expense, wallet.currency)}</Text>
+                </View>
+              </View>
+            </Animated.View>
+          </GestureDetector>
         </View>
 
         <View style={styles.sectionRow}>
@@ -350,6 +416,25 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 100,
     gap: 16,
+  },
+  swipeArea: {
+    position: 'relative',
+  },
+  swipeContent: {
+    gap: 16,
+  },
+  swipeHint: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  swipeHintLeft: {
+    left: 0,
+  },
+  swipeHintRight: {
+    right: 0,
   },
   gaugeWrap: {
     alignItems: 'center',
