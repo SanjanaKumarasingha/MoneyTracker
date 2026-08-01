@@ -12,6 +12,7 @@ import { useAppDispatch } from '@/hooks';
 import { setIsSignedIn } from '@/store/userSlice';
 import { AuthProvider, useAuth } from '@/provider/AuthProvider';
 import { clearStoredToken, getStoredToken } from '@/lib/secureStorage';
+import Toast from '@/components/Toast';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ export default function RootLayout() {
             </SessionBootstrap>
           </AuthProvider>
           <StatusBar style="auto" />
+          <Toast />
         </QueryClientProvider>
       </Provider>
     </GestureHandlerRootView>

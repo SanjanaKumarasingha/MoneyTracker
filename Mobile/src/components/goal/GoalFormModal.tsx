@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 
@@ -29,7 +30,9 @@ import {
 import { EGoalType } from '@/types/goal-type.enum';
 import { EGoalPeriodType } from '@/types/goal-period-type.enum';
 import { colors } from '@/theme/colors';
+import { getCategoryColor } from '@/theme/categoryColor';
 import IconSelector from '@/components/IconSelector';
+import { showToast } from '@/components/Toast';
 
 type GoalFormModalProps = {
   visible: boolean;
@@ -132,7 +135,7 @@ export default function GoalFormModal({
     onSuccess: onClose,
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not create goal', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not create goal. Please try again.');
     },
   });
 
@@ -142,7 +145,7 @@ export default function GoalFormModal({
     onSuccess: onClose,
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not update goal', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not update goal. Please try again.');
     },
   });
 
@@ -152,24 +155,25 @@ export default function GoalFormModal({
     onSuccess: onClose,
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not delete goal', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not delete goal. Please try again.');
     },
   });
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const handleSave = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const amount = Number(amountInput);
     if (!amountInput || Number.isNaN(amount) || amount <= 0) {
-      Alert.alert('Amount required', 'Please enter a target amount greater than 0.');
+      showToast('Please enter a target amount greater than 0.');
       return;
     }
     if (scope === 'category' && !categoryId) {
-      Alert.alert('Category required', 'Please select a category, or switch to "Whole wallet".');
+      showToast('Please select a category, or switch to "Whole wallet".');
       return;
     }
     if (periodType === EGoalPeriodType.CUSTOM && endDate.getTime() <= startDate.getTime()) {
-      Alert.alert('Invalid dates', 'The end date must be after the start date.');
+      showToast('The end date must be after the start date.');
       return;
     }
 
@@ -240,9 +244,16 @@ export default function GoalFormModal({
           )}
 
           {isEditing && (
-            <Text style={styles.scopeReadout}>
-              {goal.category ? `Category: ${goal.category.name}` : 'Whole wallet'}
-            </Text>
+            <View style={styles.scopeReadoutRow}>
+              {goal.category && (
+                <View style={[styles.scopeDot, { backgroundColor: getCategoryColor(goal.category.id) }]}>
+                  <IconSelector name={goal.category.icon} size={12} color="#fff" />
+                </View>
+              )}
+              <Text style={styles.scopeReadout}>
+                {goal.category ? `Category: ${goal.category.name}` : 'Whole wallet'}
+              </Text>
+            </View>
           )}
 
           {!isEditing && scope === 'category' && (
@@ -447,12 +458,24 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 6,
   },
+  scopeReadoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  scopeDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scopeReadout: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginTop: 4,
-    marginBottom: 4,
   },
   input: {
     borderWidth: 1,

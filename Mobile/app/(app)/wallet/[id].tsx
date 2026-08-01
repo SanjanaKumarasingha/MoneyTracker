@@ -1,14 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Gesture, GestureDetector, Swipeable } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { fetchWallets } from '@/apis/wallet';
-import { deleteRecord, fetchWalletSummary } from '@/apis/record';
+import { deleteRecord } from '@/apis/record';
 import { fetchGoalsByWallet } from '@/apis/goal';
 import { useAuth } from '@/provider/AuthProvider';
 import {
@@ -17,17 +26,19 @@ import {
   IRecord,
   IRecordWithCategory,
   IWalletRecordWithCategory,
-  IWalletSummary,
 } from '@/types';
-import { EGoalType } from '@/types/goal-type.enum';
 import { colors } from '@/theme/colors';
-import { getIncomeRatio, getRatioBand } from '@/utils/ratioBand';
-import LiquidGauge from '@/components/LiquidGauge';
-import IconSelector from '@/components/IconSelector';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
+import ErrorState from '@/components/ErrorState';
+import { showToast } from '@/components/Toast';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import RecordFormModal from '@/components/record/RecordFormModal';
 import GoalFormModal from '@/components/goal/GoalFormModal';
+import ScreenHeader from '@/components/ScreenHeader';
+import CategoryBreakdown from '@/components/wallet/CategoryBreakdown';
 
 function getWalletBalance(wallet: IWalletRecordWithCategory): number {
   return (wallet.records ?? []).reduce((acc, record) => {
@@ -38,6 +49,23 @@ function getWalletBalance(wallet: IWalletRecordWithCategory): number {
   }, 0);
 }
 
+// All-time totals, matching getWalletBalance's scope — these three stat
+// cards are a lifetime overview; the CategoryBreakdown below has its own
+// period picker for month/week/year/custom-scoped analysis.
+function getWalletIncomeExpense(wallet: IWalletRecordWithCategory): { income: number; expense: number } {
+  return (wallet.records ?? []).reduce(
+    (acc, record) => {
+      if (record.category.type === 'expense') {
+        acc.expense += Number(record.price);
+      } else {
+        acc.income += Number(record.price);
+      }
+      return acc;
+    },
+    { income: 0, expense: 0 },
+  );
+}
+
 function formatCurrency(amount: number, currency = 'USD'): string {
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
@@ -46,16 +74,20 @@ function formatCurrency(amount: number, currency = 'USD'): string {
   }
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
 // The screen every wallet name on Home pushes into — no tab bar (see the
 // outer Stack in app/(app)/_layout.tsx), just a back arrow, because you're
-// inside one wallet's world now. This is where the glass gauge gets a full
-// screen instead of competing for space in a small card.
+// inside one wallet's world now. Merges what used to be two separate
+// screens (this Wallet Detail screen, and the standalone Report tab): the
+// Balance/Income/Expenses stat row stays wallet-lifetime, and
+// CategoryBreakdown below adds Report's period-scoped donut + category
+// drilldown, now scoped to this one wallet instead of needing its own
+// wallet switcher. Goals no longer get their own section here — a goal
+// tied to a category surfaces as a badge on that category's row inside
+// CategoryBreakdown instead. The flat chronological transaction list that
+// used to live here moved to the cross-wallet /transactions screen — "view
+// every transaction across every wallet" and "analyze one wallet's
+// spending by category" are different enough jobs that they don't both
+// belong on one screen anymore.
 export default function WalletDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const walletId = Number(id);
@@ -66,6 +98,9 @@ export default function WalletDetailScreen() {
   const {
     data: wallets,
     isLoading: isWalletsLoading,
+    isError: isWalletsError,
+    isRefetching: isWalletsRefetching,
+    refetch: refetchWallets,
   } = useQuery<IWalletRecordWithCategory[]>({
     queryKey: ['wallets', userId],
     queryFn: () => fetchWallets(userId!),
@@ -113,21 +148,42 @@ export default function WalletDetailScreen() {
       dragX.value = withSpring(0, { damping: 18, stiffness: 180 });
     });
 
+  // One-time bounce on first mount so the swipe-to-switch-wallet gesture is
+  // discoverable without needing a static, easy-to-miss hint icon.
+  const bounceX = useSharedValue(0);
+  const hintPulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (walletOrder.length < 2) return;
+    bounceX.value = withDelay(
+      400,
+      withSequence(
+        withTiming(-16, { duration: 220, easing: Easing.out(Easing.quad) }),
+        withTiming(10, { duration: 180 }),
+        withTiming(0, { duration: 220 }),
+      ),
+    );
+    hintPulse.value = withDelay(
+      400,
+      withSequence(
+        withTiming(1, { duration: 220 }),
+        withTiming(1, { duration: 300 }),
+        withTiming(0, { duration: 300 }),
+      ),
+    );
+    // Only meant to play once when this wallet screen mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const dragStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: dragX.value * 0.4 }],
+    transform: [{ translateX: dragX.value * 0.4 + bounceX.value }],
   }));
   const leftHintStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(1, Math.max(0, dragX.value / 60)),
+    opacity: Math.max(Math.min(1, Math.max(0, dragX.value / 60)), hintPulse.value),
   }));
   const rightHintStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(1, Math.max(0, -dragX.value / 60)),
+    opacity: Math.max(Math.min(1, Math.max(0, -dragX.value / 60)), hintPulse.value),
   }));
-
-  const { data: summary } = useQuery<IWalletSummary>({
-    queryKey: ['walletSummary', walletId],
-    queryFn: () => fetchWalletSummary(walletId),
-    enabled: !!walletId,
-  });
 
   const { data: goals } = useQuery<IGoalWithProgress[]>({
     queryKey: ['goals', walletId],
@@ -151,8 +207,9 @@ export default function WalletDetailScreen() {
     }
   }, [isWalletsLoading, wallets, wallet, router]);
 
-  // Swipe-to-delete on each transaction row — a faster, more discoverable
-  // path than opening the full edit form just to delete something.
+  // Swipe-to-delete on each transaction row (used inside CategoryBreakdown's
+  // drilldown) — a faster, more discoverable path than opening the full
+  // edit form just to delete something.
   const deleteRecordMutation = useMutation({
     mutationFn: deleteRecord,
     onSuccess: () => {
@@ -162,7 +219,7 @@ export default function WalletDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['allGoals'] });
     },
     onError: () => {
-      Alert.alert('Could not delete', 'Please try again.');
+      showToast('Could not delete. Please try again.');
     },
   });
 
@@ -177,13 +234,6 @@ export default function WalletDetailScreen() {
     );
   };
 
-  const sortedRecords = useMemo(() => {
-    return [...(wallet?.records ?? [])].sort((a, b) => {
-      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      return b.id - a.id;
-    });
-  }, [wallet]);
-
   const openCreateRecord = () => {
     setEditRecord(null);
     setEditCategory(null);
@@ -197,15 +247,18 @@ export default function WalletDetailScreen() {
     setRecordModalVisible(true);
   };
 
-  const openCreateGoal = () => {
-    setSelectedGoal(null);
-    setGoalModalVisible(true);
-  };
-
   const openEditGoal = (goal: IGoalWithProgress) => {
     setSelectedGoal(goal);
     setGoalModalVisible(true);
   };
+
+  if (isWalletsError) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'top']}>
+        <ErrorState message="Couldn't load this wallet." onRetry={() => refetchWallets()} />
+      </SafeAreaView>
+    );
+  }
 
   if (isWalletsLoading || !wallet) {
     return (
@@ -221,24 +274,28 @@ export default function WalletDetailScreen() {
   }
 
   const balance = getWalletBalance(wallet);
-  const income = summary?.income ?? 0;
-  const expense = summary?.expense ?? 0;
-  const ratio = getIncomeRatio(income, expense);
-  const band = getRatioBand(ratio);
+  const { income, expense } = getWalletIncomeExpense(wallet);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{wallet.name}</Text>
-        <Pressable onPress={() => setEditWalletVisible(true)} hitSlop={10} accessibilityLabel="Edit wallet">
-          <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+      <ScreenHeader
+        title={wallet.name}
+        back={{
+          onPress: () => router.back(),
+          overflow: (
+            <Pressable onPress={() => setEditWalletVisible(true)} hitSlop={10} accessibilityLabel="Edit wallet">
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+            </Pressable>
+          ),
+        }}
+      />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={isWalletsRefetching} onRefresh={() => refetchWallets()} tintColor={colors.primary} />
+        }
+      >
         <View style={styles.swipeArea}>
           {walletOrder.length > 1 && (
             <>
@@ -252,20 +309,6 @@ export default function WalletDetailScreen() {
           )}
           <GestureDetector gesture={swipeGesture}>
             <Animated.View style={[styles.swipeContent, dragStyle]}>
-              <View style={styles.gaugeWrap}>
-                <LiquidGauge
-                  size={128}
-                  percent={ratio}
-                  colorLight={band.light}
-                  colorMid={band.mid}
-                  colorDeep={band.deep}
-                  label={`${ratio}%`}
-                />
-                <Text style={styles.gaugeCaption}>
-                  {ratio >= 60 ? `${ratio}% of income still unspent this month` : `Only ${ratio}% of income left this month`}
-                </Text>
-              </View>
-
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Balance</Text>
@@ -273,98 +316,24 @@ export default function WalletDetailScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Income</Text>
-                  <Text style={styles.statFigure}>{formatCurrency(income, wallet.currency)}</Text>
+                  <Text style={[styles.statFigure, styles.statFigureIncome]}>{formatCurrency(income, wallet.currency)}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Expenses</Text>
-                  <Text style={styles.statFigure}>{formatCurrency(expense, wallet.currency)}</Text>
+                  <Text style={[styles.statFigure, styles.statFigureExpense]}>{formatCurrency(expense, wallet.currency)}</Text>
                 </View>
               </View>
             </Animated.View>
           </GestureDetector>
         </View>
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Goals</Text>
-          <Pressable onPress={openCreateGoal} hitSlop={8}>
-            <Text style={styles.sectionLink}>Add</Text>
-          </Pressable>
-        </View>
-        {!goals || goals.length === 0 ? (
-          <Text style={styles.emptyText}>No goals for this wallet yet.</Text>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {goals.map((goal) => {
-              const percent = Math.max(0, Math.min(100, goal.progress.percent));
-              const isExceeded = goal.progress.status === 'exceeded';
-              return (
-                <Pressable key={goal.id} style={styles.goalRow} onPress={() => openEditGoal(goal)}>
-                  <View style={styles.goalRowTop}>
-                    <Text style={styles.goalName}>
-                      {goal.name || (goal.category ? goal.category.name : 'Whole wallet')}
-                    </Text>
-                    <Text style={styles.goalType}>
-                      {goal.type === EGoalType.SAVING ? 'Saving' : 'Limit'}
-                    </Text>
-                  </View>
-                  <View style={styles.goalTrack}>
-                    <View
-                      style={[
-                        styles.goalFill,
-                        { width: `${percent}%`, backgroundColor: isExceeded ? colors.danger : colors.primary },
-                      ]}
-                    />
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Transactions</Text>
-        </View>
-        {sortedRecords.length === 0 ? (
-          <Text style={styles.emptyText}>No transactions yet — tap + to add one.</Text>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {sortedRecords.map((record) => {
-              const isExpense = record.category.type === 'expense';
-              return (
-                <Swipeable
-                  key={record.id}
-                  overshootRight={false}
-                  renderRightActions={() => (
-                    <Pressable
-                      style={styles.swipeDelete}
-                      onPress={() => confirmDeleteRecord(record)}
-                      accessibilityLabel="Delete transaction"
-                    >
-                      <Ionicons name="trash-outline" size={20} color="#fff" />
-                    </Pressable>
-                  )}
-                >
-                  <Pressable style={styles.txnRow} onPress={() => openEditRecord(record)}>
-                    <View style={[styles.txnIcon, { backgroundColor: isExpense ? colors.danger : colors.success }]}>
-                      <IconSelector name={record.category.icon} size={15} color="#fff" />
-                    </View>
-                    <View style={styles.txnMeta}>
-                      <Text style={styles.txnName}>{record.category.name}</Text>
-                      <Text style={styles.txnSub}>
-                        {formatDate(record.date)}
-                        {record.remarks ? ` · ${record.remarks}` : ''}
-                      </Text>
-                    </View>
-                    <Text style={[styles.txnAmount, isExpense ? styles.txnExpense : styles.txnIncome]}>
-                      {isExpense ? '-' : '+'}
-                      {formatCurrency(Number(record.price), wallet.currency)}
-                    </Text>
-                  </Pressable>
-                </Swipeable>
-              );
-            })}
-          </View>
-        )}
+        <CategoryBreakdown
+          wallet={wallet}
+          goals={goals ?? []}
+          onEditRecord={openEditRecord}
+          onDeleteRecord={confirmDeleteRecord}
+          onEditGoal={openEditGoal}
+        />
       </ScrollView>
 
       <Pressable style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]} onPress={openCreateRecord}>
@@ -399,26 +368,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
   scroll: {
-    padding: 20,
+    padding: spacing.xl,
     paddingBottom: 100,
-    gap: 16,
   },
   swipeArea: {
     position: 'relative',
+    marginBottom: spacing.lg,
   },
   swipeContent: {
     gap: 16,
@@ -436,17 +392,6 @@ const styles = StyleSheet.create({
   swipeHintRight: {
     right: 0,
   },
-  gaugeWrap: {
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  gaugeCaption: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   statsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -454,12 +399,11 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 10,
+    borderRadius: radius.xl,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
+    ...shadows.card,
   },
   statLabel: {
     fontSize: 10.5,
@@ -471,121 +415,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionLink: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primaryDark,
-  },
-  emptyText: {
-    fontSize: 12.5,
-    color: colors.textMuted,
-  },
-  goalRow: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 12,
-    gap: 8,
-  },
-  goalRowTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goalName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  goalType: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  goalTrack: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  goalFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  txnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  txnIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swipeDelete: {
-    width: 72,
-    marginLeft: 8,
-    borderRadius: 14,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txnMeta: {
-    flex: 1,
-  },
-  txnName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  txnSub: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  txnAmount: {
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  txnExpense: {
-    color: colors.danger,
-  },
-  txnIncome: {
+  statFigureIncome: {
     color: colors.success,
+  },
+  statFigureExpense: {
+    color: colors.danger,
   },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 24,
+    right: spacing.xl,
+    bottom: spacing.xxl,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    ...shadows.raised,
   },
   fabPressed: {
     backgroundColor: colors.primaryDark,

@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 
 import { createWallet, deleteWallet, updateWallet } from '@/apis/wallet';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IWallet } from '@/types';
 import { colors } from '@/theme/colors';
 import CurrencyPicker from '@/components/CurrencyPicker';
+import { showToast } from '@/components/Toast';
 
 type WalletFormModalProps = {
   visible: boolean;
@@ -62,7 +64,7 @@ export default function WalletFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not create wallet', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not create wallet. Please try again.');
     },
   });
 
@@ -74,7 +76,7 @@ export default function WalletFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not update wallet', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not update wallet. Please try again.');
     },
   });
 
@@ -86,19 +88,20 @@ export default function WalletFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not delete wallet', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not delete wallet. Please try again.');
     },
   });
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const handleSave = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter a wallet name.');
+      showToast('Please enter a wallet name.');
       return;
     }
     if (!currency) {
-      Alert.alert('Currency required', 'Please select a currency.');
+      showToast('Please select a currency.');
       return;
     }
 

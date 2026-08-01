@@ -17,6 +17,9 @@ import { profile, updateUser } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
+import { shadows } from '@/theme/shadows';
+import Skeleton from '@/components/Skeleton';
+import ErrorState from '@/components/ErrorState';
 
 type FieldErrors = {
   username?: string;
@@ -32,7 +35,7 @@ export default function ProfileScreen() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: user, isLoading } = useQuery<IUserInfo>({
+  const { data: user, isLoading, isError, refetch } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
     queryFn: () => profile(userId!),
     enabled: !!userId,
@@ -111,9 +114,18 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.card}>
+          <Skeleton height={44} borderRadius={10} style={{ marginBottom: 14 }} />
+          <Skeleton height={44} borderRadius={10} />
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+        <ErrorState message="Couldn't load your profile." onRetry={() => refetch()} />
       </SafeAreaView>
     );
   }
@@ -205,19 +217,13 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   card: {
     backgroundColor: colors.card,
     borderRadius: 14,
     padding: 20,
     margin: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
     gap: 6,
+    ...shadows.card,
   },
   errorBanner: {
     backgroundColor: colors.dangerSoft,

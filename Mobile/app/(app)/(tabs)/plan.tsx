@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, G } from 'react-native-svg';
+import { FadeInDown } from 'react-native-reanimated';
 
 import { fetchWallets } from '@/apis/wallet';
 import { fetchGoalsByWallet } from '@/apis/goal';
@@ -11,43 +11,21 @@ import { useAuth } from '@/provider/AuthProvider';
 import { IGoalWithProgress, IWalletRecordWithCategory } from '@/types';
 import { EGoalType } from '@/types/goal-type.enum';
 import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
+import { getCategoryColor } from '@/theme/categoryColor';
+import { getBudgetStatusColor } from '@/utils/goalStatus';
 import IconSelector from '@/components/IconSelector';
 import Skeleton from '@/components/Skeleton';
 import GoalFormModal from '@/components/goal/GoalFormModal';
+import ScreenHeader from '@/components/ScreenHeader';
+import ErrorState from '@/components/ErrorState';
+import PressableScale from '@/components/PressableScale';
+import PercentRing from '@/components/PercentRing';
 
 function formatMoney(amount: number): string {
   return amount.toFixed(2);
-}
-
-function PercentRing({ percent, color, size = 42 }: { percent: number; color: string; size?: number }) {
-  const strokeWidth = 4;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.max(0, Math.min(100, percent));
-  const dash = (clamped / 100) * circumference;
-
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <G rotation={-90} originX={size / 2} originY={size / 2}>
-          <Circle cx={size / 2} cy={size / 2} r={radius} stroke={colors.border} strokeWidth={strokeWidth} fill="transparent" />
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${dash} ${circumference - dash}`}
-            strokeLinecap="round"
-            fill="transparent"
-          />
-        </G>
-      </Svg>
-      <View style={styles.ringLabelWrap} pointerEvents="none">
-        <Text style={styles.ringLabel}>{Math.round(clamped)}%</Text>
-      </View>
-    </View>
-  );
 }
 
 // How far ahead/behind a saving goal is relative to a straight-line pace
@@ -62,6 +40,7 @@ function getScheduleGap(goal: IGoalWithProgress): number | null {
   const expectedPercent = Math.min(100, ((Date.now() - start) / (end - start)) * 100);
   return Math.round(expectedPercent - goal.progress.percent);
 }
+
 
 // Aggregates the existing per-wallet Goals API across every wallet the user
 // has, since Plan is now a top-level tab rather than something reached
@@ -85,7 +64,13 @@ export default function PlanScreen() {
 
   const walletIds = useMemo(() => (wallets ?? []).map((w) => w.id), [wallets]);
 
-  const { data: allGoals, isLoading: isGoalsLoading, refetch } = useQuery<IGoalWithProgress[]>({
+  const {
+    data: allGoals,
+    isLoading: isGoalsLoading,
+    isError: isGoalsError,
+    isRefetching: isGoalsRefetching,
+    refetch,
+  } = useQuery<IGoalWithProgress[]>({
     queryKey: ['allGoals', walletIds],
     queryFn: async () => {
       const results = await Promise.all(walletIds.map((id) => fetchGoalsByWallet(id)));
@@ -96,6 +81,15 @@ export default function PlanScreen() {
 
   const savingGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SAVING);
   const limitGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SPENDING_LIMIT);
+
+  const overview = useMemo(() => {
+    const savedActual = savingGoals.reduce((sum, g) => sum + g.progress.actual, 0);
+    const savedTarget = savingGoals.reduce((sum, g) => sum + Number(g.targetAmount), 0);
+    const spentActual = limitGoals.reduce((sum, g) => sum + g.progress.actual, 0);
+    const spentTarget = limitGoals.reduce((sum, g) => sum + Number(g.targetAmount), 0);
+    const overBudgetCount = limitGoals.filter((g) => g.progress.status === 'exceeded').length;
+    return { savedActual, savedTarget, spentActual, spentTarget, overBudgetCount };
+  }, [savingGoals, limitGoals]);
 
   const invalidateGoals = () => {
     queryClient.invalidateQueries({ queryKey: ['allGoals'] });
@@ -133,15 +127,18 @@ export default function PlanScreen() {
   };
 
   const isLoading = isWalletsLoading || isGoalsLoading;
+  const isError = isGoalsError;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Plan</Text>
-        <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={openAddGoal}>
-          <Ionicons name="add" size={22} color="#fff" />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="My Plan"
+        right={
+          <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={openAddGoal}>
+            <Ionicons name="add" size={22} color="#fff" />
+          </Pressable>
+        }
+      />
 
       {isLoading ? (
         <View style={styles.scrollContent}>
@@ -149,20 +146,57 @@ export default function PlanScreen() {
           <Skeleton height={60} borderRadius={14} style={{ marginTop: 10 }} />
           <Skeleton height={60} borderRadius={14} style={{ marginTop: 8 }} />
         </View>
+      ) : isError ? (
+        <ErrorState message="Couldn't load your goals." onRetry={() => refetch()} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={isGoalsRefetching} onRefresh={() => refetch()} tintColor={colors.primary} />
+          }
+        >
+          {(savingGoals.length > 0 || limitGoals.length > 0) && (
+            <View style={styles.overviewCard}>
+              <View style={styles.overviewStat}>
+                <Text style={styles.overviewLabel}>Saved</Text>
+                <Text style={styles.overviewFigure}>
+                  {formatMoney(overview.savedActual)}
+                  <Text style={styles.overviewOf}> / {formatMoney(overview.savedTarget)}</Text>
+                </Text>
+              </View>
+              <View style={styles.overviewDivider} />
+              <View style={styles.overviewStat}>
+                <Text style={styles.overviewLabel}>Budgeted</Text>
+                <Text style={styles.overviewFigure}>
+                  {formatMoney(overview.spentActual)}
+                  <Text style={styles.overviewOf}> / {formatMoney(overview.spentTarget)}</Text>
+                </Text>
+                {overview.overBudgetCount > 0 && (
+                  <Text style={styles.overviewWarning}>
+                    {overview.overBudgetCount} over limit
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+
           <Text style={styles.sectionTitle}>Goals</Text>
           {savingGoals.length === 0 ? (
             <Text style={styles.emptyText}>No saving goals yet. Tap + to set one.</Text>
           ) : (
             <View style={{ gap: 10 }}>
-              {savingGoals.map((goal) => {
+              {savingGoals.map((goal, index) => {
                 const percent = Math.max(0, Math.min(100, goal.progress.percent));
                 const gap = getScheduleGap(goal);
                 const remaining = Math.max(0, Number(goal.targetAmount) - goal.progress.actual);
 
                 return (
-                  <Pressable key={goal.id} style={styles.goalCard} onPress={() => openEditGoal(goal)}>
+                  <PressableScale
+                    key={goal.id}
+                    style={styles.goalCard}
+                    onPress={() => openEditGoal(goal)}
+                    entering={FadeInDown.delay(index * 40)}
+                  >
                     <View style={styles.goalTop}>
                       <View style={styles.goalIcon}>
                         {goal.category ? (
@@ -187,7 +221,7 @@ export default function PlanScreen() {
                       <View style={[styles.goalFill, { width: `${percent}%` }]} />
                     </View>
                     <View style={styles.goalProgressRow}>
-                      <Text style={styles.goalProgressLabel}>Your Progress</Text>
+                      <Text style={styles.goalProgressLabel}>Your Progress · {Math.round(percent)}%</Text>
                       <Text style={styles.goalProgressLabel}>{formatMoney(remaining)} Left</Text>
                     </View>
                     {gap !== null && gap > 5 && (
@@ -197,7 +231,7 @@ export default function PlanScreen() {
                         </Text>
                       </View>
                     )}
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -208,12 +242,18 @@ export default function PlanScreen() {
             <Text style={styles.emptyText}>No spending limits yet. Tap + to set one.</Text>
           ) : (
             <View style={{ gap: 8 }}>
-              {limitGoals.map((goal) => {
+              {limitGoals.map((goal, index) => {
                 const isExceeded = goal.progress.status === 'exceeded';
-                const ringColor = isExceeded ? colors.danger : colors.primary;
+                const statusColor = getBudgetStatusColor(goal.progress.percent);
+                const iconColor = goal.category ? getCategoryColor(goal.category.id) : colors.primary;
                 return (
-                  <Pressable key={goal.id} style={styles.budgetRow} onPress={() => openEditGoal(goal)}>
-                    <View style={[styles.budgetIcon, { backgroundColor: ringColor }]}>
+                  <PressableScale
+                    key={goal.id}
+                    style={styles.budgetRow}
+                    onPress={() => openEditGoal(goal)}
+                    entering={FadeInDown.delay(index * 40)}
+                  >
+                    <View style={[styles.budgetIcon, { backgroundColor: iconColor }]}>
                       {goal.category ? (
                         <IconSelector name={goal.category.icon} size={15} color="#fff" />
                       ) : (
@@ -229,8 +269,8 @@ export default function PlanScreen() {
                         {isExceeded ? ' — exceeded' : ''}
                       </Text>
                     </View>
-                    <PercentRing percent={goal.progress.percent} color={ringColor} />
-                  </Pressable>
+                    <PercentRing percent={goal.progress.percent} color={statusColor} />
+                  </PressableScale>
                 );
               })}
             </View>
@@ -270,19 +310,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
   addButton: {
     backgroundColor: colors.primary,
     borderRadius: 999,
@@ -295,9 +322,47 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingBottom: 40,
-    gap: 10,
+    gap: spacing.sm,
+  },
+  overviewCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.xxl,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  overviewStat: {
+    flex: 1,
+  },
+  overviewDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: colors.primary,
+    opacity: 0.25,
+    marginHorizontal: 14,
+  },
+  overviewLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primaryDark,
+  },
+  overviewFigure: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 4,
+  },
+  overviewOf: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  overviewWarning: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.danger,
+    marginTop: 3,
   },
   sectionTitle: {
     fontSize: 14,
@@ -311,21 +376,20 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 18,
-    padding: 14,
-    gap: 8,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadows.card,
   },
   goalTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
   goalIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -383,17 +447,16 @@ const styles = StyleSheet.create({
   budgetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    ...shadows.card,
   },
   budgetIcon: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -405,16 +468,6 @@ const styles = StyleSheet.create({
   budgetSub: {
     fontSize: 10.5,
     color: colors.textMuted,
-  },
-  ringLabelWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.text,
   },
   pickerOverlay: {
     flex: 1,

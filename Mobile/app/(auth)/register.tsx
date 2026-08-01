@@ -17,6 +17,7 @@ import { AxiosError } from 'axios';
 import { register } from '@/apis';
 import { ApiError, IUserInfo, NewUser } from '@/types';
 import { colors } from '@/theme/colors';
+import PasswordInput from '@/components/PasswordInput';
 
 type FieldErrors = {
   username?: string;
@@ -25,7 +26,7 @@ type FieldErrors = {
   confirmPassword?: string;
 };
 
-type AlertState = { type: 'error' | 'success'; message: string };
+type AlertState = { type: 'error'; message: string };
 
 const isValidEmail = (email: string): boolean => /\S+@\S+\.\S+/.test(email);
 
@@ -61,10 +62,7 @@ export default function RegisterScreen() {
     onMutate: () => setAlert(null),
     onError: (err) => setAlert({ type: 'error', message: extractErrorMessage(err) }),
     onSuccess: () => {
-      setAlert({ type: 'success', message: 'Account created. Redirecting to login...' });
-      setTimeout(() => {
-        router.replace('/(auth)/login');
-      }, 800);
+      router.replace('/(auth)/login');
     },
   });
 
@@ -108,19 +106,8 @@ export default function RegisterScreen() {
             <Text style={styles.subtitle}>Register to start tracking your money.</Text>
 
             {alert ? (
-              <View
-                style={[
-                  styles.alertBanner,
-                  alert.type === 'success' ? styles.successBanner : styles.errorBanner,
-                ]}
-              >
-                <Text
-                  style={
-                    alert.type === 'success' ? styles.successBannerText : styles.errorBannerText
-                  }
-                >
-                  {alert.message}
-                </Text>
+              <View style={[styles.alertBanner, styles.errorBanner]}>
+                <Text style={styles.errorBannerText}>{alert.message}</Text>
               </View>
             ) : null}
 
@@ -171,10 +158,9 @@ export default function RegisterScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
+              <PasswordInput
                 style={[styles.input, fieldErrors.password && styles.inputError]}
                 value={userInfo.password}
-                secureTextEntry
                 autoCapitalize="none"
                 autoComplete="new-password"
                 placeholder="Create a password"
@@ -193,10 +179,9 @@ export default function RegisterScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
+              <PasswordInput
                 style={[styles.input, fieldErrors.confirmPassword && styles.inputError]}
                 value={userInfo.confirmPassword}
-                secureTextEntry
                 autoCapitalize="none"
                 autoComplete="new-password"
                 placeholder="Re-enter your password"
@@ -289,15 +274,8 @@ const styles = StyleSheet.create({
   errorBanner: {
     backgroundColor: colors.dangerSoft,
   },
-  successBanner: {
-    backgroundColor: colors.successSoft,
-  },
   errorBannerText: {
     color: colors.danger,
-    fontSize: 13,
-  },
-  successBannerText: {
-    color: colors.success,
     fontSize: 13,
   },
   field: {

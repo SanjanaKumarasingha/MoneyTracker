@@ -21,7 +21,6 @@ import { colors } from '@/theme/colors';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   index: 'home',
-  report: 'pie-chart',
   plan: 'flag',
   settings: 'settings',
 };

@@ -20,6 +20,7 @@ import { useAppDispatch } from '@/hooks';
 import { setIsSignedIn } from '@/store/userSlice';
 import { ApiError, IUser, LoginResponse } from '@/types';
 import { colors } from '@/theme/colors';
+import PasswordInput from '@/components/PasswordInput';
 
 type FieldErrors = {
   username?: string;
@@ -118,10 +119,9 @@ export default function LoginScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
+              <PasswordInput
                 style={[styles.input, fieldErrors.password && styles.inputError]}
                 value={password}
-                secureTextEntry
                 autoCapitalize="none"
                 autoComplete="current-password"
                 placeholder="Enter your password"

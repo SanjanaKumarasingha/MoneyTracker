@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import {
   NestableDraggableFlatList,
   NestableScrollContainer,
@@ -20,9 +21,14 @@ import { profile, updateCategoryOrder } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ECategoryType, ICategory, IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
 import IconSelector from '@/components/IconSelector';
 import CategoryFormModal from '@/components/category/CategoryFormModal';
 import Skeleton from '@/components/Skeleton';
+import ScreenHeader from '@/components/ScreenHeader';
+import ErrorState from '@/components/ErrorState';
 
 // Native counterpart to Client/src/pages/CategoryPage.tsx: same concept
 // (two type sections, drag to reorder, tap a row to edit/delete, "+" to
@@ -156,9 +162,13 @@ export default function CategoriesScreen() {
       <Pressable
         style={[
           styles.row,
+          isActive && shadows.raised,
           { backgroundColor: isActive ? colors.primarySoft : colors.card },
         ]}
-        onLongPress={drag}
+        onLongPress={() => {
+          Haptics.selectionAsync();
+          drag();
+        }}
         onPress={() => openEditModal(item)}
         delayLongPress={200}
       >
@@ -217,11 +227,10 @@ export default function CategoriesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>
-          Long-press and drag to reorder. Tap a category to edit it.
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Categories"
+        subtitle="Long-press and drag to reorder. Tap a category to edit it."
+      />
 
       {isCategoriesLoading ? (
         <View style={styles.scrollContent}>
@@ -230,12 +239,7 @@ export default function CategoriesScreen() {
           ))}
         </View>
       ) : isError ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>Couldn&apos;t load your categories.</Text>
-          <Pressable style={styles.retryButton} onPress={() => refetch()}>
-            <Text style={styles.retryButtonText}>Try again</Text>
-          </Pressable>
-        </View>
+        <ErrorState message="Couldn't load your categories." onRetry={() => refetch()} />
       ) : (
         <NestableScrollContainer contentContainerStyle={styles.scrollContent}>
           {renderSection('Income', ECategoryType.INCOME, incomeCategories)}
@@ -260,45 +264,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  errorText: {
-    fontSize: 15,
-    color: colors.danger,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingBottom: 40,
   },
   section: {
@@ -329,10 +296,9 @@ const styles = StyleSheet.create({
   },
   emptySection: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    padding: 16,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...shadows.card,
   },
   emptySectionText: {
     fontSize: 13,
@@ -343,17 +309,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     marginBottom: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    ...shadows.card,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
     flexShrink: 1,
   },
   iconBadge: {

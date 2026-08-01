@@ -1,4 +1,4 @@
-// Shared palette matching the approved UI direction: a purple/violet brand
+// Shared palette matching the approved UI direction: a vivid-blue brand
 // accent (hero gradient, FAB, active tab), semantic income/expense colors,
 // and a fixed set of category colors reused everywhere a category appears
 // (Report, wallet detail, transaction rows) so the same category always
@@ -12,12 +12,12 @@ export const colors = {
   textMuted: '#6f7285',
   textFaint: '#a4a7b8',
 
-  primary: '#8b7cf6',
-  primaryDark: '#6d5cf0',
-  primarySoft: '#efe9ff',
+  primary: '#2563eb',
+  primaryDark: '#1d4ed8',
+  primarySoft: '#dbeafe',
 
-  heroFrom: '#ada2fb',
-  heroTo: '#7a6cf0',
+  heroFrom: '#3b82f6',
+  heroTo: '#1e3a8a',
 
   danger: '#f4506b',
   dangerSoft: '#fde3e8',
@@ -26,24 +26,20 @@ export const colors = {
   amber: '#f2a93c',
   amberSoft: '#fff3d9',
 
-  // Ratio-band gradient stops for the income/expense LiquidGauge (healthy /
-  // caution / danger), plus the flat "insight" pill background.
-  waterHealthyLight: '#7dfcd6',
-  waterHealthyMid: '#12b886',
-  waterHealthyDeep: '#0f8a68',
-  waterCautionLight: '#ffe29a',
-  waterCautionMid: '#f2a93c',
-  waterCautionDeep: '#c97b12',
-  waterDangerLight: '#ffb3b3',
-  waterDangerMid: '#f4506b',
-  waterDangerDeep: '#c81e3a',
-  insightBg: '#17161f',
-
-  catTransport: '#4d8dfd',
+  // Fixed per-category identity colors — one hex per category, reused
+  // everywhere a category appears (Report, Plan, Edit Goal) so the same
+  // category never reads as two different colors. catHealth intentionally
+  // avoids `success` (teal instead of green) since success/danger are
+  // reserved exclusively for income/expense direction, never a category.
+  // catTransport is a slate-blue (not the vivid brand blue) so a category
+  // dot never gets mistaken for a primary button/active state.
+  catTransport: '#64748b',
   catRestaurant: '#fb923c',
-  catHealth: '#22c55e',
+  catHealth: '#14b8a6',
   catEducation: '#8b7cf6',
   catShopping: '#ec4899',
   catBills: '#a78bfa',
+  catAmberAlt: '#eda100',
+  catRoseAlt: '#e34948',
   catOther: '#9ca3af',
 };

@@ -17,6 +17,7 @@ import { profile, updatePassword } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IUpdatePasswordDto, IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
+import PasswordInput from '@/components/PasswordInput';
 
 type FieldErrors = {
   oldPassword?: string;
@@ -128,10 +129,9 @@ export default function UpdatePasswordScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Original Password</Text>
-            <TextInput
+            <PasswordInput
               style={[styles.input, fieldErrors.oldPassword && styles.inputError]}
               value={password.oldPassword}
-              secureTextEntry
               autoCapitalize="none"
               autoComplete="current-password"
               onChangeText={(text) => setField('oldPassword', text)}
@@ -141,10 +141,9 @@ export default function UpdatePasswordScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>New Password</Text>
-            <TextInput
+            <PasswordInput
               style={[styles.input, fieldErrors.newPassword && styles.inputError]}
               value={password.newPassword}
-              secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"
               onChangeText={(text) => setField('newPassword', text)}
@@ -154,10 +153,9 @@ export default function UpdatePasswordScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Confirm New Password</Text>
-            <TextInput
+            <PasswordInput
               style={[styles.input, fieldErrors.confirmNewPassword && styles.inputError]}
               value={password.confirmNewPassword}
-              secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"
               onChangeText={(text) => setField('confirmNewPassword', text)}

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -8,12 +8,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { fetchWallets } from '@/apis/wallet';
+import { fetchGoalsByWallet } from '@/apis/goal';
 import { profile } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
-import { IRecordWithCategory, IUserInfo, IWalletRecordWithCategory } from '@/types';
+import { useAppDispatch } from '@/hooks';
+import { updateFavWallet } from '@/store/walletSlice';
+import { IGoalWithProgress, IUserInfo, IWalletRecordWithCategory } from '@/types';
+import { EGoalType } from '@/types/goal-type.enum';
 import { colors } from '@/theme/colors';
-import IconSelector from '@/components/IconSelector';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
+import { getCategoryColor } from '@/theme/categoryColor';
 import Skeleton from '@/components/Skeleton';
+import ErrorState from '@/components/ErrorState';
+import PressableScale from '@/components/PressableScale';
+import PercentRing from '@/components/PercentRing';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 
 // Mirrors the balance calc used throughout the app (Client/src/pages/WalletPage.tsx):
@@ -40,16 +50,30 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-type RecentEntry = IRecordWithCategory & { walletName: string };
+// One gradient per card position, cycling if there are more wallets than
+// colors — a fixed, recognizable "which wallet is this" cue at a glance,
+// the same way a real bank's cards each look different.
+const CARD_GRADIENTS: [string, string][] = [
+  [colors.heroFrom, colors.heroTo],
+  ['#34d399', '#047857'],
+  ['#fb923c', '#9a3412'],
+  ['#f472b6', '#9d174d'],
+];
 
-// Home has exactly two jobs: "how am I doing overall" (one total balance,
-// this month's income/expenses) and "which wallet do I want" (a plain named
-// list — no numbers, no gauges; that detail lives on the wallet's own
-// screen). Recent activity gives a last glance at what just happened
-// without needing to open a specific wallet.
+function greetingForHour(hour: number): string {
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// Home leads with things worth glancing at (balance + trend, a wallet
+// carousel, cash flow, top spending, a goal teaser, one insight) rather than
+// a raw activity feed — that flat chronological view now lives on the
+// dedicated /transactions screen, reachable from the quick action below.
 export default function HomeScreen() {
   const { userId } = useAuth();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const [walletModalVisible, setWalletModalVisible] = useState(false);
 
@@ -69,6 +93,7 @@ export default function HomeScreen() {
     data: wallets,
     isLoading,
     isError,
+    isRefetching,
     refetch,
   } = useQuery<IWalletRecordWithCategory[]>({
     queryKey: ['wallets', userId],
@@ -82,42 +107,94 @@ export default function HomeScreen() {
     enabled: !!userId,
   });
 
+  const walletIds = useMemo(() => (wallets ?? []).map((w) => w.id), [wallets]);
+  const { data: allGoals } = useQuery<IGoalWithProgress[]>({
+    queryKey: ['allGoals', walletIds],
+    queryFn: async () => {
+      const results = await Promise.all(walletIds.map((id) => fetchGoalsByWallet(id)));
+      return results.flat();
+    },
+    enabled: walletIds.length > 0,
+  });
+
   const now = useMemo(() => new Date(), []);
   const currentMonthKey = useMemo(() => now.toISOString().slice(0, 7), [now]);
+  const lastMonthKey = useMemo(() => {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() - 1, 1));
+    return d.toISOString().slice(0, 7);
+  }, [now]);
 
-  const { balance, income, expense, recent, currency } = useMemo(() => {
+  const {
+    balance,
+    income,
+    expense,
+    lastMonthIncome,
+    lastMonthExpense,
+    topCategories,
+    currency,
+  } = useMemo(() => {
     let balanceTotal = 0;
     let incomeTotal = 0;
     let expenseTotal = 0;
-    const allRecords: RecentEntry[] = [];
+    let lastIncomeTotal = 0;
+    let lastExpenseTotal = 0;
+    const categoryTotals = new Map<string, { id: number; amount: number }>();
 
     (wallets ?? []).forEach((wallet) => {
       balanceTotal += getWalletBalance(wallet);
       (wallet.records ?? []).forEach((record) => {
-        if (record.date.slice(0, 7) === currentMonthKey) {
+        const monthKey = record.date.slice(0, 7);
+        const price = Number(record.price);
+        if (monthKey === currentMonthKey) {
           if (record.category.type === 'expense') {
-            expenseTotal += Number(record.price);
+            expenseTotal += price;
+            const existing = categoryTotals.get(record.category.name);
+            categoryTotals.set(record.category.name, {
+              id: record.category.id,
+              amount: (existing?.amount ?? 0) + price,
+            });
           } else {
-            incomeTotal += Number(record.price);
+            incomeTotal += price;
           }
+        } else if (monthKey === lastMonthKey) {
+          if (record.category.type === 'expense') lastExpenseTotal += price;
+          else lastIncomeTotal += price;
         }
-        allRecords.push({ ...record, walletName: wallet.name });
       });
     });
 
-    allRecords.sort((a, b) => {
-      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      return b.id - a.id;
-    });
+    const ranked = Array.from(categoryTotals.entries())
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
 
     return {
       balance: balanceTotal,
       income: incomeTotal,
       expense: expenseTotal,
-      recent: allRecords.slice(0, 4),
+      lastMonthIncome: lastIncomeTotal,
+      lastMonthExpense: lastExpenseTotal,
+      topCategories: ranked,
       currency: wallets?.[0]?.currency ?? 'USD',
     };
-  }, [wallets, currentMonthKey]);
+  }, [wallets, currentMonthKey, lastMonthKey]);
+
+  const netThisMonth = income - expense;
+  const cashFlowMax = Math.max(income, expense, lastMonthIncome, lastMonthExpense, 1);
+
+  const goalTeaser = useMemo(() => {
+    const limitGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SPENDING_LIMIT);
+    if (limitGoals.length > 0) {
+      return [...limitGoals].sort((a, b) => b.progress.percent - a.progress.percent)[0];
+    }
+    const savingGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SAVING);
+    return savingGoals[0] ?? null;
+  }, [allGoals]);
+
+  const openWallet = (walletId: number) => {
+    dispatch(updateFavWallet(walletId));
+    router.push(`/wallet/${walletId}`);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -128,131 +205,215 @@ export default function HomeScreen() {
         style={[styles.hero, { paddingTop: insets.top + 6 }]}
       >
         <View style={styles.heroTop}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{(user?.username ?? '?').charAt(0).toUpperCase()}</Text>
-          </View>
-          <View style={styles.monthPill}>
-            <Text style={styles.monthPillText}>{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</Text>
-          </View>
-          <View style={styles.bell}>
-            <Ionicons name="notifications-outline" size={16} color="#fff" />
-          </View>
-        </View>
-        <View style={styles.balanceBlock}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          {isLoading ? (
-            <Skeleton width={160} height={32} style={{ marginTop: 6, backgroundColor: 'rgba(255,255,255,0.3)' }} />
-          ) : (
-            <Text style={styles.balanceFigure}>{formatCurrency(balance, currency)}</Text>
-          )}
-          <Text style={styles.balanceDelta}>
-            {wallets?.length ?? 0} wallet{wallets?.length === 1 ? '' : 's'}
+          <Text style={styles.greeting}>
+            {greetingForHour(now.getHours())}, <Text style={styles.greetingName}>{user?.username ?? '—'}</Text>
           </Text>
+        </View>
+        <View style={styles.balanceRow}>
+          <View>
+            <Text style={styles.balanceLabel}>Total Balance</Text>
+            {isLoading ? (
+              <Skeleton width={140} height={28} style={{ marginTop: 6, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+            ) : (
+              <Text style={styles.balanceFigure}>{formatCurrency(balance, currency)}</Text>
+            )}
+          </View>
+          {!isLoading && (
+            <View style={[styles.trendBadge, { backgroundColor: netThisMonth >= 0 ? 'rgba(34,197,94,0.24)' : 'rgba(244,80,107,0.24)' }]}>
+              <Ionicons name={netThisMonth >= 0 ? 'trending-up' : 'trending-down'} size={12} color="#fff" />
+              <Text style={styles.trendBadgeText}>
+                {netThisMonth >= 0 ? '+' : '-'}{formatCurrency(Math.abs(netThisMonth), currency)} this month
+              </Text>
+            </View>
+          )}
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {isLoading ? (
-          <View style={styles.summaryRow}>
-            <Skeleton height={64} borderRadius={16} style={{ flex: 1 }} />
-            <Skeleton height={64} borderRadius={16} style={{ flex: 1 }} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.primary} />}
+      >
+        <View>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Your Wallets</Text>
+            {(wallets?.length ?? 0) > 1 && <Text style={styles.sectionHint}>swipe →</Text>}
           </View>
-        ) : (
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
-              <View style={[styles.summaryIcon, { backgroundColor: colors.successSoft }]}>
-                <Ionicons name="arrow-down" size={14} color={colors.success} />
-              </View>
-              <Text style={styles.summaryLabel}>Income ({MONTH_NAMES[now.getMonth()].slice(0, 3)})</Text>
-              <Text style={styles.summaryFigure}>{formatCurrency(income, currency)}</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <View style={[styles.summaryIcon, { backgroundColor: colors.dangerSoft }]}>
-                <Ionicons name="arrow-up" size={14} color={colors.danger} />
-              </View>
-              <Text style={styles.summaryLabel}>Expenses ({MONTH_NAMES[now.getMonth()].slice(0, 3)})</Text>
-              <Text style={styles.summaryFigure}>{formatCurrency(expense, currency)}</Text>
-            </View>
-          </View>
-        )}
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Your Wallets</Text>
+          {isLoading ? (
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Skeleton height={116} borderRadius={18} style={{ flex: 1 }} />
+              <Skeleton height={116} borderRadius={18} style={{ flex: 1 }} />
+            </View>
+          ) : isError ? (
+            <ErrorState message="Couldn't load your wallets." onRetry={() => refetch()} />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.walletScroller}
+              contentContainerStyle={styles.walletScrollerContent}
+            >
+              {(wallets ?? []).map((wallet, index) => (
+                <PressableScale
+                  key={wallet.id}
+                  style={styles.walletCard}
+                  onPress={() => openWallet(wallet.id)}
+                >
+                  <LinearGradient
+                    colors={CARD_GRADIENTS[index % CARD_GRADIENTS.length]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.walletCardTop}>
+                    <Text style={styles.walletCardName} numberOfLines={1}>{wallet.name}</Text>
+                    <View style={styles.walletCardChip} />
+                  </View>
+                  <Text style={styles.walletCardBalance}>{formatCurrency(getWalletBalance(wallet), wallet.currency)}</Text>
+                  <Text style={styles.walletCardMeta}>
+                    {wallet.currency} · {wallet.records?.length ?? 0} record{wallet.records?.length === 1 ? '' : 's'}
+                  </Text>
+                </PressableScale>
+              ))}
+
+              <PressableScale style={[styles.walletCard, styles.walletCardAdd]} onPress={() => setWalletModalVisible(true)}>
+                <Ionicons name="add" size={22} color={colors.primaryDark} />
+                <Text style={styles.walletCardAddText}>Add Wallet</Text>
+              </PressableScale>
+            </ScrollView>
+          )}
         </View>
 
-        {isLoading ? (
-          <View style={{ gap: 8 }}>
-            {[0, 1, 2].map((key) => (
-              <Skeleton key={key} height={58} borderRadius={14} />
-            ))}
-          </View>
-        ) : isError ? (
-          <View style={styles.centered}>
-            <Text style={styles.errorText}>Couldn&apos;t load your wallets.</Text>
-            <Pressable style={styles.retryButton} onPress={() => refetch()}>
-              <Text style={styles.retryButtonText}>Try again</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={{ gap: 8 }}>
-            {(wallets ?? []).map((wallet) => (
-              <Pressable
-                key={wallet.id}
-                style={({ pressed }) => [styles.walletRow, pressed && styles.walletRowPressed]}
-                onPress={() => router.push(`/wallet/${wallet.id}`)}
-              >
-                <View style={styles.walletIcon}>
-                  <Text style={styles.walletIconText}>{wallet.name.charAt(0).toUpperCase()}</Text>
+        {!isLoading && !isError && (
+          <>
+            <View style={styles.card}>
+              <View style={styles.sectionRowTight}>
+                <Text style={styles.sectionTitle}>Cash Flow</Text>
+              </View>
+              <View style={styles.cashflowLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                  <Text style={styles.legendText}>Income</Text>
                 </View>
-                <Text style={styles.walletLabel}>{wallet.name}</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-              </Pressable>
-            ))}
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                  <Text style={styles.legendText}>Expense</Text>
+                </View>
+              </View>
+              <View style={styles.cashflowBars}>
+                <View style={styles.cfGroup}>
+                  <View style={styles.cfPair}>
+                    <View style={[styles.cfBar, { height: Math.max(4, (lastMonthIncome / cashFlowMax) * 56), backgroundColor: colors.success }]} />
+                    <View style={[styles.cfBar, { height: Math.max(4, (lastMonthExpense / cashFlowMax) * 56), backgroundColor: colors.danger }]} />
+                  </View>
+                  <Text style={styles.cfMonth}>{MONTH_NAMES[(now.getMonth() + 11) % 12].slice(0, 3)}</Text>
+                </View>
+                <View style={styles.cfGroup}>
+                  <View style={styles.cfPair}>
+                    <View style={[styles.cfBar, { height: Math.max(4, (income / cashFlowMax) * 56), backgroundColor: colors.success }]} />
+                    <View style={[styles.cfBar, { height: Math.max(4, (expense / cashFlowMax) * 56), backgroundColor: colors.danger }]} />
+                  </View>
+                  <Text style={styles.cfMonth}>{MONTH_NAMES[now.getMonth()].slice(0, 3)}</Text>
+                </View>
+              </View>
+            </View>
+
+            {topCategories.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.sectionRowTight}>
+                  <Text style={styles.sectionTitle}>Top Spending — {MONTH_NAMES[now.getMonth()]}</Text>
+                </View>
+                {topCategories.map((cat) => (
+                  <View key={cat.id} style={styles.catMiniRow}>
+                    <View style={[styles.catMiniDot, { backgroundColor: getCategoryColor(cat.id) }]} />
+                    <Text style={styles.catMiniName} numberOfLines={1}>{cat.name}</Text>
+                    <View style={styles.catMiniTrack}>
+                      <View
+                        style={[
+                          styles.catMiniFill,
+                          { width: `${(cat.amount / topCategories[0].amount) * 100}%`, backgroundColor: getCategoryColor(cat.id) },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.catMiniAmount}>{cat.amount.toFixed(0)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             <Pressable
-              style={({ pressed }) => [styles.walletRow, styles.walletRowAdd, pressed && styles.walletRowPressed]}
-              onPress={() => setWalletModalVisible(true)}
+              style={styles.goalTeaser}
+              onPress={() => router.push('/plan')}
             >
-              <View style={[styles.walletIcon, styles.walletIconAdd]}>
-                <Ionicons name="add" size={18} color={colors.primaryDark} />
-              </View>
-              <Text style={[styles.walletLabel, styles.walletLabelAdd]}>Add Wallet</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {!isLoading && recent.length > 0 && (
-          <>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
-            </View>
-            <View style={{ gap: 8 }}>
-              {recent.map((record) => {
-                const isExpense = record.category.type === 'expense';
-                return (
-                  <View key={record.id} style={styles.txnRow}>
-                    <View
-                      style={[
-                        styles.txnIcon,
-                        { backgroundColor: isExpense ? colors.danger : colors.success },
-                      ]}
-                    >
-                      <IconSelector name={record.category.icon} size={15} color="#fff" />
-                    </View>
-                    <View style={styles.txnMeta}>
-                      <Text style={styles.txnName}>{record.category.name}</Text>
-                      <Text style={styles.txnSub}>{record.walletName}</Text>
-                    </View>
-                    <Text style={[styles.txnAmount, isExpense ? styles.txnExpense : styles.txnIncome]}>
-                      {isExpense ? '-' : '+'}
-                      {formatCurrency(Number(record.price), currency)}
+              {goalTeaser ? (
+                <>
+                  <PercentRing
+                    percent={goalTeaser.progress.percent}
+                    color={goalTeaser.progress.status === 'exceeded' ? colors.danger : colors.success}
+                    size={46}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.goalTeaserTitle}>
+                      {goalTeaser.name || (goalTeaser.category ? `${goalTeaser.category.name} ${goalTeaser.type === EGoalType.SAVING ? 'goal' : 'limit'}` : 'Wallet goal')}
+                    </Text>
+                    <Text style={styles.goalTeaserSub}>
+                      {formatCurrency(goalTeaser.progress.actual, currency)} of {formatCurrency(Number(goalTeaser.targetAmount), currency)} used
                     </Text>
                   </View>
-                );
-              })}
+                </>
+              ) : (
+                <>
+                  <View style={styles.insightIcon}>
+                    <Ionicons name="flag-outline" size={16} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.goalTeaserTitle}>No goals set yet</Text>
+                    <Text style={styles.goalTeaserSub}>Set a savings goal or spending limit on the Plan tab.</Text>
+                  </View>
+                </>
+              )}
+            </Pressable>
+
+            <View style={[styles.card, styles.insightCard]}>
+              <View style={styles.insightIcon}>
+                <Ionicons name="bulb-outline" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                {topCategories.length > 0 ? (
+                  <>
+                    <Text style={styles.insightTitle}>{topCategories[0].name} is your biggest expense this month</Text>
+                    <Text style={styles.insightBody}>
+                      {formatCurrency(topCategories[0].amount, currency)}
+                      {expense > 0 ? ` — ${Math.round((topCategories[0].amount / expense) * 100)}% of this month's spending.` : '.'}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.insightTitle}>No spending yet this month</Text>
+                    <Text style={styles.insightBody}>Add a record to start seeing insights here.</Text>
+                  </>
+                )}
+              </View>
             </View>
           </>
         )}
+
+        <View style={styles.quickActions}>
+          <Pressable style={styles.qaBtn} onPress={() => setWalletModalVisible(true)}>
+            <View style={styles.qaIcon}>
+              <Ionicons name="wallet-outline" size={16} color={colors.primary} />
+            </View>
+            <Text style={styles.qaText}>New Wallet</Text>
+          </Pressable>
+          <Pressable style={[styles.qaBtn, styles.qaBtnHighlight]} onPress={() => router.push('/transactions')}>
+            <View style={[styles.qaIcon, styles.qaIconHighlight]}>
+              <Ionicons name="list" size={16} color="#fff" />
+            </View>
+            <Text style={[styles.qaText, styles.qaTextHighlight]}>All Transactions</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <WalletFormModal
@@ -271,222 +432,317 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   hero: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingTop: 6,
-    paddingBottom: 26,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    gap: 14,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
   },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  monthPill: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  monthPillText: {
-    color: '#fff',
-    fontSize: 12.5,
+  greeting: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13.5,
     fontWeight: '600',
   },
-  bell: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  greetingName: {
+    color: '#fff',
+    fontWeight: '800',
   },
-  balanceBlock: {
-    alignItems: 'center',
-    paddingTop: 6,
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 14,
   },
   balanceLabel: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 12.5,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   balanceFigure: {
     color: '#fff',
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
     letterSpacing: -0.5,
-    marginTop: 4,
+    marginTop: 3,
   },
-  balanceDelta: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 3,
+  },
+  trendBadgeText: {
+    color: '#fff',
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-    gap: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 12,
-    gap: 8,
-  },
-  summaryIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  summaryFigure: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
   },
   sectionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  sectionRowTight: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: colors.text,
   },
-  centered: {
-    alignItems: 'center',
-    paddingVertical: 20,
+  sectionHint: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.textFaint,
   },
-  errorText: {
-    fontSize: 14,
-    color: colors.danger,
+  walletScroller: {
+    marginHorizontal: -spacing.xl,
+  },
+  walletScrollerContent: {
+    paddingHorizontal: spacing.xl,
+    gap: 12,
+  },
+  walletCard: {
+    width: 200,
+    height: 116,
+    borderRadius: 18,
+    padding: 14,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+  },
+  walletCardAdd: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  walletCardAddText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
+  walletCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  walletCardName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#fff',
+    opacity: 0.92,
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  walletCardChip: {
+    width: 24,
+    height: 17,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.32)',
+  },
+  walletCardBalance: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.3,
+  },
+  walletCardMeta: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.82)',
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  cashflowLegend: {
+    flexDirection: 'row',
+    gap: 14,
     marginBottom: 10,
   },
-  retryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  legendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
   },
-  walletRow: {
+  legendText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  cashflowBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    height: 74,
+    gap: 18,
+  },
+  cfGroup: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  cfPair: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 5,
+    height: 56,
+  },
+  cfBar: {
+    width: 16,
+    borderRadius: 5,
+  },
+  cfMonth: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  catMiniRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 9,
+  },
+  catMiniDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  catMiniName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    width: 82,
+    flexShrink: 0,
+  },
+  catMiniTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  catMiniFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  catMiniAmount: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text,
+    width: 54,
+    textAlign: 'right',
+    flexShrink: 0,
+  },
+  goalTeaser: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    borderRadius: radius.xxl,
+    padding: spacing.md,
+    ...shadows.card,
   },
-  walletRowPressed: {
-    backgroundColor: colors.primarySoft,
-  },
-  walletRowAdd: {
-    borderStyle: 'dashed',
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  walletIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletIconAdd: {
-    backgroundColor: '#fff',
-  },
-  walletIconText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  walletLabel: {
-    flex: 1,
-    fontSize: 13.5,
-    fontWeight: '700',
+  goalTeaserTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
     color: colors.text,
   },
-  walletLabelAdd: {
-    color: colors.primaryDark,
-  },
-  txnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  txnIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txnMeta: {
-    flex: 1,
-  },
-  txnName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  txnSub: {
+  goalTeaserSub: {
     fontSize: 11,
     color: colors.textMuted,
+    marginTop: 2,
   },
-  txnAmount: {
-    fontSize: 13.5,
+  insightCard: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  insightIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  insightTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  insightBody: {
+    fontSize: 11.5,
+    color: colors.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  qaBtn: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    paddingVertical: 11,
+    alignItems: 'center',
+    gap: 6,
+    ...shadows.card,
+  },
+  qaBtnHighlight: {
+    backgroundColor: colors.primary,
+  },
+  qaIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qaIconHighlight: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  qaText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: colors.text,
   },
-  txnExpense: {
-    color: colors.danger,
-  },
-  txnIncome: {
-    color: colors.success,
+  qaTextHighlight: {
+    color: '#fff',
   },
 });

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { AxiosError } from 'axios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 
 import { addCategory, deleteCategory, updateCategory } from '@/apis/category';
 import { updateCategoryOrder } from '@/apis';
@@ -22,6 +23,7 @@ import { ApiError, ECategoryType, ICategory, TCategoryType } from '@/types';
 import { EIconName } from '@/types/icon-name.enum';
 import { colors } from '@/theme/colors';
 import IconSelector from '@/components/IconSelector';
+import { showToast } from '@/components/Toast';
 
 type CategoryFormModalProps = {
   visible: boolean;
@@ -96,10 +98,7 @@ export default function CategoryFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert(
-        'Could not create category',
-        Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.',
-      );
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not create category. Please try again.');
     },
     onSettled: invalidate,
   });
@@ -115,10 +114,7 @@ export default function CategoryFormModal({
     onSuccess: () => onClose(),
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert(
-        'Could not update category',
-        Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.',
-      );
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not update category. Please try again.');
     },
     onSettled: invalidate,
   });
@@ -136,10 +132,7 @@ export default function CategoryFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert(
-        'Could not delete category',
-        Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.',
-      );
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not delete category. Please try again.');
     },
     onSettled: invalidate,
   });
@@ -149,8 +142,9 @@ export default function CategoryFormModal({
   const accentSoft = type === ECategoryType.EXPENSE ? colors.dangerSoft : colors.successSoft;
 
   const handleSave = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter a category name.');
+      showToast('Please enter a category name.');
       return;
     }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,9 +9,16 @@ import { profile } from '@/apis';
 import { useAppDispatch } from '@/hooks';
 import { useAuth } from '@/provider/AuthProvider';
 import { logout } from '@/store/userSlice';
-import { clearStoredToken } from '@/lib/secureStorage';
+import { clearStoredToken, getStoredPreference, setStoredPreference } from '@/lib/secureStorage';
 import { IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
+import ScreenHeader from '@/components/ScreenHeader';
+import Skeleton from '@/components/Skeleton';
+
+const NOTIFICATIONS_PREFERENCE_KEY = 'notifications_enabled';
 
 type SettingRow = {
   key: string;
@@ -35,7 +42,18 @@ export default function SettingsScreen() {
   const { userId } = useAuth();
   const [notificationsOn, setNotificationsOn] = useState(true);
 
-  const { data: user } = useQuery<IUserInfo>({
+  useEffect(() => {
+    getStoredPreference(NOTIFICATIONS_PREFERENCE_KEY).then((stored) => {
+      if (stored !== null) setNotificationsOn(stored === 'true');
+    });
+  }, []);
+
+  const handleNotificationsToggle = (value: boolean) => {
+    setNotificationsOn(value);
+    setStoredPreference(NOTIFICATIONS_PREFERENCE_KEY, value ? 'true' : 'false');
+  };
+
+  const { data: user, isLoading: isProfileLoading } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
     queryFn: () => profile(userId!),
     enabled: !!userId,
@@ -84,24 +102,26 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-      </View>
+      <ScreenHeader title="Settings" />
 
       <View style={styles.list}>
-        <Pressable
-          style={({ pressed }) => [styles.profileCard, pressed && styles.rowPressed]}
-          onPress={() => router.push('/settings/profile')}
-        >
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>{(user?.username ?? '?').charAt(0).toUpperCase()}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.profileName}>{user?.username ?? '—'}</Text>
-            <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Pressable>
+        {isProfileLoading ? (
+          <Skeleton height={72} borderRadius={radius.xxl} />
+        ) : (
+          <Pressable
+            style={({ pressed }) => [styles.profileCard, pressed && styles.rowPressed]}
+            onPress={() => router.push('/settings/profile')}
+          >
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>{(user?.username ?? '?').charAt(0).toUpperCase()}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profileName}>{user?.username ?? '—'}</Text>
+              <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
 
         <Text style={styles.groupLabel}>Preferences</Text>
         {preferenceRows.map((row) => (
@@ -120,7 +140,7 @@ export default function SettingsScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          onPress={() => setNotificationsOn((v) => !v)}
+          onPress={() => handleNotificationsToggle(!notificationsOn)}
         >
           <View style={styles.rowLeft}>
             <Ionicons name="notifications-outline" size={20} color={colors.text} />
@@ -128,7 +148,7 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={notificationsOn}
-            onValueChange={setNotificationsOn}
+            onValueChange={handleNotificationsToggle}
             trackColor={{ false: colors.border, true: colors.primarySoft }}
             thumbColor={notificationsOn ? colors.primary : '#fff'}
           />
@@ -174,29 +194,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
   list: {
-    paddingHorizontal: 20,
-    gap: 10,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderRadius: radius.xxl,
+    padding: spacing.md,
+    ...shadows.card,
   },
   profileAvatar: {
     width: 44,
@@ -235,11 +244,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    ...shadows.card,
   },
   rowPressed: {
     backgroundColor: colors.primarySoft,

@@ -16,3 +16,13 @@ export async function setStoredToken(token: string): Promise<void> {
 export async function clearStoredToken(): Promise<void> {
   await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
 }
+
+// Generic on-device key/value pair for small local preferences (e.g. the
+// Notifications toggle on Settings) that don't need a server round-trip.
+export async function getStoredPreference(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key);
+}
+
+export async function setStoredPreference(key: string, value: string): Promise<void> {
+  await SecureStore.setItemAsync(key, value);
+}

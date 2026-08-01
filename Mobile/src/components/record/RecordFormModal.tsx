@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +14,7 @@ import {
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 
 import { profile } from '@/apis';
 import { fetchCategories } from '@/apis/category';
@@ -32,6 +32,7 @@ import {
 import { colors } from '@/theme/colors';
 import IconSelector from '@/components/IconSelector';
 import Calculator from '@/components/calculator/Calculator';
+import { showToast } from '@/components/Toast';
 import { safeEvaluate } from '@/utils/calc';
 
 type RecordFormModalProps = {
@@ -136,10 +137,11 @@ export default function RecordFormModal({
     queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
     if (wallet) {
       queryClient.invalidateQueries({ queryKey: ['records', wallet.id] });
-      // The wallet-detail gauge/income/expense and any goal progress are
-      // both derived server-side from records — without these, they'd keep
+      // Report's month/week/year breakdown and any goal progress are both
+      // derived server-side from records — without these, they'd keep
       // showing pre-edit numbers until an unrelated refetch happened to
-      // touch them.
+      // touch them. (Wallet Detail's own stats are computed client-side
+      // from the wallets query, already covered by the invalidation above.)
       queryClient.invalidateQueries({ queryKey: ['walletSummary', wallet.id] });
       queryClient.invalidateQueries({ queryKey: ['goals', wallet.id] });
       queryClient.invalidateQueries({ queryKey: ['allGoals'] });
@@ -151,7 +153,7 @@ export default function RecordFormModal({
     onSettled: invalidate,
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not save record', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not save record. Please try again.');
     },
   });
 
@@ -160,7 +162,7 @@ export default function RecordFormModal({
     onSettled: invalidate,
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not update record', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not update record. Please try again.');
     },
   });
 
@@ -173,7 +175,7 @@ export default function RecordFormModal({
     },
     onError: (error) => {
       const message = error.response?.data.message;
-      Alert.alert('Could not delete record', Array.isArray(message) ? message.join('\n') : message ?? 'Please try again.');
+      showToast(Array.isArray(message) ? message.join('\n') : message ?? 'Could not delete record. Please try again.');
     },
   });
 
@@ -209,16 +211,17 @@ export default function RecordFormModal({
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (closeAfter: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!editRecord.price) {
-      Alert.alert('Amount required', 'Please enter the expense/income amount.');
+      showToast('Please enter the expense/income amount.');
       return;
     }
     if (!wallet) {
-      Alert.alert('No wallet selected', 'Please create or select a wallet first.');
+      showToast('Please create or select a wallet first.');
       return;
     }
     if (!selectedCategory) {
-      Alert.alert('Category required', 'Please select a category.');
+      showToast('Please select a category.');
       return;
     }
 
