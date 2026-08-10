@@ -8,6 +8,8 @@ import {
   DeleteDateColumn,
   Entity,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -15,6 +17,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Record } from '../../records/entities/record.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 @Entity({ name: 'wallets' })
 export class Wallet extends BaseEntity {
@@ -51,6 +54,17 @@ export class Wallet extends BaseEntity {
 
   @OneToMany(() => Record, (record) => record.wallet)
   records: Record[];
+
+  // Categories hidden from this wallet specifically. Categories remain
+  // global/shared per-user (see Category entity); this is purely a
+  // per-wallet visibility filter, not per-wallet category ownership.
+  @ManyToMany(() => Category)
+  @JoinTable({
+    name: 'wallet_hidden_categories',
+    joinColumn: { name: 'walletId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' },
+  })
+  hiddenCategories: Category[];
 
   constructor(partial: Partial<Wallet>) {
     super();
