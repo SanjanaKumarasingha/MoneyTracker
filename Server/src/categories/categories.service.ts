@@ -55,4 +55,15 @@ export class CategoriesService {
   async remove(id: number) {
     return await this.categoryRepository.softDelete(id);
   }
+
+  async belongsToUser(categoryId: number, userId: number): Promise<boolean> {
+    const count = await this.categoryRepository
+      .createQueryBuilder('category')
+      .leftJoin('category.user', 'user')
+      .where('category.id = :categoryId', { categoryId })
+      .andWhere('user.id = :userId', { userId })
+      .getCount();
+
+    return count > 0;
+  }
 }

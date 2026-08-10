@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { UpdateRecordDto } from './dto/update-record.dto';
+import { TransferRecordDto } from './dto/transfer-record.dto';
+import { BulkCreateRecordRowDto } from './dto/bulk-create-records.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Record } from './entities/record.entity';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { Category } from '../categories/entities/category.entity';
+import {
+  attachTransferCategory,
+  attachTransferCategories,
+} from './transfer-category.util';
 
 @Injectable()
 export class RecordsService {
@@ -35,19 +42,98 @@ export class RecordsService {
       .orderBy('record.id', 'DESC')
       .limit(6);
 
-    return await query.getMany();
+    return attachTransferCategories(await query.getMany());
+  }
+
+  // Creates the two Records that make up one wallet-to-wallet transfer
+  // (an expense-shaped row in the source wallet, an income-shaped row in
+  // the destination) inside a single DB transaction, so a mid-way failure
+  // can never leave only one side written. Ownership/self-transfer
+  // validation happens in the controller before this is called.
+  async transfer(dto: TransferRecordDto, fromWallet: Wallet, toWallet: Wallet) {
+    const transferGroupId = randomUUID();
+
+    return await this.recordRepository.manager.transaction(async (manager) => {
+      const outRecord = manager.create(Record, {
+        price: dto.amount,
+        date: dto.date,
+        remarks: dto.remarks ?? `Transfer to ${toWallet.name}`,
+        wallet: fromWallet,
+        category: null,
+        isTransfer: true,
+        transferDirection: 'out',
+        transferGroupId,
+      });
+      const inRecord = manager.create(Record, {
+        price: dto.amount,
+        date: dto.date,
+        remarks: dto.remarks ?? `Transfer from ${fromWallet.name}`,
+        wallet: toWallet,
+        category: null,
+        isTransfer: true,
+        transferDirection: 'in',
+        transferGroupId,
+      });
+
+      const [savedOut, savedIn] = await manager.save(Record, [
+        outRecord,
+        inRecord,
+      ]);
+
+      return {
+        out: attachTransferCategory(savedOut),
+        in: attachTransferCategory(savedIn),
+      };
+    });
+  }
+
+  // Creates every row from an imported spreadsheet (see
+  // Client/src/pages/ImportPage.tsx) inside a single DB transaction, so a
+  // failure partway through never leaves half an import committed - same
+  // pattern as transfer() above. Ownership of walletId and every categoryId
+  // is verified in the controller before this is called.
+  async bulkCreate(wallet: Wallet, rows: BulkCreateRecordRowDto[]) {
+    return await this.recordRepository.manager.transaction(async (manager) => {
+      const records = rows.map((row) =>
+        manager.create(Record, {
+          price: row.price,
+          date: row.date,
+          remarks: row.remarks,
+          wallet,
+          category: { id: row.categoryId } as Category,
+        }),
+      );
+
+      return await manager.save(Record, records);
+    });
   }
 
   async findOne(id: number) {
     return await this.recordRepository.findOne({ where: { id } });
   }
 
+  async belongsToUser(recordId: number, userId: number): Promise<boolean> {
+    const count = await this.recordRepository
+      .createQueryBuilder('record')
+      .leftJoin('record.wallet', 'wallet')
+      .leftJoin('wallet.user', 'user')
+      .where('record.id = :recordId', { recordId })
+      .andWhere('user.id = :userId', { userId })
+      .getCount();
+
+    return count > 0;
+  }
+
   async update(id: number, updateRecordDto: UpdateRecordDto) {
+    const { walletId, categoryId, ...rest } = updateRecordDto;
+
     return await this.recordRepository.save({
       id: id,
-      price: updateRecordDto.price,
-      remarks: updateRecordDto.remarks,
-      date: updateRecordDto.date,
+      ...rest,
+      ...(walletId !== undefined && { wallet: { id: walletId } as Wallet }),
+      ...(categoryId !== undefined && {
+        category: { id: categoryId } as Category,
+      }),
     });
   }
 
@@ -141,6 +227,13 @@ export class RecordsService {
       .where('wallet.id = :walletId', { walletId })
       .andWhere('record.date >= :start', { start })
       .andWhere('record.date <= :end', { end })
+      // Transfers move money between the user's own wallets — they're not
+      // real spending/earning, so they're excluded from the category
+      // breakdown (and therefore from this period's income/expense totals,
+      // which are derived from it below). They still count toward each
+      // wallet's plain all-time balance via WalletsService.findAll, which
+      // is unaffected by this filter.
+      .andWhere('record.isTransfer = false')
       .select('category.id', 'categoryId')
       .addSelect('category.name', 'name')
       .addSelect('category.icon', 'icon')
