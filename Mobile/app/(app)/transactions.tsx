@@ -95,9 +95,9 @@ export default function TransactionsScreen() {
     const query = search.trim().toLowerCase();
     return allEntries.filter((entry) => {
       if (walletFilter !== 'all' && entry.wallet.id !== walletFilter) return false;
-      if (typeFilter !== 'all' && entry.category.type !== typeFilter) return false;
+      if (typeFilter !== 'all' && entry.category?.type !== typeFilter) return false;
       if (query) {
-        const haystack = `${entry.remarks ?? ''} ${entry.category.name}`.toLowerCase();
+        const haystack = `${entry.remarks ?? ''} ${entry.category?.name ?? ''}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -107,7 +107,11 @@ export default function TransactionsScreen() {
   const { totalIncome, totalExpense } = useMemo(() => {
     return filteredEntries.reduce(
       (acc, entry) => {
-        if (entry.category.type === 'expense') acc.totalExpense += Number(entry.price);
+        // Transfers move money between the user's own wallets, not real
+        // spending/earning — exclude them from this filtered income/expense
+        // summary, same as the server excludes them from getWalletSummary.
+        if (entry.isTransfer) return acc;
+        if (entry.category?.type === 'expense') acc.totalExpense += Number(entry.price);
         else acc.totalIncome += Number(entry.price);
         return acc;
       },
@@ -131,7 +135,7 @@ export default function TransactionsScreen() {
   const confirmDelete = (entry: TxnEntry) => {
     Alert.alert(
       'Delete transaction',
-      `Delete "${entry.category.name}"${entry.remarks ? ` (${entry.remarks})` : ''}? This cannot be undone.`,
+      `Delete "${entry.category?.name ?? 'this transaction'}"${entry.remarks ? ` (${entry.remarks})` : ''}? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteRecordMutation.mutate(entry.id) },
@@ -140,6 +144,13 @@ export default function TransactionsScreen() {
   };
 
   const openEdit = (entry: TxnEntry) => {
+    // Transfers are a matched pair of records with no real category to
+    // edit (see apis/transfer.ts) — editing one side here would desync it
+    // from its other half, so the normal edit modal is skipped.
+    if (entry.isTransfer) {
+      showToast('Transfers can’t be edited — delete and re-create instead.');
+      return;
+    }
     const { category, wallet, ...rest } = entry;
     setEditRecord(rest);
     setEditCategory(category);
@@ -233,7 +244,7 @@ export default function TransactionsScreen() {
             <View key={group.label} style={{ gap: 8, marginBottom: 14 }}>
               <Text style={styles.dateGroupLabel}>{group.label}</Text>
               {group.records.map((entry, index) => {
-                const isExpense = entry.category.type === 'expense';
+                const isExpense = entry.category?.type === 'expense';
                 return (
                   <Animated.View key={entry.id} entering={FadeInDown.delay(index * 20)}>
                     <Swipeable
@@ -247,12 +258,12 @@ export default function TransactionsScreen() {
                     >
                       <PressableScale style={styles.txnRow} onPress={() => openEdit(entry)}>
                         <View style={[styles.txnIcon, { backgroundColor: isExpense ? colors.danger : colors.success }]}>
-                          <IconSelector name={entry.category.icon} size={15} color="#fff" />
+                          {entry.category && <IconSelector name={entry.category.icon} size={15} color="#fff" />}
                         </View>
                         <View style={styles.txnMeta}>
-                          <Text style={styles.txnName} numberOfLines={1}>{entry.remarks || entry.category.name}</Text>
+                          <Text style={styles.txnName} numberOfLines={1}>{entry.remarks || entry.category?.name || 'Deleted category'}</Text>
                           <View style={styles.txnSubRow}>
-                            <Text style={styles.txnSub} numberOfLines={1}>{formatDate(entry.date)} · {entry.category.name}</Text>
+                            <Text style={styles.txnSub} numberOfLines={1}>{formatDate(entry.date)} · {entry.category?.name ?? 'Deleted category'}</Text>
                             {walletFilter === 'all' && (
                               <View style={styles.walletTag}>
                                 <Text style={styles.walletTagText}>{entry.wallet.name}</Text>

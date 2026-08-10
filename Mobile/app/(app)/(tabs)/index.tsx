@@ -25,11 +25,16 @@ import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
+import TransferModal from '@/components/wallet/TransferModal';
 
 // Mirrors the balance calc used throughout the app (Client/src/pages/WalletPage.tsx):
 // income records add to the balance, expense records subtract.
 function getWalletBalance(wallet: IWalletRecordWithCategory): number {
   return (wallet.records ?? []).reduce((acc, record) => {
+    // record.category can be null for records whose category was later
+    // deleted (server soft-deletes categories) — skip them rather than
+    // crashing the whole Home screen.
+    if (!record.category) return acc;
     if (record.category.type === 'expense') {
       return acc - Number(record.price);
     }
@@ -76,6 +81,7 @@ export default function HomeScreen() {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const [walletModalVisible, setWalletModalVisible] = useState(false);
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
 
   // The hero gradient bleeds under the status bar (SafeAreaView below
   // excludes the 'top' edge on purpose), so the default dark status-bar
@@ -143,6 +149,13 @@ export default function HomeScreen() {
     (wallets ?? []).forEach((wallet) => {
       balanceTotal += getWalletBalance(wallet);
       (wallet.records ?? []).forEach((record) => {
+        // Transfers move money between the user's own wallets — they're not
+        // real spending/earning, so (like a deleted-category record) they're
+        // excluded from this month/last-month income/expense and top-spending
+        // breakdown. They still count toward the balance above via
+        // getWalletBalance, which is unaffected by this skip.
+        if (!record.category || record.isTransfer) return;
+
         const monthKey = record.date.slice(0, 7);
         const price = Number(record.price);
         if (monthKey === currentMonthKey) {
@@ -407,6 +420,14 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.qaText}>New Wallet</Text>
           </Pressable>
+          {(wallets?.length ?? 0) >= 2 && (
+            <Pressable style={styles.qaBtn} onPress={() => setTransferModalVisible(true)}>
+              <View style={styles.qaIcon}>
+                <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+              </View>
+              <Text style={styles.qaText}>Transfer</Text>
+            </Pressable>
+          )}
           <Pressable style={[styles.qaBtn, styles.qaBtnHighlight]} onPress={() => router.push('/transactions')}>
             <View style={[styles.qaIcon, styles.qaIconHighlight]}>
               <Ionicons name="list" size={16} color="#fff" />
@@ -421,6 +442,10 @@ export default function HomeScreen() {
         mode="Create"
         wallet={null}
         onClose={() => setWalletModalVisible(false)}
+      />
+      <TransferModal
+        visible={transferModalVisible}
+        onClose={() => setTransferModalVisible(false)}
       />
     </SafeAreaView>
   );

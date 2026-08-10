@@ -42,6 +42,10 @@ import CategoryBreakdown from '@/components/wallet/CategoryBreakdown';
 
 function getWalletBalance(wallet: IWalletRecordWithCategory): number {
   return (wallet.records ?? []).reduce((acc, record) => {
+    // record.category can be null for records whose category was later
+    // deleted (server soft-deletes categories) — skip them rather than
+    // crashing the whole wallet detail screen.
+    if (!record.category) return acc;
     if (record.category.type === 'expense') {
       return acc - Number(record.price);
     }
@@ -55,6 +59,7 @@ function getWalletBalance(wallet: IWalletRecordWithCategory): number {
 function getWalletIncomeExpense(wallet: IWalletRecordWithCategory): { income: number; expense: number } {
   return (wallet.records ?? []).reduce(
     (acc, record) => {
+      if (!record.category) return acc;
       if (record.category.type === 'expense') {
         acc.expense += Number(record.price);
       } else {
@@ -226,7 +231,7 @@ export default function WalletDetailScreen() {
   const confirmDeleteRecord = (record: IRecordWithCategory) => {
     Alert.alert(
       'Delete transaction',
-      `Delete "${record.category.name}"${record.remarks ? ` (${record.remarks})` : ''}? This cannot be undone.`,
+      `Delete "${record.category?.name ?? 'this transaction'}"${record.remarks ? ` (${record.remarks})` : ''}? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteRecordMutation.mutate(record.id) },

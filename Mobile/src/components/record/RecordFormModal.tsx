@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,11 +15,13 @@ import {
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { profile } from '@/apis';
 import { fetchCategories } from '@/apis/category';
 import { createRecord, deleteRecord, getRemarks, updateRecord } from '@/apis/record';
+import { fetchWallets } from '@/apis/wallet';
 import { useAuth } from '@/provider/AuthProvider';
 import {
   ApiError,
@@ -28,6 +31,7 @@ import {
   IRecord,
   IUserInfo,
   IWallet,
+  IWalletRecordWithCategory,
 } from '@/types';
 import { colors } from '@/theme/colors';
 import IconSelector from '@/components/IconSelector';
@@ -86,6 +90,13 @@ export default function RecordFormModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
 
+  // Which wallet this record is being saved into - seeded from the `wallet`
+  // prop but tracked separately so picking a different wallet while editing
+  // reassigns just this record instead of needing every caller to plumb a
+  // wallet-change callback back up through its own screen.
+  const [targetWalletId, setTargetWalletId] = useState<number | undefined>(wallet?.id);
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
+
   useEffect(() => {
     if (visible) {
       const initial = record ?? emptyRecord();
@@ -93,14 +104,24 @@ export default function RecordFormModal({
       setSelectedCategory(category ?? null);
       setCategoryType(category?.type === 'income' ? ECategoryType.INCOME : ECategoryType.EXPENSE);
       setAmountInput(initial.price ? String(initial.price) : '');
+      setTargetWalletId(wallet?.id);
     }
-  }, [visible, record, category]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, record, category, wallet?.id]);
 
   const { data: categories } = useQuery<ICategory[]>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
     enabled: visible,
   });
+
+  const { data: wallets = [] } = useQuery<IWalletRecordWithCategory[]>({
+    queryKey: ['wallets', userId],
+    queryFn: () => fetchWallets(userId!),
+    enabled: visible && !!userId,
+  });
+
+  const selectedWallet = wallets.find((w) => w.id === targetWalletId) ?? wallet;
 
   const { data: user } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
@@ -134,17 +155,39 @@ export default function RecordFormModal({
   const categoriesForType = sortedCategories.filter((c) => c.type === categoryType);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
-    if (wallet) {
-      queryClient.invalidateQueries({ queryKey: ['records', wallet.id] });
-      // Report's month/week/year breakdown and any goal progress are both
-      // derived server-side from records — without these, they'd keep
-      // showing pre-edit numbers until an unrelated refetch happened to
-      // touch them. (Wallet Detail's own stats are computed client-side
-      // from the wallets query, already covered by the invalidation above.)
-      queryClient.invalidateQueries({ queryKey: ['walletSummary', wallet.id] });
-      queryClient.invalidateQueries({ queryKey: ['goals', wallet.id] });
-      queryClient.invalidateQueries({ queryKey: ['allGoals'] });
+    // This runs as every mutation's onSettled, on both the success AND
+    // error path. TanStack Query only wraps the *error*-path onSettled call
+    // in its own try/catch internally - on the success path, an exception
+    // thrown here propagates out of mutateAsync as if the mutation itself
+    // had failed (wrong error toast, and callers awaiting mutateAsync never
+    // reach their own success handling, e.g. RecordFormModal's handleSubmit
+    // never gets to call onClose()). Cache invalidation failing is not a
+    // reason to treat an already-persisted save as failed, so swallow
+    // anything unexpected here rather than let it escape.
+    try {
+      queryClient.invalidateQueries({ queryKey: ['wallets', userId] });
+      // Invalidate both the wallet this screen opened with and the one the
+      // record was actually saved into (they differ when it's just been
+      // moved to a different wallet) so neither is left showing stale totals.
+      const affectedWalletIds = new Set(
+        [wallet?.id, targetWalletId].filter((id): id is number => id !== undefined),
+      );
+      affectedWalletIds.forEach((walletId) => {
+        queryClient.invalidateQueries({ queryKey: ['records', walletId] });
+        // Report's month/week/year breakdown and any goal progress are both
+        // derived server-side from records — without these, they'd keep
+        // showing pre-edit numbers until an unrelated refetch happened to
+        // touch them. (Wallet Detail's own stats are computed client-side
+        // from the wallets query, already covered by the invalidation above.)
+        queryClient.invalidateQueries({ queryKey: ['walletSummary', walletId] });
+        queryClient.invalidateQueries({ queryKey: ['goals', walletId] });
+      });
+      if (affectedWalletIds.size > 0) {
+        queryClient.invalidateQueries({ queryKey: ['allGoals'] });
+      }
+    } catch {
+      // Best-effort - a stale cache is far better than reporting a
+      // successful save as an error.
     }
   };
 
@@ -157,7 +200,11 @@ export default function RecordFormModal({
     },
   });
 
-  const updateMutation = useMutation<IRecord, AxiosError<ApiError>, IRecord>({
+  const updateMutation = useMutation<
+    IRecord,
+    AxiosError<ApiError>,
+    IRecord & { walletId?: number; categoryId?: number }
+  >({
     mutationFn: updateRecord,
     onSettled: invalidate,
     onError: (error) => {
@@ -216,7 +263,7 @@ export default function RecordFormModal({
       showToast('Please enter the expense/income amount.');
       return;
     }
-    if (!wallet) {
+    if (!selectedWallet) {
       showToast('Please create or select a wallet first.');
       return;
     }
@@ -229,10 +276,11 @@ export default function RecordFormModal({
       if (!isEditing) {
         await createMutation.mutateAsync({
           ...editRecord,
-          wallet,
+          wallet: selectedWallet,
           category: selectedCategory,
         });
         if (closeAfter) {
+          Keyboard.dismiss();
           onClose();
         } else {
           // Create-and-continue: reset the form for the next entry.
@@ -240,8 +288,18 @@ export default function RecordFormModal({
           setAmountInput('');
         }
       } else {
-        await updateMutation.mutateAsync({ ...editRecord });
-        if (closeAfter) onClose();
+        await updateMutation.mutateAsync({
+          ...editRecord,
+          walletId: targetWalletId,
+          categoryId: selectedCategory.id,
+        });
+        if (closeAfter) {
+          // Dismiss the keyboard before closing - on Android a Modal can be
+          // left looking "stuck" open if the Remarks input still has focus
+          // when it tries to slide away.
+          Keyboard.dismiss();
+          onClose();
+        }
       }
     } catch {
       // Errors are surfaced via the mutation's onError handler.
@@ -343,7 +401,17 @@ export default function RecordFormModal({
         <View style={styles.walletDateRow}>
           <View style={styles.walletBox}>
             <Text style={styles.fieldLabel}>Wallet</Text>
-            <Text style={styles.walletValue}>{wallet ? `${wallet.name} (${wallet.currency})` : 'None'}</Text>
+            <Pressable
+              style={styles.walletValueBox}
+              onPress={() => wallets.length > 1 && setShowWalletPicker(true)}
+            >
+              <Text style={styles.walletValue} numberOfLines={1}>
+                {selectedWallet ? `${selectedWallet.name} (${selectedWallet.currency})` : 'None'}
+              </Text>
+              {wallets.length > 1 && (
+                <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+              )}
+            </Pressable>
           </View>
           <View style={styles.dateBox}>
             <View style={styles.dateLabelRow}>
@@ -386,7 +454,7 @@ export default function RecordFormModal({
         )}
 
         <View style={styles.amountDisplay}>
-          <Text style={styles.amountCurrency}>{wallet?.currency ?? ''}</Text>
+          <Text style={styles.amountCurrency}>{selectedWallet?.currency ?? ''}</Text>
           <Text style={styles.amountText} numberOfLines={1}>
             {amountInput.length > 0 ? amountInput : '0'}
           </Text>
@@ -449,6 +517,41 @@ export default function RecordFormModal({
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showWalletPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowWalletPicker(false)}
+      >
+        <Pressable style={styles.confirmOverlay} onPress={() => setShowWalletPicker(false)}>
+          <View style={styles.walletPickerBox}>
+            <Text style={styles.confirmTitle}>Choose wallet</Text>
+            {wallets.map((w) => (
+              <Pressable
+                key={w.id}
+                style={styles.walletPickerOption}
+                onPress={() => {
+                  setTargetWalletId(w.id);
+                  setShowWalletPicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.walletPickerOptionText,
+                    w.id === targetWalletId && styles.walletPickerOptionTextActive,
+                  ]}
+                >
+                  {w.name} ({w.currency})
+                </Text>
+                {w.id === targetWalletId && (
+                  <Ionicons name="checkmark" size={16} color={colors.primary} />
+                )}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
 
       <Modal visible={confirmDeleteVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
@@ -597,10 +700,45 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+  walletValueBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   walletValue: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
+    flexShrink: 1,
+  },
+  walletPickerBox: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 20,
+    width: '100%',
+  },
+  walletPickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  walletPickerOptionText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  walletPickerOptionTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   dateValueBox: {
     borderWidth: 1,

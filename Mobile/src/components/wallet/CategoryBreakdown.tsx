@@ -183,7 +183,7 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
   const drilldownRecords = useMemo(() => {
     if (!selectedCategory || selectedCategory.categoryId < 0) return [];
     return (wallet.records ?? [])
-      .filter((r) => r.category.id === selectedCategory.categoryId && r.date >= range.start && r.date <= range.end)
+      .filter((r) => r.category?.id === selectedCategory.categoryId && r.date >= range.start && r.date <= range.end)
       .sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? 1 : -1;
         return b.id - a.id;
@@ -252,10 +252,10 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
                       >
                         <PressableScale style={styles.txnRow} onPress={() => onEditRecord(record)}>
                           <View style={[styles.txnIcon, { backgroundColor: selectedCategory.color }]}>
-                            <IconSelector name={record.category.icon} size={15} color="#fff" />
+                            {record.category && <IconSelector name={record.category.icon} size={15} color="#fff" />}
                           </View>
                           <View style={styles.txnMeta}>
-                            <Text style={styles.txnName}>{record.remarks || record.category.name}</Text>
+                            <Text style={styles.txnName}>{record.remarks || record.category?.name || 'Deleted category'}</Text>
                           </View>
                           <Text style={[styles.txnAmount, breakdownType === 'expense' ? styles.txnExpense : styles.txnIncome]}>
                             {breakdownType === 'expense' ? '-' : '+'}
