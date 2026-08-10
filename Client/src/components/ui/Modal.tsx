@@ -54,7 +54,7 @@ const Modal = ({ isOpen, onClose, title, size = 'md', children, footer }: ModalP
         aria-label={typeof title === 'string' ? title : undefined}
         className={clsx(
           'bg-white dark:bg-zinc-800 shadow-lg overflow-auto w-full min-w-min max-h-[85vh]',
-          'rounded-t-2xl sm:rounded-xl',
+          'rounded-t-2xl sm:rounded-2xl',
           'animate-slide-up sm:animate-none',
           sizeClasses[size],
         )}

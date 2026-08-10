@@ -29,14 +29,21 @@ module.exports = {
       animation: {
         'slide-up': 'slide-up 0.25s ease-out',
       },
+      // Mirrors Mobile/src/theme/shadows.ts's `card` shadow (shadowOpacity
+      // 0.05, shadowRadius 12, offset y4) - a softer, more "floating" card
+      // than Tailwind's stock shadow-sm/shadow-lg steps.
+      boxShadow: {
+        card: '0 4px 12px -2px rgb(22 21 31 / 0.05)',
+      },
       colors: {
         // Matches Mobile/src/theme/colors.ts exactly (mobile's palette turned
-        // out to already be Tailwind's stock amber/green/red/zinc values) so
+        // out to already be Tailwind's stock blue/green/red/zinc values -
+        // primary #2563eb/#1d4ed8/#dbeafe is exactly blue-600/700/100) so
         // both clients read as one product. `secondary`/`info` are kept
         // (not deleted) because several not-yet-migrated components under
         // src/components/Custom/* still depend on them - new/redesigned
         // surfaces should use primary/zinc/success/danger, not these.
-        primary: colors.amber,
+        primary: colors.blue,
         secondary: {
           50: '#F5F4FB',
           100: '#E8E4F6',

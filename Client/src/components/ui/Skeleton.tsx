@@ -38,7 +38,7 @@ export const SkeletonCard = ({ className }: { className?: string }) => {
   return (
     <div
       className={clsx(
-        'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm p-4 flex flex-col gap-3',
+        'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-card p-4 flex flex-col gap-3',
         className,
       )}
     >
