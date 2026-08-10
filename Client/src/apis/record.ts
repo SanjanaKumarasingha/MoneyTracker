@@ -21,11 +21,15 @@ export async function fetchRecords(
   return response.data;
 }
 
-export async function updateRecord(record: IRecord): Promise<IRecord> {
+export async function updateRecord(
+  record: IRecord & { walletId?: number; categoryId?: number },
+): Promise<IRecord> {
   const res = await Axios.patch(`v1/records/${record.id}`, {
     price: record.price,
     remarks: record.remarks,
     date: record.date,
+    walletId: record.walletId,
+    categoryId: record.categoryId,
   });
 
   return res.data;
