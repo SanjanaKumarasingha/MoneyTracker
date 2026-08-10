@@ -1,9 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
 import { IoSearchOutline, IoSettingsOutline } from 'react-icons/io5';
 import { ICategory, IRecord, IRecordWithCategory } from '../types';
 import { AiOutlinePlus } from 'react-icons/ai';
+import { BsArrowLeftRight } from 'react-icons/bs';
 import RecordModal from '../components/record/RecordModal';
+import RecordsSheetGrid from '../components/record/RecordsSheetGrid';
+import TransferModal from '../components/wallet/TransferModal';
 import { DateTime } from 'luxon';
 import IconSelector from '../components/IconSelector';
 import clsx from 'clsx';
@@ -21,7 +25,14 @@ type Props = {};
 const Records = (props: Props) => {
   const [open, setOpen] = useState(false);
 
+  const [openTransfer, setOpenTransfer] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState<string>('');
+
+  // "List" is the grouped/filterable accordion view below; "Sheet" is a
+  // directly-editable Google-Sheets-style grid (RecordsSheetGrid) for
+  // people who'd rather just type straight into a ledger.
+  const [viewMode, setViewMode] = useState<'list' | 'sheet'>('list');
 
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -40,19 +51,32 @@ const Records = (props: Props) => {
   const { wallets, favWallet, income, expense, total } = useRecord();
 
   const dispatch = useAppDispatch();
+  const location = useLocation();
 
   const isLoading = !wallets;
 
   const ALL_CATEGORIES = 'All categories';
 
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>(ALL_CATEGORIES);
+  // Arriving from a category drill-down (PieChart's PercentRow rows on
+  // /charts) pre-applies that category as the active filter here.
+  const [categoryFilter, setCategoryFilter] = useState<string>(
+    (location.state as { categoryFilter?: string } | null)?.categoryFilter ??
+      ALL_CATEGORIES,
+  );
   const [dateFrom, setDateFrom] = useState<Date | null>(null);
   const [dateTo, setDateTo] = useState<Date | null>(null);
+  // Date-range filters start collapsed - most visits don't need them, and
+  // always rendering a third filter row pushed the actual record list
+  // further down the screen on every visit regardless of whether it was
+  // ever used that session.
+  const [showDateFilters, setShowDateFilters] = useState(false);
 
   const categoryOptions = useMemo(() => {
     const names = _.uniq(
-      (favWallet?.records ?? []).map((record) => record.category.name),
+      (favWallet?.records ?? [])
+        .map((record) => record.category?.name)
+        .filter((name): name is string => Boolean(name)),
     ).sort();
 
     return [ALL_CATEGORIES, ...names];
@@ -84,7 +108,10 @@ const Records = (props: Props) => {
         return false;
       }
 
-      if (categoryFilter !== ALL_CATEGORIES && record.category.name !== categoryFilter) {
+      if (
+        categoryFilter !== ALL_CATEGORIES &&
+        record.category?.name !== categoryFilter
+      ) {
         return false;
       }
 
@@ -180,22 +207,57 @@ const Records = (props: Props) => {
         <div>Please create a wallet first to create records.</div>
       )}
 
-      <div
-        className="absolute bottom-0 right-0 w-fit p-1 text-2xl text-white rounded-full bg-primary-600 hover:bg-primary-500 active:bg-primary-700 cursor-pointer transition-colors"
-        onClick={() => {
-          setEditRecord((prev) => ({
-            ...prev,
-            id: 0,
-            price: 0,
-            remarks: '',
-          }));
-          setOpen(true);
-        }}
-      >
-        <AiOutlinePlus />
+      {!isLoading && favWallet && (
+        <div className="flex gap-1 mt-2">
+          <Button
+            variant={viewMode === 'list' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            List view
+          </Button>
+          <Button
+            variant={viewMode === 'sheet' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('sheet')}
+          >
+            Sheet view
+          </Button>
+        </div>
+      )}
+
+      {/* fixed (viewport-relative), not absolute (content-relative) - the
+          content column's height grows with the record list, so an
+          absolute-positioned FAB anchored to its bottom drifted far below
+          the visible screen on long lists instead of staying reachable.
+          bottom-20 on mobile clears the fixed BottomNavbar (~64px); sm:
+          screens have no bottom nav, so bottom-6 is enough there. */}
+      <div className="fixed bottom-20 sm:bottom-6 right-4 z-30 flex flex-col gap-2 items-end">
+        <div
+          className="w-fit p-1.5 text-lg text-white rounded-full bg-zinc-600 hover:bg-zinc-500 active:bg-zinc-700 cursor-pointer transition-colors"
+          onClick={() => setOpenTransfer(true)}
+          aria-label="Transfer between wallets"
+          title="Transfer between wallets"
+        >
+          <BsArrowLeftRight />
+        </div>
+        <div
+          className="w-fit p-1 text-2xl text-white rounded-full bg-primary-600 hover:bg-primary-500 active:bg-primary-700 cursor-pointer transition-colors"
+          onClick={() => {
+            setEditRecord((prev) => ({
+              ...prev,
+              id: 0,
+              price: 0,
+              remarks: '',
+            }));
+            setOpen(true);
+          }}
+        >
+          <AiOutlinePlus />
+        </div>
       </div>
 
-      {!isLoading && favWallet && favWallet.records.length > 0 && (
+      {viewMode === 'list' && !isLoading && favWallet && favWallet.records.length > 0 && (
         <div className="mt-2 space-y-2">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
@@ -213,55 +275,66 @@ const Records = (props: Props) => {
               filter
               className="sm:w-56"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                From
-              </label>
-              <DatePicker
-                selected={dateFrom}
-                onChange={(date) => setDateFrom(date)}
-                selectsStart
-                startDate={dateFrom}
-                endDate={dateTo}
-                maxDate={dateTo ?? undefined}
-                isClearable
-                placeholderText="From date"
-                className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                To
-              </label>
-              <DatePicker
-                selected={dateTo}
-                onChange={(date) => setDateTo(date)}
-                selectsEnd
-                startDate={dateFrom}
-                endDate={dateTo}
-                minDate={dateFrom ?? undefined}
-                isClearable
-                placeholderText="To date"
-                className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
-              />
-            </div>
+            <Button
+              variant={dateFrom || dateTo ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setShowDateFilters((prev) => !prev)}
+            >
+              {dateFrom || dateTo ? 'Date filter active' : 'Filters'}
+            </Button>
             {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="sm:ml-auto"
-                onClick={clearFilters}
-              >
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
               </Button>
             )}
           </div>
+
+          {showDateFilters && (
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  From
+                </label>
+                <DatePicker
+                  selected={dateFrom}
+                  onChange={(date) => setDateFrom(date)}
+                  selectsStart
+                  startDate={dateFrom}
+                  endDate={dateTo}
+                  maxDate={dateTo ?? undefined}
+                  isClearable
+                  placeholderText="From date"
+                  className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  To
+                </label>
+                <DatePicker
+                  selected={dateTo}
+                  onChange={(date) => setDateTo(date)}
+                  selectsEnd
+                  startDate={dateFrom}
+                  endDate={dateTo}
+                  minDate={dateFrom ?? undefined}
+                  isClearable
+                  placeholderText="To date"
+                  className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {isLoading ? null : !favWallet || favWallet.records.length === 0 ? (
+      {viewMode === 'sheet' && !isLoading && favWallet && (
+        <div className="mt-2">
+          <RecordsSheetGrid wallets={wallets} defaultWalletId={favWallet?.id} />
+        </div>
+      )}
+
+      {viewMode === 'list' && (isLoading ? null : !favWallet || favWallet.records.length === 0 ? (
         <div>No records</div>
       ) : filteredDateRecords.length === 0 ? (
         <EmptyState
@@ -274,6 +347,10 @@ const Records = (props: Props) => {
         <Card padding="sm" className="mt-1">
           {filteredDateRecords.map(({ date, records }, index) => {
             const dailyTotal = records.reduce((acc, cur) => {
+              // cur.category can be null for records whose category was
+              // later deleted (server soft-deletes categories, so the join
+              // comes back null) — skip them rather than throwing here.
+              if (!cur.category) return acc;
               const price =
                 cur.category.type === 'expense'
                   ? -Number(cur.price)
@@ -328,45 +405,74 @@ const Records = (props: Props) => {
                     {records.map((record) => (
                       <div
                         key={record.id}
-                        className="flex items-center justify-between p-1 bg-white dark:bg-zinc-800 rounded-md cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                        className={clsx(
+                          'flex items-center justify-between p-1 bg-white dark:bg-zinc-800 rounded-md',
+                          record.isTransfer
+                            ? 'cursor-default'
+                            : 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700',
+                        )}
                         onClick={() => {
+                          // Transfers are a matched pair of records with no
+                          // real category to edit (see apis/transfer.ts) —
+                          // editing one side here would desync it from its
+                          // other half, so the normal edit modal is skipped.
+                          if (record.isTransfer) return;
                           setEditRecord(record);
                           setEditRecordCategory(record.category);
                           setOpen(true);
                         }}
                       >
-                        <div className={clsx('flex items-center gap-2')}>
-                          <div
-                            className={clsx(
-                              'p-1 rounded-full text-white',
-                              record.category.type === 'expense'
-                                ? 'bg-danger-500'
-                                : 'bg-success-500',
-                            )}
-                          >
-                            <IconSelector name={record.category.icon} />
-                          </div>
-                          <span className="flex items-baseline gap-2">
-                            <span className="text-zinc-800 dark:text-zinc-100">
-                              {record.category.name}
-                            </span>
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                              {record.remarks}
-                            </span>
-                          </span>
-                        </div>
+                        {record.category ? (
+                          <>
+                            <div className={clsx('flex items-center gap-2')}>
+                              <div
+                                className={clsx(
+                                  'p-1 rounded-full text-white',
+                                  record.category.type === 'expense'
+                                    ? 'bg-danger-500'
+                                    : 'bg-success-500',
+                                )}
+                              >
+                                <IconSelector name={record.category.icon} />
+                              </div>
+                              <span className="flex items-baseline gap-2">
+                                <span className="text-zinc-800 dark:text-zinc-100">
+                                  {record.category.name}
+                                </span>
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                  {record.remarks}
+                                </span>
+                              </span>
+                            </div>
 
-                        <span
-                          className={clsx(
-                            'font-medium',
-                            record.category.type === 'expense'
-                              ? 'text-danger-600 dark:text-danger-400'
-                              : 'text-success-600 dark:text-success-400',
-                          )}
-                        >
-                          {record.category.type === 'expense' && '-'}${' '}
-                          {record.price}
-                        </span>
+                            <span
+                              className={clsx(
+                                'font-medium',
+                                record.category.type === 'expense'
+                                  ? 'text-danger-600 dark:text-danger-400'
+                                  : 'text-success-600 dark:text-success-400',
+                              )}
+                            >
+                              {record.category.type === 'expense' && '-'}${' '}
+                              {record.price}
+                            </span>
+                          </>
+                        ) : (
+                          // Category was deleted after this record was created —
+                          // there's no category data left to render (server
+                          // soft-deletes categories, so the join comes back null
+                          // rather than throwing). Show a plain fallback instead
+                          // of crashing the whole accordion for this wallet.
+                          <>
+                            <span className="flex items-baseline gap-2 text-zinc-400 dark:text-zinc-500 italic">
+                              <span>Deleted category</span>
+                              <span className="text-sm">{record.remarks}</span>
+                            </span>
+                            <span className="font-medium text-zinc-400 dark:text-zinc-500">
+                              $ {record.price}
+                            </span>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -375,7 +481,7 @@ const Records = (props: Props) => {
             );
           })}
         </Card>
-      )}
+      ))}
 
       {open && (
         <RecordModal
@@ -384,6 +490,13 @@ const Records = (props: Props) => {
           editRecord={editRecord}
           setEditRecord={setEditRecord}
           recordCategory={editRecordCategory ?? undefined}
+        />
+      )}
+
+      {openTransfer && (
+        <TransferModal
+          setOpen={setOpenTransfer}
+          defaultFromWalletId={favWallet?.id}
         />
       )}
 

@@ -5,13 +5,18 @@ import { useQuery } from '@tanstack/react-query';
 import { BsWallet2 } from 'react-icons/bs';
 import RecordModal from '../components/record/RecordModal';
 import { useRecord } from '../provider/RecordDataProvider';
-import { useDarkMode } from '../provider/DarkModeProvider';
-import { IRecord, IRecordWithCategory } from '../types';
+import { useAuth } from '../provider/AuthProvider';
+import { profile } from '../apis';
+import { IRecord, IRecordWithCategory, IUserInfo } from '../types';
 import { fetchRecords } from '../apis/record';
 import { GroupByScale } from '../common/group-scale.enum';
+import { useAppDispatch } from '../hooks';
+import { updateFavWallet } from '../store/walletSlice';
 import { Card, EmptyState, SkeletonCard } from '../components/ui';
+import HeroBalanceCard from '../components/home/HeroBalanceCard';
 import SummaryCards from '../components/home/SummaryCards';
-import ExpenseChartCard from '../components/home/ExpenseChartCard';
+import WalletCard, { WALLET_CARD_WIDTH_CLASS } from '../components/wallet/WalletCard';
+import TopSpendingCard from '../components/home/TopSpendingCard';
 import RecentActivityCard from '../components/home/RecentActivityCard';
 
 type Props = {};
@@ -19,8 +24,9 @@ type Props = {};
 const RECENT_RECORDS_LIMIT = 5;
 
 function Home(props: Props) {
-  const { isDarkMode } = useDarkMode();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { userId } = useAuth();
 
   const [open, setOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<IRecord>({
@@ -40,6 +46,12 @@ function Home(props: Props) {
     expenseByDate,
     updateGroupingScale,
   } = useRecord();
+
+  const { data: user } = useQuery<IUserInfo>({
+    queryKey: ['user', userId],
+    queryFn: () => profile(userId!),
+    enabled: !!userId,
+  });
 
   const { data: records = [], isLoading: isRecordsLoading } = useQuery<
     IRecordWithCategory[]
@@ -73,8 +85,8 @@ function Home(props: Props) {
   if (isWalletsLoading) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <SkeletonCard />
+        <SkeletonCard className="h-32" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SkeletonCard />
           <SkeletonCard />
         </div>
@@ -100,22 +112,59 @@ function Home(props: Props) {
 
   return (
     <div className="select-none flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">
-        Dashboard
-      </h1>
+      <HeroBalanceCard
+        username={user?.username}
+        balance={income - expense}
+        currency={favWallet?.currency}
+        trendDelta={incomeByDate - expenseByDate}
+        onClick={() => navigate('/records')}
+      />
 
       <SummaryCards
         currency={favWallet?.currency}
-        totalBalance={income - expense}
         periodIncome={incomeByDate}
         periodExpense={expenseByDate}
         periodLabel={groupByCategoryRecords.date}
+        onClick={() => navigate('/charts')}
       />
 
-      <ExpenseChartCard
+      {wallets.length > 1 && (
+        <div>
+          <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 mb-2">
+            Your Wallets
+          </p>
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {wallets.map((wallet, index) => {
+              const balance = (wallet.records ?? []).reduce((acc, cur) => {
+                if (!cur.category) return acc;
+                return cur.category.type === 'expense'
+                  ? acc - Number(cur.price)
+                  : acc + Number(cur.price);
+              }, 0);
+
+              return (
+                <WalletCard
+                  key={wallet.id}
+                  name={wallet.name}
+                  currency={wallet.currency}
+                  balance={balance}
+                  index={index}
+                  className={`${WALLET_CARD_WIDTH_CLASS} shrink-0`}
+                  onClick={() => {
+                    dispatch(updateFavWallet(wallet.id));
+                    navigate('/records');
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <TopSpendingCard
         periodLabel={groupByCategoryRecords.date}
         records={groupByCategoryRecords.records}
-        isDarkMode={isDarkMode}
+        currency={favWallet?.currency}
         onAddRecord={openAddRecord}
       />
 

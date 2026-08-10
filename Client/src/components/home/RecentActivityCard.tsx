@@ -68,26 +68,28 @@ const RecentActivityCard = ({
                 <div
                   className={clsx(
                     'text-white rounded-full p-1 shrink-0',
-                    record.category.type === 'expense'
+                    record.category?.type === 'expense'
                       ? 'bg-danger-500'
                       : 'bg-success-500',
                   )}
                 >
-                  <IconSelector name={record.category.icon} />
+                  {record.category && (
+                    <IconSelector name={record.category.icon} />
+                  )}
                 </div>
                 <span className="truncate text-zinc-800 dark:text-zinc-100">
-                  {record.category.name}
+                  {record.category?.name ?? 'Deleted category'}
                 </span>
               </div>
               <span
                 className={clsx(
                   'shrink-0 font-medium',
-                  record.category.type === 'expense'
+                  record.category?.type === 'expense'
                     ? 'text-danger-600 dark:text-danger-400'
                     : 'text-success-600 dark:text-success-400',
                 )}
               >
-                {record.category.type === 'expense' && '-'}
+                {record.category?.type === 'expense' && '-'}
                 {formatMoney(Number(record.price), currency)}
               </span>
             </div>

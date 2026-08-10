@@ -113,6 +113,19 @@ export const RecordDateProvider = ({ children }: any) => {
     return value.map((groupRecord) => {
       const tmpGrouping = groupRecord[1]?.reduce(
         (acc: IGroupByCategoryRecord, cur) => {
+          // cur.category can be null for records whose category was later
+          // deleted (server soft-deletes categories, so the join comes back
+          // null) — exclude them from the aggregation rather than throwing.
+          if (!cur.category) return acc;
+
+          // Wallet-to-wallet transfers carry a synthetic "Transfer" category
+          // (see Server's transfer-category.util.ts) purely so the plain
+          // income/expense/balance sums elsewhere in this file keep working
+          // unmodified — but a transfer isn't real spending or income, so
+          // it's excluded here, from the category-based breakdown that
+          // feeds Chart.tsx/PieChart's per-category view.
+          if (cur.isTransfer) return acc;
+
           if (acc[cur.category.type][cur.category.name]) {
             acc[cur.category.type][cur.category.name].push(cur);
           } else {
@@ -194,7 +207,7 @@ export const RecordDateProvider = ({ children }: any) => {
             return (
               acc +
               cur.reduce((a, c) => {
-                if (category && c.category.name !== category.name) return a;
+                if (category && c.category?.name !== category.name) return a;
                 return a + Number(c.price);
               }, 0)
             );
@@ -206,7 +219,7 @@ export const RecordDateProvider = ({ children }: any) => {
             return (
               acc +
               cur.reduce((a, c) => {
-                if (category && c.category.name !== category.name) return a;
+                if (category && c.category?.name !== category.name) return a;
                 return a + Number(c.price);
               }, 0)
             );
@@ -238,6 +251,9 @@ export const RecordDateProvider = ({ children }: any) => {
     const { walletExpense, walletIncome } =
       tmpWallet?.records?.reduce(
         (i, w) => {
+          // w.category can be null for records whose category was later
+          // deleted — exclude them from the income/expense totals.
+          if (!w.category) return i;
           if (w.category.type === 'income') {
             i.walletIncome += Number(w.price);
           } else {

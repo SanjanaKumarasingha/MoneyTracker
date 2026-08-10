@@ -19,30 +19,23 @@ const Chart = (props: Props) => {
   const dispatch = useAppDispatch();
   return (
     <div>
-      <div className=" flex justify-between">
-        <div className="flex py-2">
-          <div
-            className={clsx(
-              'px-2 hover:bg-info-100 cursor-pointer rounded-t-md active:bg-info-50 dark:bg-opacity-40 dark:active:bg-opacity-70',
-              { 'bg-info-200 dark:bg-info-700': chartType === 'Pie Chart' },
-            )}
-            onClick={() => {
-              setChartType('Pie Chart');
-            }}
-          >
-            Pie Chart
-          </div>
-          <div
-            className={clsx(
-              'px-2 hover:bg-info-100 cursor-pointer rounded-t-md active:bg-info-50 dark:bg-opacity-40 dark:active:bg-opacity-70',
-              { 'bg-info-200 dark:bg-info-700': chartType === 'Trend' },
-            )}
-            onClick={() => {
-              setChartType('Trend');
-            }}
-          >
-            Trend
-          </div>
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <div className="flex p-1 gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-full w-fit">
+          {(['Pie Chart', 'Trend'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setChartType(tab)}
+              className={clsx(
+                'px-3 py-1 text-sm font-semibold rounded-full transition-colors',
+                chartType === tab
+                  ? 'bg-primary-600 text-white shadow-card'
+                  : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700',
+              )}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
         <div className="text-sm">
           <CustomSelector

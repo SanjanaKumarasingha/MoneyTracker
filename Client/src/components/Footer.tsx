@@ -10,17 +10,19 @@ const Footer = (props: Props) => {
   return (
     <div className="p-1 text-right flex justify-end gap-2 text-xl">
       <div
-        className={clsx('p-1 hover:bg-zinc-100 rounded-full cursor-pointer', {
-          'text-amber-400': !isDarkMode,
-        })}
+        className={clsx(
+          'p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full cursor-pointer',
+          isDarkMode ? 'text-zinc-400' : 'text-amber-400',
+        )}
         onClick={() => disable()}
       >
         <PiSunThin />
       </div>
       <div
-        className={clsx('p-1 hover:bg-zinc-100 rounded-full cursor-pointer', {
-          'text-indigo-300': isDarkMode,
-        })}
+        className={clsx(
+          'p-1 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-full cursor-pointer',
+          isDarkMode ? 'text-indigo-300' : 'text-zinc-500',
+        )}
         onClick={() => enable()}
       >
         <PiMoonStarsThin />

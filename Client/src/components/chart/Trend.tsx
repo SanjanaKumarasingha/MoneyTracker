@@ -75,6 +75,11 @@ const Trend = (props: Props) => {
 
   const options: ChartOptions = {
     responsive: true,
+    // Bar/line charts default to aspectRatio:2 (height = width/2) with no
+    // cap of their own - on a wide desktop content column that's
+    // 650-750px tall. maintainAspectRatio:false hands sizing entirely to
+    // the fixed-height wrapper div below instead.
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         display: false,
@@ -225,7 +230,9 @@ const Trend = (props: Props) => {
           }}
         />
       </div>
-      <CoreChart chartType={chartType} options={options} data={data} />
+      <div className="relative h-72">
+        <CoreChart chartType={chartType} options={options} data={data} />
+      </div>
     </div>
   );
 };

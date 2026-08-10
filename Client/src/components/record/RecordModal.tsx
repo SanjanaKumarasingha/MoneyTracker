@@ -20,7 +20,7 @@ import {
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
-import { fetchCategories } from '../../apis/category';
+import { fetchCategories, fetchHiddenCategoryIds } from '../../apis/category';
 import { profile } from '../../apis';
 import { useAppDispatch } from '../../hooks';
 import { ECategoryType } from '../../common/category-type';
@@ -67,11 +67,28 @@ const RecordModal = ({
 
   const [openDelete, setOpenDelete] = useState<boolean>(false);
 
+  // Which wallet this record is being saved into. Seeded from the `wallet`
+  // prop but tracked separately so that, when editing an existing record,
+  // picking a different wallet reassigns *this record* instead of the
+  // app-wide favourite wallet (see the Wallet selector's callbackAction
+  // below for the create-vs-edit split).
+  const [targetWalletId, setTargetWalletId] = useState<number | undefined>(
+    wallet?.id,
+  );
+
   const queryClient = useQueryClient();
 
   const { data: categories } = useQuery<ICategory[]>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+  });
+
+  // Categories hidden from the currently selected wallet (per-wallet
+  // visibility filter — categories themselves stay global/shared).
+  const { data: hiddenCategoryIds = [] } = useQuery<number[]>({
+    queryKey: ['hidden-categories', wallet?.id],
+    queryFn: () => fetchHiddenCategoryIds(wallet!.id),
+    enabled: !!wallet?.id,
   });
 
   const { data: user } = useQuery<IUserInfo>({
@@ -190,7 +207,7 @@ const RecordModal = ({
   const updateRecordMutation = useMutation<
     IRecord,
     AxiosError<{ error: string; message: string; statusCode: number }>,
-    IRecord
+    IRecord & { walletId?: number; categoryId?: number }
   >({
     mutationFn: updateRecord,
     onMutate: async ({ id, price, remarks, date }) => {
@@ -311,6 +328,8 @@ const RecordModal = ({
       } else {
         await updateRecordMutation.mutateAsync({
           ...editRecord,
+          walletId: targetWalletId,
+          categoryId: selectedCategory.id,
         });
       }
 
@@ -362,7 +381,11 @@ const RecordModal = ({
       setSortedCategories((prev) => {
         let sorted: ICategory[] = [];
         user.categoryOrder.forEach((id) => {
-          const n = categories.filter((category) => category.id === Number(id));
+          const n = categories.filter(
+            (category) =>
+              category.id === Number(id) &&
+              !hiddenCategoryIds.includes(category.id),
+          );
 
           if (n.length > 0) {
             sorted.push(...n);
@@ -372,7 +395,12 @@ const RecordModal = ({
         return sorted;
       });
     }
-  }, [categories, user]);
+  }, [categories, user, hiddenCategoryIds]);
+
+  // The wallet actually being saved into - may differ from the `wallet`
+  // prop once a different one is picked mid-edit (see targetWalletId
+  // above), so the currency shown against the amount stays in sync with it.
+  const displayWallet = wallets?.find((w) => w.id === targetWalletId) ?? wallet;
 
   return (
     <div>
@@ -450,12 +478,21 @@ const RecordModal = ({
               <CustomSelector
                 title={'Wallet:'}
                 options={wallets?.map((w) => w.name) ?? []}
-                value={wallet?.name}
+                value={displayWallet?.name}
                 callbackAction={(value) => {
-                  const newFavWallet = wallets?.find((w) => w.name === value);
+                  const newWallet = wallets?.find((w) => w.name === value);
+                  if (!newWallet) return;
 
-                  if (newFavWallet) {
-                    dispatch(updateFavWallet(newFavWallet.id));
+                  if (editRecord.id === 0) {
+                    // Creating: switching wallets here still switches the
+                    // app-wide favourite wallet, same as before - the
+                    // `wallet` prop is derived from it, so the modal picks
+                    // up the new wallet on the next render.
+                    dispatch(updateFavWallet(newWallet.id));
+                  } else {
+                    // Editing: retarget just this record, leaving the
+                    // favourite wallet (and every other record) alone.
+                    setTargetWalletId(newWallet.id);
                   }
                 }}
               />
@@ -496,7 +533,7 @@ const RecordModal = ({
           </div>
           <div className="relative bg-zinc-100 dark:bg-zinc-700 text-lg rounded-md p-1 text-right truncate overflow-auto mb-2">
             <span className="absolute left-1 text-zinc-600 dark:text-zinc-300 opacity-30 font-semibold">
-              {wallet && wallet.currency}
+              {displayWallet && displayWallet.currency}
             </span>
 
             <span>{value.length > 0 ? value : 0}</span>

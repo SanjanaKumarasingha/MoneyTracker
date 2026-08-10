@@ -12,6 +12,7 @@ import SettingPage from '../pages/SettingPage';
 import CategoryPage from '../pages/CategoryPage';
 import Profile from '../pages/Profile';
 import UpdatePassword from '../pages/UpdatePassword';
+import ImportPage from '../pages/ImportPage';
 
 export const routes = {
   authRoute: [
@@ -54,6 +55,11 @@ export const routes = {
       name: 'Update Password',
       path: '/update-password',
       element: <UpdatePassword />,
+    },
+    {
+      name: 'Import from spreadsheet',
+      path: '/import',
+      element: <ImportPage />,
     },
   ],
   publicRoute: [
