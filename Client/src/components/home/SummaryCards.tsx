@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { BsArrowDownCircle, BsArrowUpCircle } from 'react-icons/bs';
 import { Card } from '../ui';
-import { formatMoney } from './utils';
+import { formatMoney } from '../../utils';
 
 // Total Balance now leads the page via HeroBalanceCard - this is a
 // secondary detail strip, not a second "how much money" statement of equal

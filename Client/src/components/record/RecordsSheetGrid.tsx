@@ -10,7 +10,7 @@ import { fetchCategories } from '../../apis/category';
 import { createRecord, deleteRecord, updateRecord } from '../../apis/record';
 import { ICategory, ICreateRecord, IWalletRecordWithCategory } from '../../types';
 import { getCategoryColor } from '../../utils/categoryColor';
-import { Button } from '../ui';
+import { Button, ConfirmDialog } from '../ui';
 
 type SheetRow = {
   // 0 means "not saved yet" - the always-present blank row at the bottom.
@@ -289,10 +289,16 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
     });
   };
 
-  const handleDelete = (row: SheetRow) => {
-    if (row.id === 0) return;
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
-    deleteMutation.mutate(row.id);
+  // Deleting a row used to fire immediately on icon click with no way to
+  // back out of a misclick - every other delete flow in the app (wallet,
+  // category, the record modal) confirms first, so this should too.
+  const [pendingDelete, setPendingDelete] = useState<SheetRow | null>(null);
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    setRows((prev) => prev.filter((r) => r.id !== pendingDelete.id));
+    deleteMutation.mutate(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   // Wallet is only its own column on the "All" tab - on a single-wallet tab
@@ -370,7 +376,7 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
             type="button"
             aria-label="Delete row"
             className="text-zinc-400 hover:text-danger-600"
-            onClick={() => handleDelete(row)}
+            onClick={() => setPendingDelete(row)}
           >
             <AiOutlineDelete />
           </button>
@@ -476,6 +482,17 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
           </button>
         ))}
       </div>
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        title="Delete this record?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        isDestructive
+        isLoading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

@@ -28,6 +28,7 @@ import CoreChart from './CoreChart';
 import { useDarkMode } from '../../provider/DarkModeProvider';
 import { displayDate } from '../../common/format-date';
 import { GroupByScale } from '../../common/group-scale.enum';
+import { EmptyState } from '../ui';
 
 type Props = {};
 
@@ -230,9 +231,19 @@ const Trend = (props: Props) => {
           }}
         />
       </div>
-      <div className="relative h-72">
-        <CoreChart chartType={chartType} options={options} data={data} />
-      </div>
+      {value.length === 0 ? (
+        // Previously fell through to an empty chart canvas with no
+        // explanation - and `total / value.length` (used by the average
+        // annotation below) is a division by zero once value is empty.
+        <EmptyState
+          title="No data for this year"
+          description="Try a different year or category using the controls above."
+        />
+      ) : (
+        <div className="relative h-72">
+          <CoreChart chartType={chartType} options={options} data={data} />
+        </div>
+      )}
     </div>
   );
 };

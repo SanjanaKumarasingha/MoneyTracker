@@ -19,6 +19,7 @@ import CustomSelector from '../components/Custom/CustomSelector';
 import { updateFavWallet } from '../store/walletSlice';
 import { useRecord } from '../provider/RecordDataProvider';
 import { Button, Card, EmptyState, Input, Select, Skeleton } from '../components/ui';
+import { formatMoney } from '../utils';
 
 type Props = {};
 
@@ -164,13 +165,13 @@ const Records = (props: Props) => {
             <div className="flex items-center justify-between">
               <p className="text-zinc-500 dark:text-zinc-400">Income:</p>{' '}
               <p className="font-medium text-success-600 dark:text-success-400">
-                {income.toFixed(2)}
+                {formatMoney(income, favWallet.currency)}
               </p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-zinc-500 dark:text-zinc-400">Expense:</p>{' '}
               <p className="font-medium text-danger-600 dark:text-danger-400">
-                {expense.toFixed(2)}
+                {formatMoney(expense, favWallet.currency)}
               </p>
             </div>
             <div className="flex items-center justify-between">
@@ -185,14 +186,16 @@ const Records = (props: Props) => {
                     : 'text-danger-600 dark:text-danger-400',
                 )}
               >
-                {total.toFixed(2)}
+                {formatMoney(total, favWallet.currency)}
               </p>
             </div>
             <div className="absolute text-zinc-100 dark:text-zinc-700 text-6xl top-0 right-0 pointer-events-none select-none">
               {favWallet.currency}
             </div>
           </div>
-          <div
+          <button
+            type="button"
+            aria-label="Choose active wallet"
             className="absolute top-1 right-1 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-700 h-fit"
             onClick={() => {
               // Update the fav wallet
@@ -201,10 +204,13 @@ const Records = (props: Props) => {
             }}
           >
             <IoSettingsOutline strokeWidth={1} className="cursor-pointer" />
-          </div>
+          </button>
         </Card>
       ) : (
-        <div>Please create a wallet first to create records.</div>
+        <EmptyState
+          title="No wallet yet"
+          description="Create a wallet first, then come back here to log records against it."
+        />
       )}
 
       {!isLoading && favWallet && (
@@ -233,15 +239,19 @@ const Records = (props: Props) => {
           bottom-20 on mobile clears the fixed BottomNavbar (~64px); sm:
           screens have no bottom nav, so bottom-6 is enough there. */}
       <div className="fixed bottom-20 sm:bottom-6 right-4 z-30 flex flex-col gap-2 items-end">
-        <div
+        <button
+          type="button"
           className="w-fit p-1.5 text-lg text-white rounded-full bg-zinc-600 hover:bg-zinc-500 active:bg-zinc-700 cursor-pointer transition-colors"
           onClick={() => setOpenTransfer(true)}
           aria-label="Transfer between wallets"
           title="Transfer between wallets"
         >
           <BsArrowLeftRight />
-        </div>
-        <div
+        </button>
+        <button
+          type="button"
+          aria-label="Add record"
+          title="Add record"
           className="w-fit p-1 text-2xl text-white rounded-full bg-primary-600 hover:bg-primary-500 active:bg-primary-700 cursor-pointer transition-colors"
           onClick={() => {
             setEditRecord((prev) => ({
@@ -254,7 +264,7 @@ const Records = (props: Props) => {
           }}
         >
           <AiOutlinePlus />
-        </div>
+        </button>
       </div>
 
       {viewMode === 'list' && !isLoading && favWallet && favWallet.records.length > 0 && (
@@ -335,7 +345,10 @@ const Records = (props: Props) => {
       )}
 
       {viewMode === 'list' && (isLoading ? null : !favWallet || favWallet.records.length === 0 ? (
-        <div>No records</div>
+        <EmptyState
+          title="No records yet"
+          description="Add your first income or expense record for this wallet using the + button below."
+        />
       ) : filteredDateRecords.length === 0 ? (
         <EmptyState
           title="No records match your filters"
@@ -380,7 +393,7 @@ const Records = (props: Props) => {
                             : 'text-danger-600 dark:text-danger-400',
                         )}
                       >
-                        $ {dailyTotal.toFixed(2)}
+                        {formatMoney(dailyTotal, favWallet.currency)}
                       </div>
                     </div>
                   }
@@ -453,8 +466,8 @@ const Records = (props: Props) => {
                                   : 'text-success-600 dark:text-success-400',
                               )}
                             >
-                              {record.category.type === 'expense' && '-'}${' '}
-                              {record.price}
+                              {record.category.type === 'expense' && '-'}
+                              {formatMoney(record.price, favWallet.currency)}
                             </span>
                           </>
                         ) : (
@@ -469,7 +482,7 @@ const Records = (props: Props) => {
                               <span className="text-sm">{record.remarks}</span>
                             </span>
                             <span className="font-medium text-zinc-400 dark:text-zinc-500">
-                              $ {record.price}
+                              {formatMoney(record.price, favWallet.currency)}
                             </span>
                           </>
                         )}

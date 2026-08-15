@@ -2,7 +2,7 @@ import { BsPieChart } from 'react-icons/bs';
 import { Card, EmptyState } from '../ui';
 import { IGroupByCategoryRecord } from '../../types';
 import { getCategoryColor } from '../../utils/categoryColor';
-import { formatMoney } from './utils';
+import { formatMoney } from '../../utils';
 
 // Replaces the doughnut chart that used to live here (see git history:
 // ExpenseChartCard.tsx) - it was an unbounded chart.js doughnut duplicating

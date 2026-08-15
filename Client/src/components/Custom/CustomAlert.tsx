@@ -30,12 +30,12 @@ const CustomAlert = ({ type, content }: CustomAlertProps) => {
       className={clsx(
         'p-2 rounded-sm flex gap-2',
         type === 'error'
-          ? 'text-red-500 bg-red-100'
+          ? 'text-red-500 bg-red-100 dark:text-red-300 dark:bg-red-950'
           : type === 'warning'
-          ? 'text-primary-500 bg-primary-100'
+          ? 'text-primary-500 bg-primary-100 dark:text-primary-300 dark:bg-primary-950'
           : type === 'success'
-          ? 'text-emerald-500 bg-emerald-100'
-          : 'text-secondary-400 bg-secondary-100',
+          ? 'text-emerald-500 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-950'
+          : 'text-secondary-400 bg-secondary-100 dark:text-secondary-300 dark:bg-secondary-950',
       )}
     >
       <span className="text-2xl pt-1"> {icon(type)}</span>

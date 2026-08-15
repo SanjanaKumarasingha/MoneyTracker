@@ -33,6 +33,7 @@ import CustomSelector from '../Custom/CustomSelector';
 import { updateFavWallet } from '../../store/walletSlice';
 import { useRecord } from '../../provider/RecordDataProvider';
 import { useAuth } from '../../provider/AuthProvider';
+import { ConfirmDialog } from '../ui';
 
 type RecordModalProps = {
   wallet: IWallet | undefined;
@@ -272,7 +273,13 @@ const RecordModal = ({
     number
   >({
     mutationFn: deleteRecord,
-    onError(error, variables, context) {},
+    // The cache was already optimistically updated in onMutate below, so a
+    // failed delete needs its own visible feedback — otherwise the record
+    // just silently vanishes from the UI (until the onSettled refetch below
+    // eventually restores it) with no indication anything went wrong.
+    onError(error) {
+      toast('Failed to delete record. Please try again.', { type: 'error' });
+    },
     onMutate: async (variables) => {
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets'],
@@ -284,7 +291,6 @@ const RecordModal = ({
                 walletIndex
               ].records.filter((r) => r.id !== variables);
             }
-            console.log(oldData);
           }
           return oldData;
         },
@@ -580,11 +586,21 @@ const RecordModal = ({
             </div>
           </div>
 
-          {/* Submit button and choose continue or close */}
+          {/* Submit button and choose continue or close.
+              These were previously colored backwards - "Delete" in the
+              primary blue and "Create"/"Update" in the danger red - the
+              opposite of what every other destructive/safe action pairing
+              in the app uses (see WalletModal/CategoryModal's
+              ConfirmDialog). Also now disabled while a mutation is in
+              flight, so a double-click/tap can't fire the same
+              create/update/delete twice. */}
           <div className="flex justify-end py-2 items-center gap-2">
             <button
-              className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none"
+              className="bg-danger-400 w-fit p-1 rounded-md text-white hover:bg-danger-300 cursor-pointer active:bg-danger-500 select-none disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
+              disabled={
+                createRecordMutation.isPending || updateRecordMutation.isPending
+              }
               onClick={(e) => {
                 if (editRecord.id === 0) {
                   handleSubmit(e, 'Continue');
@@ -597,8 +613,11 @@ const RecordModal = ({
             </button>
 
             <button
-              className="bg-danger-400 w-fit p-1 rounded-md text-white hover:bg-danger-300 cursor-pointer active:bg-danger-500 select-none"
+              className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
+              disabled={
+                createRecordMutation.isPending || updateRecordMutation.isPending
+              }
               onClick={(e) => {
                 handleSubmit(e, 'Once');
               }}
@@ -609,26 +628,24 @@ const RecordModal = ({
         </form>
       </CustomModal>
 
-      {openDelete && (
-        <CustomModal setOpen={setOpenDelete} size="Medium">
-          <div>
-            <span className="text-lg">Confirm to delete the record?</span>
-
-            <div className="flex justify-end pt-2">
-              <button
-                className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none"
-                onClick={async () => {
-                  try {
-                    await removeRecordMutation.mutateAsync(editRecord.id);
-                  } catch (error) {}
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </CustomModal>
-      )}
+      {/* Was its own ad hoc CustomModal with a primary-blue "Confirm" button
+          - every other delete flow (wallet, category) uses this shared
+          ConfirmDialog with a danger-styled confirm button, Escape-to-close,
+          and a visible Cancel. */}
+      <ConfirmDialog
+        isOpen={openDelete}
+        title="Delete this record?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        isDestructive
+        isLoading={removeRecordMutation.isPending}
+        onConfirm={async () => {
+          try {
+            await removeRecordMutation.mutateAsync(editRecord.id);
+          } catch (error) {}
+        }}
+        onCancel={() => setOpenDelete(false)}
+      />
     </div>
   );
 };

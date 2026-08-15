@@ -5,7 +5,7 @@ import { BsReceipt } from 'react-icons/bs';
 import { Button, Card, EmptyState, SkeletonText } from '../ui';
 import IconSelector from '../IconSelector';
 import { IRecordWithCategory } from '../../types';
-import { formatMoney } from './utils';
+import { formatMoney } from '../../utils';
 
 export interface RecentActivityCardProps {
   records: IRecordWithCategory[];

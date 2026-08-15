@@ -1,3 +1,18 @@
+// The single currency formatter for the whole app — every amount shown
+// anywhere should go through this rather than a one-off Intl.NumberFormat
+// call or a bare .toFixed(2), so a non-USD wallet renders correctly
+// everywhere (see WalletCard/Records, which used to bypass this).
+export const formatMoney = (amount: number, currency?: string): string => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(amount);
+  } catch {
+    return `${currency ? currency + ' ' : ''}${amount.toFixed(2)}`;
+  }
+};
+
 export const currencyList = [
   'AED',
   'AFN',

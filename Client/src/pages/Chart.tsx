@@ -6,6 +6,7 @@ import { useRecord } from '../provider/RecordDataProvider';
 import { useAppDispatch } from '../hooks';
 import { updateFavWallet } from '../store/walletSlice';
 import Trend from '../components/chart/Trend';
+import { Skeleton } from '../components/ui';
 
 type Props = {};
 
@@ -15,6 +16,10 @@ const Chart = (props: Props) => {
   );
 
   const { wallets, favWallet } = useRecord();
+  // Every other page (Home, Records, WalletPage) skeletons while wallets are
+  // loading - this page used to render PieChart/Trend against
+  // undefined/empty data with no indication anything was still in flight.
+  const isLoading = !wallets;
 
   const dispatch = useAppDispatch();
   return (
@@ -53,7 +58,15 @@ const Chart = (props: Props) => {
         </div>
       </div>
 
-      {chartType === 'Pie Chart' ? <PieChart /> : <Trend />}
+      {isLoading ? (
+        <div className="space-y-2 mt-4">
+          <Skeleton className="h-64 w-full" />
+        </div>
+      ) : chartType === 'Pie Chart' ? (
+        <PieChart />
+      ) : (
+        <Trend />
+      )}
     </div>
   );
 };

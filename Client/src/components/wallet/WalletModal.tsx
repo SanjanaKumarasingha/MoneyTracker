@@ -160,7 +160,12 @@ const WalletModal = ({
 
   const removeWalletMutation = useMutation({
     mutationFn: deleteWallet,
-    onError(error, variables, context) {},
+    // onMutate below already removed the wallet from the cache optimistically
+    // — without this, a failed delete leaves it silently missing from the
+    // list with no indication anything went wrong.
+    onError() {
+      toast('Failed to delete wallet. Please try again.', { type: 'error' });
+    },
     onMutate: async (variables) => {
       queryClient.setQueryData<IWallet[]>(['wallets'], (oldData) => {
         if (oldData) {

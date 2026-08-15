@@ -33,7 +33,12 @@ const CategoryModal = ({
 
   const removeCategoryMutation = useMutation({
     mutationFn: deleteCategory,
-    onError(error, variables, context) {},
+    // onMutate below already removed the category from the cache
+    // optimistically — without this, a failed delete leaves it silently
+    // missing from the list with no indication anything went wrong.
+    onError() {
+      toast('Failed to delete category. Please try again.', { type: 'error' });
+    },
     onMutate: async (variables) => {
       queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
         if (oldData) {

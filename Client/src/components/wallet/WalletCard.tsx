@@ -1,5 +1,6 @@
 import { ReactNode, useRef } from 'react';
 import clsx from 'clsx';
+import { formatMoney } from '../../utils';
 
 // Mirrors Mobile's Home wallet carousel (Mobile/app/(app)/(tabs)/index.tsx,
 // CARD_GRADIENTS) - each wallet gets a distinct gradient, cycling by
@@ -97,10 +98,7 @@ const WalletCard = ({
 
       <div>
         <div className="text-lg font-extrabold tracking-tight">
-          {new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency,
-          }).format(balance)}
+          {formatMoney(balance, currency)}
         </div>
         <div className="text-xs font-semibold text-white/80 mt-0.5">
           {currency}

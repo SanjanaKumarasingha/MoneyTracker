@@ -9,7 +9,7 @@ import { Modal, Button, Input } from '../ui';
 import { transferBetweenWallets } from '../../apis/transfer';
 import { useRecord } from '../../provider/RecordDataProvider';
 import { IWalletRecordWithCategory } from '../../types';
-import { formatMoney } from '../home/utils';
+import { formatMoney } from '../../utils';
 
 type TransferModalProps = {
   setOpen: (open: boolean) => void;

@@ -61,7 +61,6 @@ const CategoryRow = ({
             }
           });
         }
-        console.log(oldData);
         return oldData;
       });
 

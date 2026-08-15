@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { BsGraphDownArrow, BsGraphUpArrow } from 'react-icons/bs';
-import { formatMoney } from './utils';
+import { formatMoney } from '../../utils';
 
 export interface HeroBalanceCardProps {
   username?: string;
