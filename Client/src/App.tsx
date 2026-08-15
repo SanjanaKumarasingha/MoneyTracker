@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { router } from './routes';
 import { store } from './store';
-import { MenuOpenProvider } from './provider/MenuOpenProvider';
 import { RecordDateProvider } from './provider/RecordDataProvider';
 import { AuthProvider } from './provider/AuthProvider';
 import { DarkModeProvider } from './provider/DarkModeProvider';
@@ -22,11 +21,9 @@ function App() {
       <Provider store={store}>
         <AuthProvider>
           <DarkModeProvider>
-            <MenuOpenProvider>
-              <RecordDateProvider>
-                <RouterProvider router={router} />
-              </RecordDateProvider>
-            </MenuOpenProvider>
+            <RecordDateProvider>
+              <RouterProvider router={router} />
+            </RecordDateProvider>
           </DarkModeProvider>
         </AuthProvider>
       </Provider>

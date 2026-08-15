@@ -20,7 +20,6 @@ export const createWallet = async (
 export async function fetchWallet(id: number) {}
 
 export async function updateWallet(wallet: Partial<IWallet>): Promise<IWallet> {
-  console.log(wallet);
   const response = await Axios.patch(`/v1/wallets/${wallet.id}`, {
     name: wallet.name,
     currency: wallet.currency,

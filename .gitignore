@@ -1,0 +1,4 @@
+# Personal data used for local testing (bank/expense exports, screenshots) —
+# never meant to be committed. See Client/.gitignore, Mobile/.gitignore and
+# Server/.gitignore for each sub-project's own ignores.
+/data/

@@ -20,6 +20,7 @@ type AuthContextValue = {
   authorized: boolean;
   isSignedIn: boolean;
   userId: number | null;
+  isInitializing: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -51,6 +52,11 @@ type AuthProviderProps = {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authorized, setAuthorized] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  // Starts true so consumers (e.g. AuthLayout) can tell "haven't checked the
+  // token yet" apart from "checked, and the user isn't authorized" - without
+  // this, a hard reload of a protected route reads `authorized === false` on
+  // the very first render (before this effect runs) and bounces to /login.
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const { access_token, isSignedIn } = useAppSelector((state) => state.user);
   const dispatch = useAppDispatch();
@@ -64,6 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       dispatch(logout());
       setAuthorized(false);
       setUserId(null);
+      setIsInitializing(false);
       return;
     }
 
@@ -78,12 +85,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthorized(true);
       setUserId(decoded.sub);
     }
+    setIsInitializing(false);
   }, [access_token, isSignedIn, dispatch]);
 
   const value: AuthContextValue = {
     authorized,
     isSignedIn,
     userId,
+    isInitializing,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

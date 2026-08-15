@@ -25,7 +25,7 @@ const CustomModal = ({ children, setOpen, size }: CustomModalProps) => {
     >
       <div
         className={clsx(
-          'modal-content bg-white dark:bg-zinc-800 rounded-md m-auto p-5 shadow overflow-auto min-w-min',
+          'modal-content bg-white dark:bg-zinc-800 rounded-xl m-auto p-5 shadow overflow-auto min-w-min',
           size === 'Small' ? 'w-1/4' : size === 'Medium' ? 'w-1/2' : 'w-4/5',
         )}
         ref={modalContentRef}

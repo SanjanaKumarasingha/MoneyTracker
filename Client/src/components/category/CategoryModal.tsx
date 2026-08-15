@@ -11,6 +11,7 @@ import { PiTrashThin } from 'react-icons/pi';
 import { deleteCategory } from '../../apis/category';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import { Button, ConfirmDialog } from '../ui';
 
 type CategoryModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -32,7 +33,12 @@ const CategoryModal = ({
 
   const removeCategoryMutation = useMutation({
     mutationFn: deleteCategory,
-    onError(error, variables, context) {},
+    // onMutate below already removed the category from the cache
+    // optimistically — without this, a failed delete leaves it silently
+    // missing from the list with no indication anything went wrong.
+    onError() {
+      toast('Failed to delete category. Please try again.', { type: 'error' });
+    },
     onMutate: async (variables) => {
       queryClient.setQueryData<ICategory[]>(['categories'], (oldData) => {
         if (oldData) {
@@ -104,8 +110,8 @@ const CategoryModal = ({
                   className={clsx(
                     'text-4xl text-white rounded-full p-2 ',
                     editCategory.type === ECategoryType.EXPENSE
-                      ? 'bg-rose-400'
-                      : 'bg-info-400',
+                      ? 'bg-danger-400'
+                      : 'bg-success-400',
                   )}
                 >
                   <IconSelector name={editCategory.icon}></IconSelector>
@@ -134,14 +140,17 @@ const CategoryModal = ({
                 )}
               </div>
 
-              <div
-                className="text-2xl text-rose-400 p-2 hover:bg-rose-100 active:bg-rose-50 rounded-full cursor-pointer"
+              <Button
+                type="button"
+                variant="ghost"
+                className="!text-2xl !text-danger-500 !p-2 !rounded-full hover:!bg-danger-100 active:!bg-danger-50"
+                aria-label="Delete category"
                 onClick={() => {
                   setOpenDelete(true);
                 }}
               >
                 <PiTrashThin />
-              </div>
+              </Button>
             </div>
           )}
 
@@ -152,8 +161,8 @@ const CategoryModal = ({
               className={clsx(
                 'flex flex-wrap gap-2 text-2xl',
                 editCategory.type === ECategoryType.EXPENSE
-                  ? 'text-rose-400'
-                  : 'text-info-400',
+                  ? 'text-danger-400'
+                  : 'text-success-400',
               )}
             >
               {Object.values(EIconName).map((icon) => (
@@ -162,18 +171,18 @@ const CategoryModal = ({
                   className={clsx(
                     'cursor-pointer rounded-md p-1',
                     {
-                      'outline outline-1 bg-rose-50':
+                      'outline outline-1 bg-danger-50':
                         editCategory['icon'] === icon &&
                         editCategory.type === ECategoryType.EXPENSE,
                     },
                     {
-                      'outline outline-1 bg-info-50':
+                      'outline outline-1 bg-success-50':
                         editCategory['icon'] === icon &&
                         editCategory.type === ECategoryType.INCOME,
                     },
                     editCategory.type === ECategoryType.EXPENSE
-                      ? 'hover:bg-rose-100 active:bg-rose-50'
-                      : 'hover:bg-info-200 active:bg-info-100',
+                      ? 'hover:bg-danger-100 active:bg-danger-50'
+                      : 'hover:bg-success-200 active:bg-success-100',
                   )}
                   onClick={() => {
                     setEditCategory((prev) => {
@@ -189,37 +198,32 @@ const CategoryModal = ({
               ))}
             </div>
           </div>
-          <div className="flex justify-end">
-            <button
-              className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
-              type="submit"
-            >
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary">
               {editCategory.id === 0 ? 'Create' : 'Update'}
-            </button>
+            </Button>
           </div>
         </form>
       </CustomModal>
 
-      {openDelete && (
-        <CustomModal setOpen={setOpenDelete} size="Medium">
-          <div>
-            <span className="text-lg">Confirm to delete the category?</span>
-
-            <div className="flex justify-end pt-2">
-              <button
-                className="bg-info-400 w-fit p-1 rounded-md text-white hover:bg-info-300 cursor-pointer active:bg-info-500 select-none"
-                onClick={async () => {
-                  try {
-                    await removeCategoryMutation.mutateAsync(editCategory.id);
-                  } catch (error) {}
-                }}
-              >
-                DELETE
-              </button>
-            </div>
-          </div>
-        </CustomModal>
-      )}
+      <ConfirmDialog
+        isOpen={openDelete}
+        title="Delete category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isDestructive
+        isLoading={removeCategoryMutation.isPending}
+        onCancel={() => setOpenDelete(false)}
+        onConfirm={async () => {
+          try {
+            await removeCategoryMutation.mutateAsync(editCategory.id);
+          } catch (error) {}
+        }}
+      />
     </div>
   );
 };

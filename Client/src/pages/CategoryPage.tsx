@@ -31,10 +31,12 @@ import CategoryRow from '../components/category/CategoryRow';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
 import { AiOutlinePlus } from 'react-icons/ai';
+import { PiTagThin } from 'react-icons/pi';
 import { ECategoryType } from '../common/category-type';
 import CategoryModal from '../components/category/CategoryModal';
 import { EIconName } from '../common/icon-name.enum';
 import { useAuth } from '../provider/AuthProvider';
+import { Button, Card, EmptyState, SkeletonCard } from '../components/ui';
 
 type ApiError = {
   error: string;
@@ -60,7 +62,9 @@ const CategoryPage = () => {
 
   /* ===================== QUERIES ===================== */
 
-  const { data: categories = [] } = useQuery<ICategory[]>({
+  const { data: categories = [], isLoading: isCategoriesLoading } = useQuery<
+    ICategory[]
+  >({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
@@ -351,91 +355,92 @@ const CategoryPage = () => {
       <BackButton />
 
       <div className="flex flex-col md:flex-row gap-3 mt-3">
-        {Object.values(ECategoryType).map((type) => (
-          <DndContext
-            key={type}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-            onDragStart={handleDragStart}
-          >
-            <div className="flex-1 bg-info-100 dark:bg-info-700 rounded-md p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg capitalize">{type}</h3>
-
-                <button
-                  className="flex items-center gap-1 text-sm px-2 py-1 rounded-md hover:bg-white/40 dark:hover:bg-black/20"
-                  onClick={() => {
-                    setEditCategory({
-                      id: 0,
-                      name: '',
-                      enable: true,
-                      type,
-                      icon: EIconName.MONEY,
-                    });
-                    setOpen(true);
-                  }}
-                  type="button"
-                >
-                  <AiOutlinePlus /> Add
-                </button>
+        {Object.values(ECategoryType).map((type) => {
+          if (isCategoriesLoading) {
+            return (
+              <div key={type} className="flex-1 flex flex-col gap-2">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
               </div>
+            );
+          }
 
-              <SortableContext
-                items={categoriesByType[type].map((c) => c.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-2">
-                  {categoriesByType[type].map((c) => (
-                    <div key={c.id} className="flex items-center gap-2">
-                      <div className="flex-1">
+          const typeCategories = categoriesByType[type];
+
+          const openCreateModal = () => {
+            setEditCategory({
+              id: 0,
+              name: '',
+              enable: true,
+              type,
+              icon: EIconName.MONEY,
+            });
+            setOpen(true);
+          };
+
+          return (
+            <DndContext
+              key={type}
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              onDragStart={handleDragStart}
+            >
+              <Card padding="md" className="flex-1">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg capitalize">{type}</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="!gap-1"
+                    onClick={openCreateModal}
+                  >
+                    <AiOutlinePlus /> Add
+                  </Button>
+                </div>
+
+                {typeCategories.length === 0 ? (
+                  <EmptyState
+                    icon={<PiTagThin />}
+                    title={`No ${type} categories yet`}
+                    description={`Add a ${type} category to start organizing your records.`}
+                    actionLabel="Add category"
+                    onAction={openCreateModal}
+                  />
+                ) : (
+                  <SortableContext
+                    items={typeCategories}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-2">
+                      {typeCategories.map((c) => (
                         <CategoryRow
+                          key={c.id}
                           category={c}
                           setOpen={setOpen}
                           setEditCategory={setEditCategory}
+                          onDelete={handleDelete}
+                          isDeleting={deleteCategoryMutation.isPending}
                         />
-                      </div>
-
-                      <button
-                        type="button"
-                        className="text-xs px-2 py-1 rounded-md bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-600 dark:hover:bg-zinc-500"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditCategory(c);
-                          setOpen(true);
-                        }}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        className="text-xs px-2 py-1 rounded-md bg-rose-300 hover:bg-rose-400 text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(c);
-                        }}
-                        disabled={deleteCategoryMutation.isPending}
-                      >
-                        Delete
-                      </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </SortableContext>
-            </div>
+                  </SortableContext>
+                )}
+              </Card>
 
-            <DragOverlay>
-              {activeCategory && (
-                <CategoryRow
-                  category={activeCategory}
-                  setOpen={setOpen}
-                  setEditCategory={setEditCategory}
-                />
-              )}
-            </DragOverlay>
-          </DndContext>
-        ))}
+              <DragOverlay>
+                {activeCategory && (
+                  <CategoryRow
+                    category={activeCategory}
+                    setOpen={setOpen}
+                    setEditCategory={setEditCategory}
+                  />
+                )}
+              </DragOverlay>
+            </DndContext>
+          );
+        })}
       </div>
 
       {open && (

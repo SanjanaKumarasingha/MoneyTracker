@@ -61,7 +61,17 @@ export class User extends BaseEntity {
   @OneToMany(() => Category, (categories) => categories.user)
   categories: Category[];
 
-  @Column({ type: 'simple-array', nullable: true })
+  @Column({
+    type: 'simple-array',
+    nullable: true,
+    // 'simple-array' stores/reads a comma-separated string; without this,
+    // TypeORM returns each id as a string, silently breaking strict-equality
+    // (`===`) comparisons against real Category ids (numbers) on the client.
+    transformer: {
+      to: (value?: number[]) => value,
+      from: (value?: string[]) => value?.map(Number),
+    },
+  })
   @IsArray()
   @IsOptional()
   @ApiProperty({ nullable: true })

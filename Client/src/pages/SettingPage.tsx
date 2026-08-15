@@ -1,5 +1,6 @@
 import { BsChevronRight } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
+import { Button, Card } from '../components/ui';
 
 type Props = {};
 
@@ -24,17 +25,38 @@ const SettingPage = (props: Props) => {
   return (
     <div className="space-y-3">
       {settings.map((setting) => (
-        <div
-          key={setting.path}
-          className="shadow dark:shadow-primary-900 p-2 cursor-pointer flex justify-between items-center hover:bg-primary-50 active:bg-primary-100 dark:hover:bg-primary-900 dark:hover:bg-opacity-40 dark:active:bg-opacity-80"
-          onClick={() => {
-            navigate(setting.path);
-          }}
-        >
-          <span>{setting.name}</span>
-          <BsChevronRight />
-        </div>
+        <Card key={setting.path} padding="none">
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-between rounded-md px-4 py-3"
+            onClick={() => {
+              navigate(setting.path);
+            }}
+          >
+            <span>{setting.name}</span>
+            <BsChevronRight />
+          </Button>
+        </Card>
       ))}
+
+      <Card padding="none">
+        <Button
+          type="button"
+          variant="danger"
+          disabled
+          title="Account deletion is coming soon"
+          className="w-full justify-between rounded-md px-4 py-3"
+        >
+          <span className="flex items-center gap-2">
+            Delete Account
+            <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs font-medium">
+              Coming soon
+            </span>
+          </span>
+          <BsChevronRight />
+        </Button>
+      </Card>
     </div>
   );
 };

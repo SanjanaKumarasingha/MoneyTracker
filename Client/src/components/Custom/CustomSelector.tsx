@@ -50,7 +50,7 @@ const CustomSelector = ({
       >
         <div>{title}</div>
         <div
-          className="w-full cursor-pointer border border-info-600 p-2 flex items-center justify-between rounded"
+          className="w-full cursor-pointer border border-zinc-300 p-2 flex items-center justify-between rounded"
           onClick={() => {
             setOpen((prev) => !prev);
           }}
@@ -63,7 +63,7 @@ const CustomSelector = ({
 
       <ul
         className={clsx(
-          'bg-white mt-2 max-h-40 text-info-700 overflow-y-auto overflow-x-hidden z-50 absolute break-words rounded-sm transition-all duration-300 shadow',
+          'bg-white mt-2 max-h-40 text-zinc-700 overflow-y-auto overflow-x-hidden z-50 absolute break-words rounded-sm transition-all duration-300 shadow',
           open ? 'visible' : 'hidden',
         )}
         ref={selectRef}
@@ -73,12 +73,12 @@ const CustomSelector = ({
       >
         {filter && (
           <div className="flex gap-2 sticky top-0 z-50 overflow-x-hidden mx-2 pt-2 bg-white items-center">
-            <IoSearchOutline className=" text-info-400" strokeWidth={1} />
+            <IoSearchOutline className=" text-zinc-400" strokeWidth={1} />
 
             <input
               type="text"
               value={inputValue}
-              className="outline-none placeholder:text-info-400 overflow-x-hidden truncate flex-1 bg-transparent"
+              className="outline-none placeholder:text-zinc-400 overflow-x-hidden truncate flex-1 bg-transparent"
               placeholder={placeholder}
               onChange={(e) => {
                 setInputValue(e.target.value);
@@ -91,7 +91,7 @@ const CustomSelector = ({
           <li
             key={option}
             className={clsx(
-              'p-2 hover:bg-info-200 relative',
+              'p-2 hover:bg-primary-50 relative',
               inputValue && !new RegExp(inputValue, 'i').test(option)
                 ? 'hidden'
                 : 'block',

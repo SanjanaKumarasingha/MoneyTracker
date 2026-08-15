@@ -32,3 +32,28 @@ export async function deleteCategory(id: number) {
 
   return response.data;
 }
+
+// Category ids hidden from a specific wallet. Categories themselves stay
+// global/shared per-user; this is a per-wallet visibility filter only.
+export async function fetchHiddenCategoryIds(
+  walletId: number,
+): Promise<number[]> {
+  const res = await Axios.get(`/v1/wallets/${walletId}/hidden-categories`);
+  return res.data;
+}
+
+export async function setCategoryVisibility({
+  walletId,
+  categoryId,
+  hidden,
+}: {
+  walletId: number;
+  categoryId: number;
+  hidden: boolean;
+}): Promise<{ walletId: number; categoryId: number; hidden: boolean }> {
+  const res = await Axios.patch(
+    `/v1/wallets/${walletId}/categories/${categoryId}/visibility`,
+    { hidden },
+  );
+  return res.data;
+}

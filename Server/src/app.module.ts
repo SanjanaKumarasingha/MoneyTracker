@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { join } from 'path';
 import { datasource } from './datasource';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,13 +11,10 @@ import { CategoriesModule } from './categories/categories.module';
 import { RecordsModule } from './records/records.module';
 import { AuthModule } from './auth/auth.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { GoalsModule } from './goals/goals.module';
 
 @Module({
   imports: [
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'client/build'),
-      exclude: ['/v1/*'],
-    }),
     ConfigModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -33,6 +28,7 @@ import { WalletsModule } from './wallets/wallets.module';
     RecordsModule,
     AuthModule,
     WalletsModule,
+    GoalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

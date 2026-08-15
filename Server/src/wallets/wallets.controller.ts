@@ -16,9 +16,11 @@ import {
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
+import { SetCategoryVisibilityDto } from './dto/set-category-visibility.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
+import { CategoriesService } from '../categories/categories.service';
 import { Wallet } from './entities/wallet.entity';
 
 @ApiTags('Wallet')
@@ -30,6 +32,7 @@ export class WalletsController {
   constructor(
     private readonly walletsService: WalletsService,
     private readonly usersService: UsersService,
+    private readonly categoriesService: CategoriesService,
   ) {}
 
   @Post()
@@ -95,5 +98,56 @@ export class WalletsController {
     }
 
     return await this.walletsService.remove(wallet.id);
+  }
+
+  // Category ids hidden from this wallet. Categories themselves stay
+  // global per-user; this is per-wallet visibility only.
+  @Get(':id/hidden-categories')
+  async getHiddenCategories(@Param('id') id: number, @Request() req) {
+    const owned = await this.walletsService.belongsToUser(+id, req.user.id);
+
+    if (!owned) {
+      throw new UnauthorizedException('Unable to fetch this wallet');
+    }
+
+    return await this.walletsService.getHiddenCategoryIds(+id);
+  }
+
+  @Patch(':id/categories/:categoryId/visibility')
+  async setCategoryVisibility(
+    @Param('id') id: number,
+    @Param('categoryId') categoryId: number,
+    @Body() setCategoryVisibilityDto: SetCategoryVisibilityDto,
+    @Request() req,
+  ) {
+    const walletOwned = await this.walletsService.belongsToUser(
+      +id,
+      req.user.id,
+    );
+
+    if (!walletOwned) {
+      throw new UnauthorizedException('Unable to modify this wallet');
+    }
+
+    const categoryOwned = await this.categoriesService.belongsToUser(
+      +categoryId,
+      req.user.id,
+    );
+
+    if (!categoryOwned) {
+      throw new BadRequestException('Category does not exist.');
+    }
+
+    await this.walletsService.setCategoryVisibility(
+      +id,
+      +categoryId,
+      setCategoryVisibilityDto.hidden,
+    );
+
+    return {
+      walletId: +id,
+      categoryId: +categoryId,
+      hidden: setCategoryVisibilityDto.hidden,
+    };
   }
 }

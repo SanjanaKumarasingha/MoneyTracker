@@ -20,7 +20,7 @@ import {
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { toast } from 'react-toastify';
-import { fetchCategories } from '../../apis/category';
+import { fetchCategories, fetchHiddenCategoryIds } from '../../apis/category';
 import { profile } from '../../apis';
 import { useAppDispatch } from '../../hooks';
 import { ECategoryType } from '../../common/category-type';
@@ -33,8 +33,7 @@ import CustomSelector from '../Custom/CustomSelector';
 import { updateFavWallet } from '../../store/walletSlice';
 import { useRecord } from '../../provider/RecordDataProvider';
 import { useAuth } from '../../provider/AuthProvider';
-
-type ApiError = { error: string; message: string | string[]; statusCode: number };
+import { ConfirmDialog } from '../ui';
 
 type RecordModalProps = {
   wallet: IWallet | undefined;
@@ -52,14 +51,13 @@ const RecordModal = ({
   recordCategory,
 }: RecordModalProps) => {
   const { userId } = useAuth();
-  const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
 
   const [value, setValue] = useState<string>(
     editRecord.price === 0 ? '' : editRecord.price.toString(),
   );
 
   const [sortedCategories, setSortedCategories] = useState<ICategory[]>([]);
+
   const [categoryType, setCategoryType] = useState<ECategoryType>(
     ECategoryType.EXPENSE,
   );
@@ -70,16 +68,28 @@ const RecordModal = ({
 
   const [openDelete, setOpenDelete] = useState<boolean>(false);
 
-  const { wallets } = useRecord();
+  // Which wallet this record is being saved into. Seeded from the `wallet`
+  // prop but tracked separately so that, when editing an existing record,
+  // picking a different wallet reassigns *this record* instead of the
+  // app-wide favourite wallet (see the Wallet selector's callbackAction
+  // below for the create-vs-edit split).
+  const [targetWalletId, setTargetWalletId] = useState<number | undefined>(
+    wallet?.id,
+  );
 
-  const datePickerRef = useRef<any>(null);
-  const textInputRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  /* ===================== QUERIES ===================== */
-
-  const { data: categories = [] } = useQuery<ICategory[]>({
+  const { data: categories } = useQuery<ICategory[]>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+  });
+
+  // Categories hidden from the currently selected wallet (per-wallet
+  // visibility filter — categories themselves stay global/shared).
+  const { data: hiddenCategoryIds = [] } = useQuery<number[]>({
+    queryKey: ['hidden-categories', wallet?.id],
+    queryFn: () => fetchHiddenCategoryIds(wallet!.id),
+    enabled: !!wallet?.id,
   });
 
   const { data: user } = useQuery<IUserInfo>({
@@ -88,85 +98,101 @@ const RecordModal = ({
     enabled: !!userId,
   });
 
-  const { data: remarks = [] } = useQuery<string[]>({
+  const { data: remarks } = useQuery<string[]>({
     queryKey: ['remarks', selectedCategory?.id],
-    queryFn: () => getRemarks(selectedCategory!.id),
-    enabled: !!selectedCategory?.id,
+    queryFn: () => getRemarks(selectedCategory?.id!),
   });
 
-  /* ===================== CALC ===================== */
+  const { wallets } = useRecord();
+
+  const datePickerRef = useRef<any>(null);
+  const textInputRef = useRef<HTMLDivElement>(null);
 
   const updateCalc = (key: string) => {
     if (key === '=') {
       return setValue((prev) => {
         try {
           return evaluate(prev).toString();
-        } catch {
+        } catch (error) {
           return prev;
         }
       });
     }
-    if (key === 'AC') return setValue('');
-    if (key === 'DE') return setValue((prev) => prev.slice(0, -1));
+    if (key === 'AC') {
+      return setValue('');
+    }
+
+    if (key === 'DE') {
+      try {
+        return setValue((prev) => prev.slice(0, -1));
+      } catch (error) {
+        return setValue('Error');
+      }
+    }
+
     setValue((prev) => prev.concat(key));
   };
 
-  /* ===================== MUTATIONS ===================== */
-
+  // Create record mutation
   const createRecordMutation = useMutation<
     IRecord,
-    AxiosError<ApiError>,
-    ICreateRecord,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    AxiosError<{ error: string; message: string; statusCode: number }>,
+    ICreateRecord
   >({
     mutationFn: createRecord,
     onMutate: async ({ id, price, remarks, date }) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
-
-      const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
+      // Optimistically update the cache
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets'],
-        (old = []) => {
-          const walletIndex = old.findIndex((w) => w.id === wallet?.id);
+        (oldData) => {
+          if (oldData) {
+            const walletIndex = oldData.findIndex(
+              (old) => old.id === wallet?.id,
+            );
 
-          if (walletIndex >= 0 && selectedCategory) {
-            const newRecord = {
-              id,
-              price,
-              remarks,
-              date,
-              category: selectedCategory,
-            };
-
-            const copy = [...old];
-            const walletCopy = { ...copy[walletIndex] };
-            walletCopy.records = [newRecord as any, ...(walletCopy.records ?? [])];
-            copy[walletIndex] = walletCopy;
-            return copy;
+            if (walletIndex && selectedCategory) {
+              const record = {
+                id,
+                price,
+                remarks,
+                date,
+                category: selectedCategory,
+              };
+              oldData[walletIndex].records.unshift(record);
+            }
           }
 
-          return old;
+          return oldData;
         },
       );
 
-      return { previousWallets };
+      return {
+        previousWallets: queryClient.getQueryData<IWalletRecordWithCategory[]>([
+          'wallets',
+        ]),
+      };
     },
-    onError: (err, _vars, ctx) => {
-      if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
+    onError: (error, variables, context) => {
+      // Revert the cache to the previous state on error
+      const typedContext = context as {
+        previousWallets: IWalletRecordWithCategory[] | undefined;
+      };
+
+      if (typedContext.previousWallets) {
+        queryClient.setQueryData<IWalletRecordWithCategory[]>(
+          ['wallets'],
+          typedContext.previousWallets,
+        );
       }
-      const msg = err.response?.data?.message;
-      toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
-        type: 'error',
-      });
+      toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
+      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onSuccess: (_data, vars) => {
-      toast(`${vars.category.name} is added`, { type: 'success' });
+    onSuccess(data, variables, context) {
+      toast(`${variables.category.name} is added`, { type: 'success' });
       setEditRecord({
         id: 0,
         price: 0,
@@ -175,374 +201,426 @@ const RecordModal = ({
       });
       updateCalc('AC');
     },
+    retry: 3,
   });
 
+  // Update record mutation
   const updateRecordMutation = useMutation<
     IRecord,
-    AxiosError<ApiError>,
-    IRecord,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    AxiosError<{ error: string; message: string; statusCode: number }>,
+    IRecord & { walletId?: number; categoryId?: number }
   >({
     mutationFn: updateRecord,
     onMutate: async ({ id, price, remarks, date }) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
-
-      const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
+      // Optimistically update the cache
 
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets'],
-        (old = []) => {
-          const walletIndex = old.findIndex((w) => w.id === wallet?.id);
-          if (walletIndex < 0) return old;
-
-          const recordIndex =
-            old[walletIndex]?.records?.findIndex((r) => r.id === id) ?? -1;
-          if (recordIndex < 0) return old;
-
-          const copy = [...old];
-          const walletCopy = { ...copy[walletIndex] };
-          const recordsCopy = [...(walletCopy.records ?? [])];
-
-          recordsCopy[recordIndex] = {
-            ...recordsCopy[recordIndex],
-            price,
-            remarks,
-            date,
-          } as any;
-
-          walletCopy.records = recordsCopy;
-          copy[walletIndex] = walletCopy;
-          return copy;
+        (oldData) => {
+          if (oldData) {
+            const walletIndex = oldData.findIndex((o) => o.id === wallet?.id);
+            if (walletIndex) {
+              const recordIndex = oldData[walletIndex].records.findIndex(
+                (o) => o.id === id,
+              );
+              if (recordIndex) {
+                oldData[walletIndex].records[recordIndex] = {
+                  ...oldData[walletIndex].records[recordIndex],
+                  price,
+                  remarks,
+                  date,
+                };
+              }
+            }
+          }
+          return oldData;
         },
       );
 
-      return { previousWallets };
+      return {
+        previousWallets: queryClient.getQueryData<IWalletRecordWithCategory[]>([
+          'wallets',
+        ]),
+      };
     },
-    onError: (err, _vars, ctx) => {
-      if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
+    onError: (error, variables, context) => {
+      // Revert the cache to the previous state on error
+      const typedContext = context as {
+        previousWallets: IWalletRecordWithCategory[] | undefined;
+      };
+
+      if (typedContext.previousWallets) {
+        queryClient.setQueryData<IWalletRecordWithCategory[]>(
+          ['wallets'],
+          typedContext.previousWallets,
+        );
       }
-      const msg = err.response?.data?.message;
-      toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Error', {
-        type: 'error',
-      });
+      toast(error.response?.data.message, { type: 'error' });
     },
     onSettled: () => {
+      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onSuccess: () => {
-      toast('Record is updated', { type: 'success' });
+    onSuccess(data, variables, context) {
+      toast(`Record is updated`, { type: 'success' });
     },
+    retry: 3,
   });
 
   const removeRecordMutation = useMutation<
     void,
-    AxiosError<ApiError>,
-    number,
-    { previousWallets?: IWalletRecordWithCategory[] }
+    AxiosError<{ error: string; message: string; statusCode: number }>,
+    number
   >({
     mutationFn: deleteRecord,
-    onMutate: async (recordId) => {
-      await queryClient.cancelQueries({ queryKey: ['wallets'] });
-
-      const previousWallets =
-        queryClient.getQueryData<IWalletRecordWithCategory[]>(['wallets']);
-
+    // The cache was already optimistically updated in onMutate below, so a
+    // failed delete needs its own visible feedback — otherwise the record
+    // just silently vanishes from the UI (until the onSettled refetch below
+    // eventually restores it) with no indication anything went wrong.
+    onError(error) {
+      toast('Failed to delete record. Please try again.', { type: 'error' });
+    },
+    onMutate: async (variables) => {
       queryClient.setQueryData<IWalletRecordWithCategory[]>(
         ['wallets'],
-        (old = []) => {
-          const walletIndex = old.findIndex((w) => w.id === wallet?.id);
-          if (walletIndex < 0) return old;
-
-          const copy = [...old];
-          const walletCopy = { ...copy[walletIndex] };
-          walletCopy.records = (walletCopy.records ?? []).filter(
-            (r) => r.id !== recordId,
-          );
-          copy[walletIndex] = walletCopy;
-          return copy;
+        (oldData) => {
+          if (oldData) {
+            const walletIndex = oldData.findIndex((o) => o.id === wallet?.id);
+            if (walletIndex) {
+              oldData[walletIndex].records = oldData[
+                walletIndex
+              ].records.filter((r) => r.id !== variables);
+            }
+          }
+          return oldData;
         },
       );
-
-      return { previousWallets };
     },
-    onError: (err, _vars, ctx) => {
-      if (ctx?.previousWallets) {
-        queryClient.setQueryData(['wallets'], ctx.previousWallets);
-      }
-      const msg = err.response?.data?.message;
-      toast(Array.isArray(msg) ? msg.join(', ') : msg ?? 'Delete failed', {
-        type: 'error',
-      });
-    },
-    onSuccess: () => {
-      toast(`Record ID: ${editRecord.id} is deleted`, { type: 'info' });
+    onSuccess(data, variables, context) {
+      toast(`Record ID: ${editRecord.id} is delete`, { type: 'info' });
       setOpenDelete(false);
       setOpen(false);
     },
     onSettled: () => {
+      // Refetch the data to ensure it's up to date
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
   });
 
-  /* ===================== SUBMIT ===================== */
-
   const handleSubmit = async (
-    e: React.MouseEvent<HTMLButtonElement>,
-    mode: 'Once' | 'Continue',
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
+    type: 'Once' | 'Continue',
   ) => {
-    e.preventDefault();
+    event.preventDefault();
 
-    if (!editRecord.price) {
-      toast('Please input the expense/income', { type: 'warning' });
-      return;
-    }
-    if (!wallet) {
-      toast('No wallet selected', { type: 'warning' });
-      return;
-    }
-    if (!selectedCategory) {
-      toast('Please select the category', { type: 'warning' });
-      return;
-    }
+    try {
+      if (!editRecord.price) {
+        return toast('Please input the expense/income', { type: 'warning' });
+      }
 
-    if (editRecord.id === 0) {
-      await createRecordMutation.mutateAsync({
-        ...editRecord,
-        wallet,
-        category: selectedCategory,
-      });
-    } else {
-      await updateRecordMutation.mutateAsync({ ...editRecord });
-    }
+      if (!wallet) {
+        return toast('There is no wallet is selected', { type: 'warning' });
+      }
 
-    if (mode === 'Once') setOpen(false);
+      if (!selectedCategory) {
+        return toast('Please select the category', { type: 'warning' });
+      }
+      if (editRecord.id === 0) {
+        await createRecordMutation.mutateAsync({
+          ...editRecord,
+          wallet: wallet,
+          category: selectedCategory,
+        });
+      } else {
+        await updateRecordMutation.mutateAsync({
+          ...editRecord,
+          walletId: targetWalletId,
+          categoryId: selectedCategory.id,
+        });
+      }
+
+      if (type === 'Once') {
+        setOpen(false);
+      }
+    } catch (error) {}
   };
 
-  /* ===================== EFFECTS ===================== */
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const keyListener = (event: KeyboardEvent) => {
-      const dateInput = datePickerRef.current?.input;
-      const isInText =
-        textInputRef.current?.contains(document.activeElement) ?? false;
-      const isInDate = dateInput?.contains?.(document.activeElement) ?? false;
-
-      if (isInText || isInDate) return;
-
+      if (
+        textInputRef.current?.contains(document.activeElement) ||
+        datePickerRef.current.input.contains(document.activeElement)
+      ) {
+        return;
+      }
       const reg = /\d|\/|\*|-|\+|\./g;
 
-      if (event.key === 'Backspace') return updateCalc('DE');
-      if (event.key === 'Enter') return updateCalc('=');
-      if (reg.test(event.key)) return updateCalc(event.key);
+      if (event.key === 'Backspace') {
+        return updateCalc('DE');
+      }
+
+      if (event.key === 'Enter') {
+        return updateCalc('=');
+      }
+
+      if (reg.test(event.key)) {
+        return updateCalc(event.key);
+      }
     };
 
     window.addEventListener('keydown', keyListener);
-
     if (!isNaN(Number(value))) {
-      setEditRecord((prev) => ({ ...prev, price: Number(value) }));
+      setEditRecord((prev) => {
+        return { ...prev, price: Number(value) };
+      });
     }
 
-    return () => window.removeEventListener('keydown', keyListener);
-  }, [value, setEditRecord]);
+    return () => {
+      window.removeEventListener('keydown', keyListener);
+    };
+  }, [value]);
 
   useEffect(() => {
-    if (!categories.length || !user) return;
+    if (categories && user) {
+      setSortedCategories((prev) => {
+        let sorted: ICategory[] = [];
+        user.categoryOrder.forEach((id) => {
+          const n = categories.filter(
+            (category) =>
+              category.id === Number(id) &&
+              !hiddenCategoryIds.includes(category.id),
+          );
 
-    const ordered: ICategory[] = [];
-    user.categoryOrder.forEach((id) => {
-      const found = categories.find((c) => c.id === Number(id));
-      if (found) ordered.push(found);
-    });
-    setSortedCategories(ordered);
-  }, [categories, user]);
+          if (n.length > 0) {
+            sorted.push(...n);
+          }
+        });
 
-  /* ===================== UI (GLASS) ===================== */
+        return sorted;
+      });
+    }
+  }, [categories, user, hiddenCategoryIds]);
 
-  const glassCard =
-    'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow';
+  // The wallet actually being saved into - may differ from the `wallet`
+  // prop once a different one is picked mid-edit (see targetWalletId
+  // above), so the currency shown against the amount stays in sync with it.
+  const displayWallet = wallets?.find((w) => w.id === targetWalletId) ?? wallet;
 
   return (
     <div>
       <CustomModal setOpen={setOpen} size="Medium">
-        <form className="w-full text-white">
-          <div className="mb-3">
-            <p className="text-xl font-semibold">
-              {editRecord.id === 0 ? 'New' : 'Update'}{' '}
-              {categoryType.charAt(0).toUpperCase() + categoryType.slice(1)}
-            </p>
-            <p className="text-sm text-white/60">
-              Add a record with calculator + quick remarks
-            </p>
-          </div>
-
-          <div className={clsx(glassCard, 'p-3 mb-3')}>
-            <CategorySelector
-              options={Object.values(ECategoryType)}
-              value={categoryType}
-              toggle={(type) => setCategoryType(type as ECategoryType)}
-            />
-
-            {/* Category pills */}
+        <form className="w-full">
+          <p className="text-2xl pb-2">
+            {editRecord.id === 0 ? 'New' : 'Update'}{' '}
+            {categoryType.charAt(0).toUpperCase() + categoryType.slice(1)}
+          </p>
+          <CategorySelector
+            options={Object.values(ECategoryType)}
+            value={categoryType}
+            toggle={(type) => {
+              setCategoryType(type as ECategoryType);
+            }}
+          />
+          {/* Category */}
+          <div
+            className={clsx(
+              'rounded-md my-2 w-full overflow-auto',
+              categoryType === ECategoryType.EXPENSE
+                ? 'bg-danger-50 dark:bg-danger-900 dark:bg-opacity-70'
+                : 'bg-primary-50 dark:bg-primary-900',
+            )}
+          >
             <div
               className={clsx(
-                'rounded-xl mt-3 w-full overflow-auto p-2 border border-white/10',
-                categoryType === ECategoryType.EXPENSE
-                  ? 'bg-rose-500/10'
-                  : 'bg-emerald-500/10',
+                'grid grid-flow-col overflow-x-auto grid-rows-3 w-fit gap-2 p-1',
               )}
             >
-              <div className="grid grid-flow-col auto-cols-max grid-rows-3 gap-2 w-fit">
-                {sortedCategories
-                  .filter((c) => c.type === categoryType)
-                  .map((category) => {
-                    const active = selectedCategory?.id === category.id;
+              {sortedCategories
+                .filter((sorted) => sorted.type === categoryType)
+                .map((category) => (
+                  <div
+                    className={clsx(
+                      'rounded-md p-1 shadow cursor-pointer flex gap-2 items-center',
+                      {
+                        'bg-danger-400 text-danger-50 dark:bg-danger-700 shadow-danger-300 dark:shadow-danger-600 hover:bg-danger-300 active:bg-danger-400':
+                          categoryType === ECategoryType.EXPENSE &&
+                          selectedCategory?.id === category.id,
+                      },
 
-                    return (
-                      <button
-                        type="button"
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category)}
-                        className={clsx(
-                          'rounded-xl px-3 py-2 flex items-center gap-2 border transition-all',
-                          active
-                            ? 'bg-white/15 border-white/20 text-white'
-                            : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10',
-                        )}
-                      >
-                        <IconSelector name={category.icon} />
-                        <span className="text-sm">{category.name}</span>
-                      </button>
-                    );
-                  })}
-              </div>
+                      {
+                        'bg-danger-100 text-danger-400 dark:bg-danger-400 dark:text-danger-100 shadow-danger-300 hover:bg-danger-200 active:bg-danger-100':
+                          categoryType === ECategoryType.EXPENSE &&
+                          selectedCategory?.id !== category.id,
+                      },
+
+                      {
+                        'bg-primary-400 text-primary-50 dark:bg-primary-700 dark:shadow-primary-600 shadow-primary-300 hover:bg-primary-300 active:bg-primary-100':
+                          categoryType === ECategoryType.INCOME &&
+                          selectedCategory?.id === category.id,
+                      },
+                      {
+                        'bg-primary-100 text-primary-400 dark:bg-primary-400 dark:text-primary-100 shadow-primary-300 hover:bg-primary-200 active:bg-primary-100':
+                          categoryType === ECategoryType.INCOME &&
+                          selectedCategory?.id !== category.id,
+                      },
+                    )}
+                    key={category.id}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                    }}
+                  >
+                    <IconSelector name={category.icon} />
+                    <span>{category.name}</span>
+                  </div>
+                ))}
             </div>
           </div>
 
-          {/* Wallet + Date */}
-          <div className="flex gap-2 mb-3">
-            <div className={clsx(glassCard, 'p-3 flex-1')}>
+          <div className="flex justify-between py-1 gap-1">
+            {/* Wallet and date */}
+            <div className="flex-1">
               <CustomSelector
                 title={'Wallet:'}
                 options={wallets?.map((w) => w.name) ?? []}
-                value={wallet?.name}
-                callbackAction={(val) => {
-                  const newFavWallet = wallets?.find((w) => w.name === val);
-                  if (newFavWallet) dispatch(updateFavWallet(newFavWallet.id));
+                value={displayWallet?.name}
+                callbackAction={(value) => {
+                  const newWallet = wallets?.find((w) => w.name === value);
+                  if (!newWallet) return;
+
+                  if (editRecord.id === 0) {
+                    // Creating: switching wallets here still switches the
+                    // app-wide favourite wallet, same as before - the
+                    // `wallet` prop is derived from it, so the modal picks
+                    // up the new wallet on the next render.
+                    dispatch(updateFavWallet(newWallet.id));
+                  } else {
+                    // Editing: retarget just this record, leaving the
+                    // favourite wallet (and every other record) alone.
+                    setTargetWalletId(newWallet.id);
+                  }
                 }}
               />
             </div>
-
-            <div className={clsx(glassCard, 'p-3 w-[220px]')}>
-              <div className="flex items-center justify-between text-sm text-white/70 mb-1">
-                <span>Date</span>
-                <button
-                  type="button"
-                  className="text-xs text-emerald-200 hover:text-emerald-100"
-                  onClick={() =>
+            <div className="flex flex-col">
+              <div className="flex gap-4 flex-wrap justify-between">
+                Date:{' '}
+                <div
+                  className=" p-1 text-xs text-primary-400 rounded-md bg-transparent cursor-pointer hover:bg-primary-100 dark:bg-opacity-25"
+                  onClick={() => {
                     setEditRecord((prev) => ({
                       ...prev,
                       date: DateTime.now().toFormat('yyyy-LL-dd'),
-                    }))
-                  }
+                    }));
+                  }}
                 >
-                  Today
-                </button>
+                  Today?
+                </div>
               </div>
-
               <DatePicker
                 ref={datePickerRef}
-                onChange={(d) => {
-                  if (!d) return;
-                  setEditRecord((prev) => ({
-                    ...prev,
-                    date:
-                      DateTime.fromJSDate(d).toISO() ??
-                      DateTime.fromJSDate(d).toFormat('yyyy-LL-dd'),
-                  }));
+                onChange={(e) => {
+                  if (e) {
+                    setEditRecord((prev) => {
+                      return {
+                        ...prev,
+                        date:
+                          DateTime.fromJSDate(e).toISO() ??
+                          DateTime.fromJSDate(e).toFormat('yyyy-LL-dd'),
+                      };
+                    });
+                  }
                 }}
                 selected={new Date(editRecord.date)}
-                className="w-full outline-none rounded-xl px-3 py-2 bg-white/5 border border-white/10 text-white"
+                className=" outline-none border border-zinc-300 rounded-md p-2 bg-transparent"
               />
             </div>
           </div>
+          <div className="relative bg-zinc-100 dark:bg-zinc-700 text-lg rounded-md p-1 text-right truncate overflow-auto mb-2">
+            <span className="absolute left-1 text-zinc-600 dark:text-zinc-300 opacity-30 font-semibold">
+              {displayWallet && displayWallet.currency}
+            </span>
 
-          {/* Amount display */}
-          <div className={clsx(glassCard, 'p-3 mb-3')}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/60">Amount</span>
-              <span className="text-sm text-white/60">
-                {wallet?.currency ?? ''}
-              </span>
-            </div>
-            <div className="text-2xl font-semibold text-right truncate">
-              {value.length > 0 ? value : '0'}
-            </div>
+            <span>{value.length > 0 ? value : 0}</span>
           </div>
 
-          {/* Calculator */}
-          <div className={clsx(glassCard, 'p-3 mb-3')}>
-            <Calculator callback={(key) => updateCalc(key)} />
+          <div className="bg-zinc-50 dark:bg-zinc-700 rounded-md p-2">
+            {/* Calculator */}
+            <Calculator
+              callback={(key) => {
+                updateCalc(key);
+              }}
+            />
           </div>
-
-          {/* Remarks */}
-          <div className={clsx(glassCard, 'p-3 mb-3')} ref={textInputRef}>
+          <div className="py-2" ref={textInputRef}>
             <CustomTextField
               type={'text'}
               name="Remarks"
               value={editRecord.remarks}
               callbackAction={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setEditRecord((prev) => ({
-                  ...prev,
-                  remarks: event.target.value,
-                }));
+                setEditRecord((prev) => {
+                  return {
+                    ...prev,
+                    remarks: event.target.value,
+                  };
+                });
               }}
             />
-
-            {remarks.length > 0 && (
-              <div className="text-sm pt-3 flex flex-wrap gap-2">
-                {remarks.map((remark) => (
-                  <button
-                    key={remark}
-                    type="button"
-                    className="rounded-xl px-3 py-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white/80"
-                    onClick={() =>
-                      setEditRecord((prev) => ({ ...prev, remarks: remark }))
-                    }
-                  >
-                    {remark}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="text-sm pt-2 flex flex-wrap gap-2">
+              {remarks?.map((remark) => (
+                <span
+                  className="bg-primary-100 rounded-lg p-1 cursor-pointer hover:bg-primary-200"
+                  onClick={() => {
+                    setEditRecord((prev) => {
+                      return {
+                        ...prev,
+                        remarks: remark,
+                      };
+                    });
+                  }}
+                >
+                  {remark}
+                </span>
+              ))}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2">
+          {/* Submit button and choose continue or close.
+              These were previously colored backwards - "Delete" in the
+              primary blue and "Create"/"Update" in the danger red - the
+              opposite of what every other destructive/safe action pairing
+              in the app uses (see WalletModal/CategoryModal's
+              ConfirmDialog). Also now disabled while a mutation is in
+              flight, so a double-click/tap can't fire the same
+              create/update/delete twice. */}
+          <div className="flex justify-end py-2 items-center gap-2">
             <button
-              className="rounded-xl px-3 py-2 bg-white/10 border border-white/10 hover:bg-white/15 text-white"
+              className="bg-danger-400 w-fit p-1 rounded-md text-white hover:bg-danger-300 cursor-pointer active:bg-danger-500 select-none disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </button>
-
-            <button
-              className="rounded-xl px-3 py-2 bg-emerald-500/20 border border-emerald-400/20 hover:bg-emerald-500/30 text-emerald-100"
-              type="button"
+              disabled={
+                createRecordMutation.isPending || updateRecordMutation.isPending
+              }
               onClick={(e) => {
-                if (editRecord.id === 0) handleSubmit(e, 'Continue');
-                else setOpenDelete(true);
+                if (editRecord.id === 0) {
+                  handleSubmit(e, 'Continue');
+                } else {
+                  setOpenDelete(true);
+                }
               }}
             >
-              {editRecord.id === 0 ? 'Create & Continue' : 'Delete'}
+              {editRecord.id === 0 ? 'Create and Continue' : 'Delete'}
             </button>
 
             <button
-              className="rounded-xl px-3 py-2 bg-blue-500/25 border border-blue-400/20 hover:bg-blue-500/35 text-blue-100"
+              className="bg-primary-400 w-fit p-1 rounded-md text-white hover:bg-primary-300 cursor-pointer active:bg-primary-500 select-none disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
-              onClick={(e) => handleSubmit(e, 'Once')}
+              disabled={
+                createRecordMutation.isPending || updateRecordMutation.isPending
+              }
+              onClick={(e) => {
+                handleSubmit(e, 'Once');
+              }}
             >
               {editRecord.id === 0 ? 'Create' : 'Update'}
             </button>
@@ -550,36 +628,24 @@ const RecordModal = ({
         </form>
       </CustomModal>
 
-      {openDelete && (
-        <CustomModal setOpen={setOpenDelete} size="Medium">
-          <div className="text-white">
-            <p className="text-lg font-semibold">Confirm delete?</p>
-            <p className="text-sm text-white/60">
-              This action cannot be undone.
-            </p>
-
-            <div className="flex justify-end pt-4 gap-2">
-              <button
-                className="rounded-xl px-3 py-2 bg-white/10 border border-white/10 hover:bg-white/15"
-                type="button"
-                onClick={() => setOpenDelete(false)}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="rounded-xl px-3 py-2 bg-rose-500/30 border border-rose-400/20 hover:bg-rose-500/40 text-rose-100"
-                type="button"
-                onClick={async () => {
-                  await removeRecordMutation.mutateAsync(editRecord.id);
-                }}
-              >
-                Confirm Delete
-              </button>
-            </div>
-          </div>
-        </CustomModal>
-      )}
+      {/* Was its own ad hoc CustomModal with a primary-blue "Confirm" button
+          - every other delete flow (wallet, category) uses this shared
+          ConfirmDialog with a danger-styled confirm button, Escape-to-close,
+          and a visible Cancel. */}
+      <ConfirmDialog
+        isOpen={openDelete}
+        title="Delete this record?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        isDestructive
+        isLoading={removeRecordMutation.isPending}
+        onConfirm={async () => {
+          try {
+            await removeRecordMutation.mutateAsync(editRecord.id);
+          } catch (error) {}
+        }}
+        onCancel={() => setOpenDelete(false)}
+      />
     </div>
   );
 };
