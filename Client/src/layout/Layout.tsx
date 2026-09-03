@@ -12,7 +12,18 @@ type LayoutProps = {
 
 const Layout = ({ children, mode }: LayoutProps) => {
   return (
-    <div className="min-h-screen font-Barlow flex flex-col bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+    <div className="min-h-screen font-Barlow flex flex-col bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 relative">
+      {/* Soft ambient color, fixed behind everything - a frosted-glass
+          surface (Header/Navbar/BottomNavbar) has nothing to actually look
+          "frosted" against on top of a flat single-color background. These
+          are low-opacity, blurred, and pointer-events-none so they never
+          affect layout or interaction. */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-primary-300/30 dark:bg-primary-600/20 blur-3xl" />
+        <div className="absolute top-1/3 -right-24 h-72 w-72 rounded-full bg-success-300/25 dark:bg-success-600/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-primary-200/25 dark:bg-primary-800/20 blur-3xl" />
+      </div>
+
       <div
         className={clsx(
           'flex p-2 gap-2 transition-all select-none flex-1',

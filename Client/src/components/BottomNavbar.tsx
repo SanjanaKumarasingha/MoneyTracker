@@ -8,7 +8,17 @@ type Props = {};
 // desktop sidebar (`Navbar`) so mobile and desktop navigation never diverge.
 const BottomNavbar = (props: Props) => {
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-t border-zinc-200 dark:border-zinc-700">
+    <nav
+      className={clsx(
+        // Same frosted-glass treatment as Header/Navbar - kept slightly
+        // more opaque than those two (70% vs 60%) since content scrolls
+        // directly underneath this one and needs to stay legible.
+        'sm:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl',
+        'bg-white/70 dark:bg-zinc-900/70',
+        'border-t border-white/60 dark:border-white/10',
+        'text-zinc-800 dark:text-zinc-200',
+      )}
+    >
       <div className="flex items-stretch justify-around">
         {navItems.map((item) => (
           <NavLink
