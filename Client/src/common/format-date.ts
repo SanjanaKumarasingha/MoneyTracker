@@ -41,4 +41,15 @@ const displayDate = (date: string, type: GroupByScale) => {
   }
 };
 
-export { formatDate, displayDate };
+// Human-readable labels for the scale picker - the enum values themselves
+// (ALL, QUARTER, DATE...) used to be rendered directly as button text.
+const groupByScaleLabel: Record<GroupByScale, string> = {
+  [GroupByScale.ALL]: 'All',
+  [GroupByScale.YEAR]: 'Year',
+  [GroupByScale.QUARTER]: 'Quarter',
+  [GroupByScale.MONTH]: 'Month',
+  [GroupByScale.WEEK]: 'Week',
+  [GroupByScale.DATE]: 'Day',
+};
+
+export { formatDate, displayDate, groupByScaleLabel };

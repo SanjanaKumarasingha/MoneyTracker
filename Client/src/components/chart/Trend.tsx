@@ -15,7 +15,6 @@ import {
 
 import { useState } from 'react';
 import CategorySelector from '../record/CategorySelector';
-import * as _ from 'lodash';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { DateTime } from 'luxon';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -23,12 +22,11 @@ import Annotation from 'chartjs-plugin-annotation';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories } from '../../apis/category';
 import { ICategory } from '../../types';
-import CustomSelector from '../Custom/CustomSelector';
 import CoreChart from './CoreChart';
 import { useDarkMode } from '../../provider/DarkModeProvider';
 import { displayDate } from '../../common/format-date';
 import { GroupByScale } from '../../common/group-scale.enum';
-import { EmptyState } from '../ui';
+import { Button, Card, EmptyState, Select } from '../ui';
 
 type Props = {};
 
@@ -168,38 +166,45 @@ const Trend = (props: Props) => {
     ],
   };
   return (
-    <div>
-      <div className="flex justify-between py-2">
-        <div
-          className=" text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
-          onClick={() => {
-            setCurrentYear((prev) => prev - 1);
-          }}
+    <Card padding="md" className="flex flex-col gap-3">
+      <div className="flex justify-between items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="!rounded-full !p-1.5"
+          aria-label="Previous year"
+          onClick={() => setCurrentYear((prev) => prev - 1)}
         >
-          <FiChevronLeft className="" />
-        </div>
-        <div>{DateTime.now().plus({ year: currentYear }).year}</div>
-        <div
-          className=" right-0 text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
-          onClick={() => {
-            setCurrentYear((prev) => prev + 1);
-          }}
+          <FiChevronLeft />
+        </Button>
+        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          {DateTime.now().plus({ year: currentYear }).year}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="!rounded-full !p-1.5"
+          aria-label="Next year"
+          onClick={() => setCurrentYear((prev) => prev + 1)}
         >
-          <FiChevronRight className="" />
-        </div>
+          <FiChevronRight />
+        </Button>
       </div>
 
-      <div>
-        <CategorySelector
-          options={['income', 'expense', 'all']}
-          value={categoryType}
-          toggle={(type) => {
-            setCategoryType(type as 'expense' | 'income' | 'all');
-          }}
-        />
-      </div>
+      <CategorySelector
+        options={['income', 'expense', 'all']}
+        value={categoryType}
+        toggle={(type) => {
+          setCategoryType(type as 'expense' | 'income' | 'all');
+          // A category picked while on "expense" is meaningless once you
+          // switch to "income" (or "all") - it used to stick silently,
+          // filtering the chart by a category of the wrong type with no
+          // indication why the numbers suddenly looked wrong/empty.
+          setCategory(undefined);
+        }}
+      />
 
-      <div className="py-2 flex gap-2 items-end">
+      <div className="flex gap-2 flex-wrap items-end">
         <CategorySelector
           color={{
             selected: isDarkMode ? '#D97706' : '#FDE68A',
@@ -212,15 +217,28 @@ const Trend = (props: Props) => {
           }}
         />
 
-        <CustomSelector
-          title={'Category'}
-          options={
-            categories
+        {/* ui/Select instead of the old CustomSelector - that component's
+            dropdown panel had no dark-mode styling at all (hardcoded
+            bg-white), so its options list was unreadable in dark mode.
+            "All categories" is a real option now too - previously, once you
+            picked a category there was no way back to the unfiltered view
+            short of reloading the page. */}
+        <Select
+          className="w-40"
+          placeholder="All categories"
+          filter
+          options={[
+            'All categories',
+            ...(categories
               ?.filter((cat) => cat.type === categoryType)
-              .map((cat) => cat.name) ?? []
-          }
-          value={category?.name}
-          callbackAction={(value: string) => {
+              .map((cat) => cat.name) ?? []),
+          ]}
+          value={category?.name ?? 'All categories'}
+          onChange={(value) => {
+            if (value === 'All categories') {
+              setCategory(undefined);
+              return;
+            }
             const targetCategory = categories?.find(
               (cat) => cat.name === value,
             );
@@ -231,6 +249,7 @@ const Trend = (props: Props) => {
           }}
         />
       </div>
+
       {value.length === 0 ? (
         // Previously fell through to an empty chart canvas with no
         // explanation - and `total / value.length` (used by the average
@@ -244,7 +263,7 @@ const Trend = (props: Props) => {
           <CoreChart chartType={chartType} options={options} data={data} />
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 

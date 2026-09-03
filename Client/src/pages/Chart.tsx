@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import PieChart from '../components/chart/PieChart';
 import clsx from 'clsx';
-import CustomSelector from '../components/Custom/CustomSelector';
 import { useRecord } from '../provider/RecordDataProvider';
 import { useAppDispatch } from '../hooks';
 import { updateFavWallet } from '../store/walletSlice';
 import Trend from '../components/chart/Trend';
-import { Skeleton } from '../components/ui';
+import { Card, Select, Skeleton } from '../components/ui';
 
 type Props = {};
 
@@ -23,9 +22,9 @@ const Chart = (props: Props) => {
 
   const dispatch = useAppDispatch();
   return (
-    <div>
-      <div className="flex justify-between items-center flex-wrap gap-2">
-        <div className="flex p-1 gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-full w-fit">
+    <div className="space-y-3">
+      <Card padding="sm" className="flex justify-between items-center flex-wrap gap-2">
+        <div className="flex p-1 gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-full w-fit">
           {(['Pie Chart', 'Trend'] as const).map((tab) => (
             <button
               key={tab}
@@ -42,13 +41,20 @@ const Chart = (props: Props) => {
             </button>
           ))}
         </div>
-        <div className="text-sm">
-          <CustomSelector
-            title={'Wallet:'}
-            titlePosition="left"
+
+        {/* ui/Select instead of the old CustomSelector - that component's
+            dropdown panel had no dark-mode styling at all (hardcoded
+            bg-white), so its options list was unreadable in dark mode. */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400 shrink-0">
+            Wallet
+          </span>
+          <Select
+            className="sm:w-48"
             options={wallets?.map((w) => w.name) ?? []}
-            value={favWallet?.name}
-            callbackAction={(value) => {
+            value={favWallet?.name ?? ''}
+            placeholder="Select a wallet"
+            onChange={(value) => {
               const newFavWallet = wallets?.find((w) => w.name === value);
               if (newFavWallet) {
                 dispatch(updateFavWallet(newFavWallet.id));
@@ -56,12 +62,12 @@ const Chart = (props: Props) => {
             }}
           />
         </div>
-      </div>
+      </Card>
 
       {isLoading ? (
-        <div className="space-y-2 mt-4">
+        <Card>
           <Skeleton className="h-64 w-full" />
-        </div>
+        </Card>
       ) : chartType === 'Pie Chart' ? (
         <PieChart />
       ) : (

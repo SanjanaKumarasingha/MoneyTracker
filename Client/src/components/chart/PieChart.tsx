@@ -3,15 +3,19 @@ import clsx from 'clsx';
 import { useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { PiChartPieSliceThin } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 import { ECategoryType } from '../../common/category-type';
 import { GroupByScale } from '../../common/group-scale.enum';
+import { groupByScaleLabel } from '../../common/format-date';
 import { EIconName } from '../../common/icon-name.enum';
 import { useRecord } from '../../provider/RecordDataProvider';
 import CategorySelector from '../record/CategorySelector';
 import PercentRow from './PercentRow';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { getCategoryColor } from '../../utils/categoryColor';
+import { formatMoney } from '../../utils';
+import { Button, Card, EmptyState } from '../ui';
 
 type Props = {};
 
@@ -25,6 +29,7 @@ const PieChart = (props: Props) => {
     groupBy,
     updateGroupingScale,
     updateCurrentDate,
+    favWallet,
   } = useRecord();
 
   const [categoryType, setCategoryType] = useState<ECategoryType>(
@@ -35,6 +40,8 @@ const PieChart = (props: Props) => {
     categoryType === ECategoryType.EXPENSE
       ? groupByCategoryRecords?.records?.expense ?? {}
       : groupByCategoryRecords?.records?.income ?? {};
+
+  const hasRecords = Object.keys(categoryRecordsByLabel).length > 0;
 
   // Same fixed per-category color used everywhere else in the app (see
   // utils/categoryColor.ts) - a category's slice is now the same color as
@@ -63,61 +70,71 @@ const PieChart = (props: Props) => {
   };
 
   return (
-    <div className="flex gap-3">
-      <div className="w-full sm:w-1/2 ">
-        <div className="">
-          <CategorySelector
-            options={Object.values(ECategoryType)}
-            value={categoryType}
-            toggle={(type) => {
-              setCategoryType(type as ECategoryType);
-            }}
-          />
-          <div className="flex gap-2 p-1 flex-wrap">
-            {Object.values(GroupByScale).map((gbs) => (
-              <button
-                className={clsx(
-                  'hover:bg-primary-100 rounded-md p-1 active:bg-primary-50  dark:hover:bg-opacity-40 dark:active:bg-opacity-70',
-                  {
-                    'bg-primary-200 dark:bg-primary-400': groupBy === gbs,
-                  },
-                )}
-                key={gbs}
-                onClick={() => {
-                  if (groupBy !== gbs) {
-                    updateGroupingScale(gbs, true);
-                  }
-                }}
-              >
-                {gbs}
-              </button>
-            ))}
-          </div>
+    <div className="flex flex-col lg:flex-row gap-3">
+      <Card padding="md" className="w-full lg:w-1/2 flex flex-col gap-3">
+        <CategorySelector
+          options={Object.values(ECategoryType)}
+          value={categoryType}
+          toggle={(type) => {
+            setCategoryType(type as ECategoryType);
+          }}
+        />
 
-          <div className="flex justify-between">
-            <div
-              className=" text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
+        {/* Scale picker - a proper segmented control with friendly labels
+            (the enum values themselves, e.g. "QUARTER", used to be printed
+            directly as plain-text buttons wrapping awkwardly). */}
+        <div className="flex gap-1 flex-wrap">
+          {Object.values(GroupByScale).map((gbs) => (
+            <button
+              key={gbs}
+              type="button"
               onClick={() => {
-                updateCurrentDate('minus');
+                if (groupBy !== gbs) {
+                  updateGroupingScale(gbs, true);
+                }
               }}
+              className={clsx(
+                'text-sm rounded-full px-3 py-1 transition-colors',
+                groupBy === gbs
+                  ? 'bg-primary-600 text-white font-semibold'
+                  : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600',
+              )}
             >
-              <FiChevronLeft className="" />
-            </div>
-            <div>{groupByCategoryRecords.date}</div>
-            <div
-              className=" right-0 text-white bg-primary-300 rounded-full p-1 hover:bg-primary-200 active:bg-primary-100 cursor-pointer"
-              onClick={() => {
-                updateCurrentDate('plus');
-              }}
-            >
-              <FiChevronRight className="" />
-            </div>
-          </div>
+              {groupByScaleLabel[gbs]}
+            </button>
+          ))}
         </div>
-        {Object.keys(groupByCategoryRecords.records?.expense ?? {}).length === 0 && Object.keys(groupByCategoryRecords.records?.income ?? {}).length === 0 ? (
-          <div className="text-sm text-zinc-500 dark:text-zinc-400 py-8 text-center">
-            No record for {groupByCategoryRecords.date}
-          </div>
+
+        <div className="flex justify-between items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="!rounded-full !p-1.5"
+            aria-label="Previous period"
+            onClick={() => updateCurrentDate('minus')}
+          >
+            <FiChevronLeft />
+          </Button>
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            {groupByCategoryRecords.date}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="!rounded-full !p-1.5"
+            aria-label="Next period"
+            onClick={() => updateCurrentDate('plus')}
+          >
+            <FiChevronRight />
+          </Button>
+        </div>
+
+        {!hasRecords ? (
+          <EmptyState
+            icon={<PiChartPieSliceThin />}
+            title={`No ${categoryType} records`}
+            description={`Nothing recorded for ${groupByCategoryRecords.date} yet. Try a different period above.`}
+          />
         ) : (
           // Bounded height/width (chart.js has no size cap of its own - a
           // doughnut defaults to aspectRatio:1, so it renders as tall as
@@ -151,56 +168,64 @@ const PieChart = (props: Props) => {
                     : 'text-success-600 dark:text-success-400',
                 )}
               >
-                {(categoryType === ECategoryType.EXPENSE
-                  ? expenseByDate
-                  : incomeByDate
-                ).toFixed(2)}
+                {formatMoney(
+                  categoryType === ECategoryType.EXPENSE
+                    ? expenseByDate
+                    : incomeByDate,
+                  favWallet?.currency,
+                )}
               </span>
             </div>
           </div>
         )}
-      </div>
-      <div className="flex-1">
-        {/* The total is now shown centered inside the doughnut's cutout
-            (left) - repeating it here in giant text too was the main
-            contributor to this panel feeling oversized. */}
-        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+      </Card>
+
+      <Card padding="md" className="flex-1">
+        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">
           By category
         </p>
 
-        <div className="w-full">
-          {Object.keys(categoryRecordsByLabel).map((cat) => (
-            <div key={cat} className="text-base">
-              <PercentRow
-                name={cat}
-                iconName={
-                  groupByCategoryRecords?.records![categoryType][
-                    cat as string
-                  ][0].category?.icon ?? EIconName.MONEY
-                }
-                color={getCategoryColor(
-                  groupByCategoryRecords?.records![categoryType][
-                    cat as string
-                  ][0].category?.id,
-                )}
-                value={Math.abs(
-                  groupByCategoryRecords?.records![categoryType][
-                    cat as string
-                  ].reduce((acc, cur) => {
-                    return acc + Number(cur.price);
-                  }, 0),
-                )}
-                total={
-                  categoryType === ECategoryType.EXPENSE
-                    ? Math.abs(expenseByDate)
-                    : Math.abs(incomeByDate)
-                }
-                onClick={() => navigate('/records', { state: { categoryFilter: cat } })}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+        {!hasRecords ? (
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 py-6 text-center">
+            Category breakdown will appear here once there's something to show.
+          </p>
+        ) : (
+          <div className="w-full">
+            {Object.keys(categoryRecordsByLabel).map((cat) => (
+              <div key={cat} className="text-base">
+                <PercentRow
+                  name={cat}
+                  iconName={
+                    groupByCategoryRecords?.records![categoryType][
+                      cat as string
+                    ][0].category?.icon ?? EIconName.MONEY
+                  }
+                  color={getCategoryColor(
+                    groupByCategoryRecords?.records![categoryType][
+                      cat as string
+                    ][0].category?.id,
+                  )}
+                  value={Math.abs(
+                    groupByCategoryRecords?.records![categoryType][
+                      cat as string
+                    ].reduce((acc, cur) => {
+                      return acc + Number(cur.price);
+                    }, 0),
+                  )}
+                  total={
+                    categoryType === ECategoryType.EXPENSE
+                      ? Math.abs(expenseByDate)
+                      : Math.abs(incomeByDate)
+                  }
+                  onClick={() =>
+                    navigate('/records', { state: { categoryFilter: cat } })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
