@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
@@ -71,7 +70,6 @@ function AnimatedTabIcon({ focused, name }: { focused: boolean; name: keyof type
 // drag it with your finger — it grows while held — and release to snap
 // onto the nearest tab, with the same landing wobble.
 export default function JellyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const layouts = useRef<TabLayout[]>([]);
   const barWidth = useRef(0);
@@ -198,22 +196,6 @@ export default function JellyTabBar({ state, descriptors, navigation }: BottomTa
 
   return (
     <View style={[styles.outerWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <Pressable
-        style={({ pressed }) => [styles.fabWrap, pressed && styles.fabPressed]}
-        onPress={() => router.push('/add-record')}
-        accessibilityLabel="Add record"
-        hitSlop={6}
-      >
-        <LinearGradient
-          colors={[colors.heroFrom, colors.heroTo]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fab}
-        >
-          <Ionicons name="add" size={28} color="#fff" />
-        </LinearGradient>
-      </Pressable>
-
       <View style={styles.barShadowWrap}>
         <BlurView
           intensity={62}
@@ -274,44 +256,12 @@ export default function JellyTabBar({ state, descriptors, navigation }: BottomTa
   );
 }
 
-const FAB_SIZE = 60;
 const BAR_RADIUS = 30;
 
 const styles = StyleSheet.create({
-  // The FAB's raised half sits fully WITHIN this container's own bounds
-  // (top: 0 inside a container tall enough for it) instead of poking above
-  // it with a negative offset — a negative offset can end up outside the
-  // area the tab navigator actually treats as hit-testable, which is why
-  // the button previously didn't register taps.
   outerWrap: {
     position: 'relative',
     paddingHorizontal: 16,
-  },
-  fabWrap: {
-    position: 'absolute',
-    top: 0,
-    left: '50%',
-    marginLeft: -FAB_SIZE / 2,
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
-    zIndex: 10,
-    shadowColor: colors.primaryDark,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  fab: {
-    flex: 1,
-    borderRadius: FAB_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-  fabPressed: {
-    opacity: 0.85,
   },
   // A floating frosted-glass pill rather than an edge-to-edge flat panel —
   // BlurView gives the real translucency/blur (not just a low-opacity
@@ -320,7 +270,6 @@ const styles = StyleSheet.create({
   // get clipped away by the same overflow: hidden that shapes the blur.
   barShadowWrap: {
     borderRadius: BAR_RADIUS,
-    marginTop: FAB_SIZE / 2,
     // Fully hidden under the BlurView bar below (same size/shape) — its only
     // job is giving Android's elevation shadow an opaque layer to compute
     // against, since elevation renders nothing on a transparent background.
