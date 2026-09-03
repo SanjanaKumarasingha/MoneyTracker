@@ -110,7 +110,22 @@ const Profile = (props: Props) => {
   return (
     <div>
       <BackButton />
-      <Card className="mt-2" padding="md">
+
+      <div className="mt-2 flex items-center gap-3 px-1">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xl font-semibold text-white">
+          {(user?.username ?? '?').charAt(0).toUpperCase()}
+        </span>
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            {user?.username ?? 'Your profile'}
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {user?.email ?? 'Tap a field below to edit it.'}
+          </p>
+        </div>
+      </div>
+
+      <Card className="mt-4" padding="md">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
