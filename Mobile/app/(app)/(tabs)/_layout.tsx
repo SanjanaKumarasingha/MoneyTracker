@@ -1,16 +1,17 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 
-import JellyTabBar from '@/components/JellyTabBar';
+import WhatsAppJellyTabBar from '@/components/WhatsAppJellyTabBar';
 
-// Exactly 3 destinations — Home, Plan, Settings. Wallets live on Home,
-// Categories lives in Settings. Report's category breakdown moved into the
-// per-wallet screen (wallet/[id].tsx) since it was always scoped to one
-// wallet anyway; there's no standalone Report destination anymore.
+// 4 destinations — Home, Analytics, Plan, Settings. Wallets live on Home,
+// Categories lives in Settings. Analytics surfaces the existing per-wallet
+// CategoryBreakdown (donut + category rows) as its own tab, with a wallet
+// switcher on top, rather than duplicating that chart logic.
 export default function TabsLayout() {
   return (
-    <Tabs tabBar={(props) => <JellyTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs tabBar={(props) => <WhatsAppJellyTabBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="analytics" options={{ title: 'Analytics' }} />
       <Tabs.Screen name="plan" options={{ title: 'Plan' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>

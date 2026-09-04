@@ -25,6 +25,7 @@ import ScreenHeader from '@/components/ScreenHeader';
 import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
+import BrandLogo from '@/components/BrandLogo';
 
 type ScheduleStatus = { gapPercent: number; ratio: number };
 
@@ -139,7 +140,15 @@ export default function PlanScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <ScreenHeader title="My Plan" />
+      <ScreenHeader
+        title="Goals"
+        subtitle={
+          isLoading
+            ? undefined
+            : `${savingGoals.length + limitGoals.length} active goal${savingGoals.length + limitGoals.length === 1 ? '' : 's'}`
+        }
+        right={<BrandLogo size={34} />}
+      />
 
       {isLoading ? (
         <View style={styles.scrollContent}>
@@ -224,6 +233,13 @@ export default function PlanScreen() {
                           {goal.category ? ` · ${goal.category.name}` : ''}
                         </Text>
                       </View>
+                      {schedule !== null && (
+                        <View style={[styles.statusChip, { backgroundColor: `${schedule.ratio >= 90 ? colors.success : colors.amber}22` }]}>
+                          <Text style={[styles.statusChipText, { color: schedule.ratio >= 90 ? colors.success : colors.amber }]}>
+                            {schedule.ratio >= 90 ? 'On track' : 'Needs attention'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     <CurrencyText
                       amount={goal.progress.actual}
@@ -458,6 +474,16 @@ const styles = StyleSheet.create({
   goalSub: {
     fontSize: 10.5,
     color: colors.textMuted,
+  },
+  statusChip: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusChipText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   goalAmount: {
     fontSize: 21,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Ionicons } from '@expo/vector-icons';
 
 import { signIn } from '@/apis';
 import { setStoredToken } from '@/lib/secureStorage';
@@ -23,6 +25,8 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import PasswordInput from '@/components/PasswordInput';
+import BrandLogo from '@/components/BrandLogo';
+import { showToast } from '@/components/Toast';
 
 type FieldErrors = {
   username?: string;
@@ -40,8 +44,29 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(hasHardware && isEnrolled);
+    })();
+  }, []);
+
+  const handleBiometric = async () => {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Sign in to MoneyTracker',
+    });
+    if (result.success) {
+      // This app has no stored-credential/session-unlock mechanism to
+      // attach a real sign-in to yet — be honest about that rather than
+      // faking a login the device check didn't actually authorize.
+      showToast("Biometric sign-in isn't set up for this account yet — log in with your password to continue.");
+    }
+  };
 
   const isFormValid = useMemo(
     () => username.trim().length > 0 && password.length > 0,
@@ -85,12 +110,13 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <View style={styles.container}>
-          <View style={styles.card}>
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>
-              Sign in to continue tracking your income and expenses.
-            </Text>
+          <View style={styles.logoRow}>
+            <BrandLogo size={84} />
+          </View>
+          <Text style={styles.title}>Welcome back.</Text>
+          <Text style={styles.subtitle}>Smart wealth tracking, simplified.</Text>
 
+          <View style={styles.card}>
             {error ? (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorBannerText}>{error}</Text>
@@ -99,21 +125,24 @@ export default function LoginScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={[styles.input, fieldErrors.username && styles.inputError]}
-                value={username}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="username"
-                placeholder="Enter your username"
-                placeholderTextColor={colors.textMuted}
-                onChangeText={(value) => {
-                  setUsername(value);
-                  if (fieldErrors.username) {
-                    setFieldErrors((prev) => ({ ...prev, username: undefined }));
-                  }
-                }}
-              />
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 40 }, fieldErrors.username && styles.inputError]}
+                  value={username}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="username"
+                  placeholder="Enter your username"
+                  placeholderTextColor={colors.textMuted}
+                  onChangeText={(value) => {
+                    setUsername(value);
+                    if (fieldErrors.username) {
+                      setFieldErrors((prev) => ({ ...prev, username: undefined }));
+                    }
+                  }}
+                />
+                <Ionicons name="person-outline" size={18} color={colors.textMuted} style={styles.inputIcon} />
+              </View>
               {fieldErrors.username ? (
                 <Text style={styles.fieldError}>{fieldErrors.username}</Text>
               ) : null}
@@ -152,9 +181,17 @@ export default function LoginScreen() {
               {login.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Log In</Text>
+                <Text style={styles.buttonText}>Continue</Text>
               )}
             </Pressable>
+
+            {biometricAvailable && (
+              <Pressable style={styles.biometricButton} onPress={handleBiometric} hitSlop={8}>
+                <View style={styles.biometricCircle}>
+                  <Ionicons name="finger-print" size={22} color={colors.primary} />
+                </View>
+              </Pressable>
+            )}
 
             <Link href="/(auth)/register" asChild>
               <Pressable style={styles.linkRow}>
@@ -164,6 +201,8 @@ export default function LoginScreen() {
               </Pressable>
             </Link>
           </View>
+
+          <Text style={styles.footerText}>Encrypted with bank-grade 256-bit security.</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -183,24 +222,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
+  logoRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.xxl,
     padding: 24,
+    marginTop: 20,
     ...shadows.card,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'center',
   },
   subtitle: {
     marginTop: 4,
     fontSize: 14,
     color: colors.textMuted,
+    textAlign: 'center',
   },
   errorBanner: {
-    marginTop: 16,
+    marginBottom: 4,
     backgroundColor: colors.dangerSoft,
     borderRadius: 8,
     padding: 10,
@@ -218,6 +264,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 6,
   },
+  inputWrap: {
+    justifyContent: 'center',
+  },
   input: {
     height: 52,
     borderWidth: 1,
@@ -228,6 +277,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.inputBg,
   },
+  inputIcon: {
+    position: 'absolute',
+    right: 14,
+  },
   inputError: {
     borderColor: colors.danger,
   },
@@ -237,10 +290,10 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   button: {
+    height: 50,
     marginTop: 24,
     backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -255,6 +308,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  biometricButton: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  biometricCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   linkRow: {
     marginTop: 16,
     alignItems: 'center',
@@ -266,5 +331,11 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  footerText: {
+    marginTop: 20,
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

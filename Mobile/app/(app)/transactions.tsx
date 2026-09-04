@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import { fetchWallets } from '@/apis/wallet';
@@ -16,8 +16,10 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
+import { formatCurrency } from '@/utils/currency';
 import { groupRecordsByDate } from '@/utils/dateGroup';
 import IconSelector from '@/components/IconSelector';
+import CurrencyText from '@/components/CurrencyText';
 import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
@@ -32,14 +34,6 @@ function formatDate(dateString: string): string {
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return dateString;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function formatMoney(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
 }
 
 // Every transaction across every wallet, in one searchable, filterable
@@ -58,6 +52,7 @@ export default function TransactionsScreen() {
     initialWalletId ? Number(initialWalletId) : 'all',
   );
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [search, setSearch] = useState('');
   const [editRecord, setEditRecord] = useState<IRecord | null>(null);
   const [editCategory, setEditCategory] = useState<ICategory | null>(null);
@@ -158,9 +153,25 @@ export default function TransactionsScreen() {
     setRecordModalVisible(true);
   };
 
+  const walletFilterLabel = walletFilter === 'all' ? 'All wallets' : (wallets ?? []).find((w) => w.id === walletFilter)?.name;
+  const activeFilterCount = (walletFilter !== 'all' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <ScreenHeader title="Transactions" back={{ onPress: () => router.back() }} />
+      <ScreenHeader
+        title="Transactions"
+        back={{
+          onPress: () => router.back(),
+          overflow: (
+            <Pressable style={styles.filterToggle} onPress={() => setFiltersExpanded((v) => !v)} hitSlop={8}>
+              <Text style={styles.filterToggleText} numberOfLines={1}>
+                Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </Text>
+              <Ionicons name={filtersExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.primaryDark} />
+            </Pressable>
+          ),
+        }}
+      />
 
       <View style={styles.searchBox}>
         <Ionicons name="search" size={16} color={colors.textFaint} />
@@ -173,62 +184,72 @@ export default function TransactionsScreen() {
         />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
-        <Pressable
-          style={[styles.filterChip, walletFilter === 'all' && styles.filterChipActive]}
-          onPress={() => setWalletFilter('all')}
+      {filtersExpanded && (
+        <Animated.View
+          entering={FadeInDown.duration(180)}
+          exiting={FadeOutUp.duration(140)}
+          layout={LinearTransition.springify()}
+          style={styles.filterCard}
         >
-          <Text style={[styles.filterChipText, walletFilter === 'all' && styles.filterChipTextActive]}>All Wallets</Text>
-        </Pressable>
-        {(wallets ?? []).map((w) => (
-          <Pressable
-            key={w.id}
-            style={[styles.filterChip, walletFilter === w.id && styles.filterChipActive]}
-            onPress={() => setWalletFilter(w.id)}
-          >
-            <Text style={[styles.filterChipText, walletFilter === w.id && styles.filterChipTextActive]}>{w.name}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+          <Text style={styles.filterCardLabel}>Wallet</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillRow}>
+            <Pressable
+              style={[styles.filterChip, walletFilter === 'all' && styles.filterChipActive]}
+              onPress={() => setWalletFilter('all')}
+            >
+              <Text style={[styles.filterChipText, walletFilter === 'all' && styles.filterChipTextActive]}>All</Text>
+            </Pressable>
+            {(wallets ?? []).map((w) => (
+              <Pressable
+                key={w.id}
+                style={[styles.filterChip, walletFilter === w.id && styles.filterChipActive]}
+                onPress={() => setWalletFilter(w.id)}
+              >
+                <Text style={[styles.filterChipText, walletFilter === w.id && styles.filterChipTextActive]}>{w.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
 
-      <View style={styles.filterRowContent}>
-        <View style={{ flexDirection: 'row', gap: 7 }}>
-          <Pressable
-            style={[styles.filterChip, typeFilter === 'all' && styles.filterChipActive]}
-            onPress={() => setTypeFilter('all')}
-          >
-            <Text style={[styles.filterChipText, typeFilter === 'all' && styles.filterChipTextActive]}>All Types</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.filterChip, typeFilter === ECategoryType.INCOME && styles.filterChipIncomeActive]}
-            onPress={() => setTypeFilter(ECategoryType.INCOME)}
-          >
-            <Text style={[styles.filterChipText, typeFilter === ECategoryType.INCOME && styles.filterChipTextActive]}>Income</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.filterChip, typeFilter === ECategoryType.EXPENSE && styles.filterChipExpenseActive]}
-            onPress={() => setTypeFilter(ECategoryType.EXPENSE)}
-          >
-            <Text style={[styles.filterChipText, typeFilter === ECategoryType.EXPENSE && styles.filterChipTextActive]}>Expense</Text>
-          </Pressable>
-        </View>
-      </View>
+          <Text style={[styles.filterCardLabel, styles.filterCardLabelSpaced]}>Type</Text>
+          <View style={styles.filterPillRow}>
+            <Pressable
+              style={[styles.filterChip, typeFilter === 'all' && styles.filterChipActive]}
+              onPress={() => setTypeFilter('all')}
+            >
+              <Text style={[styles.filterChipText, typeFilter === 'all' && styles.filterChipTextActive]}>All</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.filterChip, typeFilter === ECategoryType.INCOME && styles.filterChipActive]}
+              onPress={() => setTypeFilter(ECategoryType.INCOME)}
+            >
+              <Text style={[styles.filterChipText, typeFilter === ECategoryType.INCOME && styles.filterChipTextActive]}>Income</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.filterChip, typeFilter === ECategoryType.EXPENSE && styles.filterChipActive]}
+              onPress={() => setTypeFilter(ECategoryType.EXPENSE)}
+            >
+              <Text style={[styles.filterChipText, typeFilter === ECategoryType.EXPENSE && styles.filterChipTextActive]}>Expense</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      )}
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Income (filtered)</Text>
-          <Text style={[styles.summaryValue, { color: colors.success }]}>{formatMoney(totalIncome, currency)}</Text>
+      <Animated.View layout={LinearTransition.springify()} style={styles.summaryCard}>
+        <View style={styles.summaryStat}>
+          <Text style={styles.summaryLabel}>Income{walletFilterLabel && walletFilterLabel !== 'All wallets' ? ` · ${walletFilterLabel}` : ''}</Text>
+          <CurrencyText amount={totalIncome} currency={currency} mainStyle={styles.summaryValueIncome} decimalStyle={styles.summaryValueIncomeDecimal} />
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Expense (filtered)</Text>
-          <Text style={[styles.summaryValue, { color: colors.danger }]}>{formatMoney(totalExpense, currency)}</Text>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryStat}>
+          <Text style={styles.summaryLabel}>Expense</Text>
+          <CurrencyText amount={totalExpense} currency={currency} mainStyle={styles.summaryValueExpense} decimalStyle={styles.summaryValueExpenseDecimal} />
         </View>
-      </View>
+      </Animated.View>
 
       {isLoading ? (
         <View style={styles.scrollContent}>
           {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} height={58} borderRadius={14} style={{ marginBottom: 8 }} />
+            <Skeleton key={key} height={72} borderRadius={18} style={{ marginVertical: 4 }} />
           ))}
         </View>
       ) : isError ? (
@@ -245,8 +266,13 @@ export default function TransactionsScreen() {
               <Text style={styles.dateGroupLabel}>{group.label}</Text>
               {group.records.map((entry, index) => {
                 const isExpense = entry.category?.type === 'expense';
+                const isTransfer = !!entry.isTransfer;
+                const cardBg = isTransfer ? '#1E293B' : isExpense ? '#FFF1F2' : '#ECFDF5';
+                const iconBg = isTransfer ? 'rgba(255,255,255,0.16)' : isExpense ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
+                const accentColor = isTransfer ? '#fff' : isExpense ? '#DC2626' : '#16A34A';
+
                 return (
-                  <Animated.View key={entry.id} entering={FadeInDown.delay(index * 20)}>
+                  <Animated.View key={entry.id} entering={FadeInDown.delay(index * 20)} layout={LinearTransition.springify()}>
                     <Swipeable
                       overshootRight={false}
                       onSwipeableWillOpen={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
@@ -256,24 +282,35 @@ export default function TransactionsScreen() {
                         </Pressable>
                       )}
                     >
-                      <PressableScale style={styles.txnRow} onPress={() => openEdit(entry)}>
-                        <View style={[styles.txnIcon, { backgroundColor: isExpense ? colors.danger : colors.success }]}>
-                          {entry.category && <IconSelector name={entry.category.icon} size={15} color="#fff" />}
+                      <PressableScale style={[styles.txnRow, { backgroundColor: cardBg }]} onPress={() => openEdit(entry)}>
+                        <View style={[styles.txnIcon, { backgroundColor: iconBg }]}>
+                          {entry.category && <IconSelector name={entry.category.icon} size={16} color={accentColor} />}
                         </View>
                         <View style={styles.txnMeta}>
-                          <Text style={styles.txnName} numberOfLines={1}>{entry.remarks || entry.category?.name || 'Deleted category'}</Text>
+                          <Text style={[styles.txnName, isTransfer && styles.txnNameOnDark]} numberOfLines={1}>
+                            {entry.remarks || entry.category?.name || 'Deleted category'}
+                          </Text>
                           <View style={styles.txnSubRow}>
-                            <Text style={styles.txnSub} numberOfLines={1}>{formatDate(entry.date)} · {entry.category?.name ?? 'Deleted category'}</Text>
-                            {walletFilter === 'all' && (
+                            <Text style={[styles.txnSub, isTransfer && styles.txnSubOnDark]} numberOfLines={1}>
+                              {formatDate(entry.date)}
+                            </Text>
+                            {isTransfer && (
+                              <View style={styles.transferBadge}>
+                                <Text style={styles.transferBadgeText}>
+                                  {entry.transferDirection === 'in' ? 'Received' : 'Sent'}
+                                </Text>
+                              </View>
+                            )}
+                            {!isTransfer && walletFilter === 'all' && (
                               <View style={styles.walletTag}>
-                                <Text style={styles.walletTagText}>{entry.wallet.name}</Text>
+                                <Text style={styles.walletTagText} numberOfLines={1}>{entry.wallet.name}</Text>
                               </View>
                             )}
                           </View>
                         </View>
-                        <Text style={[styles.txnAmount, isExpense ? styles.txnExpense : styles.txnIncome]}>
+                        <Text style={[styles.txnAmount, { color: accentColor }]}>
                           {isExpense ? '-' : '+'}
-                          {formatMoney(Number(entry.price), entry.wallet.currency)}
+                          {formatCurrency(Number(entry.price), entry.wallet.currency)}
                         </Text>
                       </PressableScale>
                     </Swipeable>
@@ -301,6 +338,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  filterToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -318,30 +369,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
-  filterRow: {
-    flexGrow: 0,
+  filterCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    padding: spacing.md,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    ...shadows.card,
   },
-  filterRowContent: {
+  filterCardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: spacing.sm,
+  },
+  filterCardLabelSpaced: {
+    marginTop: spacing.md,
+  },
+  filterPillRow: {
     flexDirection: 'row',
     gap: 7,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
   },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: colors.card,
-    ...shadows.card,
+    backgroundColor: colors.background,
   },
   filterChipActive: {
-    backgroundColor: colors.text,
-  },
-  filterChipIncomeActive: {
-    backgroundColor: colors.success,
-  },
-  filterChipExpenseActive: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.primary,
   },
   filterChipText: {
     fontSize: 11.5,
@@ -351,28 +409,53 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: '#fff',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
-  },
+  // A single dual-metric card rather than two separate blocks — mirrors
+  // Plan's overview card (stat / divider / stat).
   summaryCard: {
-    flex: 1,
+    flexDirection: 'row',
     backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: spacing.md,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
     ...shadows.card,
+  },
+  summaryStat: {
+    flex: 1,
+  },
+  summaryDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
   },
   summaryLabel: {
     fontSize: 10,
     fontWeight: '700',
     color: colors.textMuted,
   },
-  summaryValue: {
-    fontSize: 14,
+  summaryValueIncome: {
+    fontSize: 15,
     fontWeight: '800',
-    marginTop: 2,
+    color: colors.success,
+    marginTop: 3,
+  },
+  summaryValueIncomeDecimal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+    opacity: 0.6,
+  },
+  summaryValueExpense: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.danger,
+    marginTop: 3,
+  },
+  summaryValueExpenseDecimal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.danger,
+    opacity: 0.6,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -402,27 +485,32 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
+  // iOS-style stacked card — color-coded by type rather than a plain white
+  // strip, so the wallet-wide feed still reads at a glance without opening
+  // each row.
   txnRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    paddingVertical: spacing.sm,
+    height: 72,
+    borderRadius: 18,
+    marginVertical: 4,
     paddingHorizontal: spacing.md,
     ...shadows.card,
   },
   txnIcon: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   swipeDelete: {
     width: 72,
     marginLeft: spacing.sm,
-    borderRadius: radius.xl,
+    marginVertical: 4,
+    borderRadius: 18,
     backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
@@ -432,20 +520,26 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   txnName: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     color: colors.text,
+  },
+  txnNameOnDark: {
+    color: '#fff',
   },
   txnSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2,
+    marginTop: 3,
   },
   txnSub: {
     fontSize: 11,
     color: colors.textMuted,
     flexShrink: 1,
+  },
+  txnSubOnDark: {
+    color: 'rgba(255,255,255,0.65)',
   },
   walletTag: {
     backgroundColor: colors.primarySoft,
@@ -458,16 +552,23 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: colors.primaryDark,
+    maxWidth: 90,
   },
-  txnAmount: {
-    fontSize: 13.5,
-    fontWeight: '700',
+  transferBadge: {
+    backgroundColor: 'rgba(37,99,235,0.28)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
     flexShrink: 0,
   },
-  txnExpense: {
-    color: colors.danger,
+  transferBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#93C5FD',
   },
-  txnIncome: {
-    color: colors.success,
+  txnAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    flexShrink: 0,
   },
 });

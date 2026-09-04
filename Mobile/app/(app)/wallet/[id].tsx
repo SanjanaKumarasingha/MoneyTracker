@@ -341,7 +341,7 @@ export default function WalletDetailScreen() {
         </View>
 
         <CategoryBreakdown
-          wallet={wallet}
+          wallets={[wallet]}
           goals={goals ?? []}
           onEditRecord={openEditRecord}
           onDeleteRecord={confirmDeleteRecord}

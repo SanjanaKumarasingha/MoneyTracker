@@ -26,6 +26,7 @@ import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
 import CurrencyText from '@/components/CurrencyText';
 import IconSelector from '@/components/IconSelector';
+import BrandLogo from '@/components/BrandLogo';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import TransferModal from '@/components/wallet/TransferModal';
 import RecordFormModal from '@/components/record/RecordFormModal';
@@ -53,13 +54,13 @@ const MONTH_NAMES = [
 
 // One gradient per card position, cycling if there are more wallets than
 // colors — a fixed, recognizable "which wallet is this" cue at a glance,
-// the same way a real bank's cards each look different. Deep, sophisticated
-// tones (Blue/Emerald/Plum) rather than candy-bright ones, so each still
-// reads as a distinct wallet identity as a muted fintech surface.
+// the same way a real bank's cards each look different. Deep navy/charcoal
+// tones rather than candy-bright ones, so each still reads as a distinct
+// wallet identity as a muted fintech surface.
 const CARD_GRADIENTS: [string, string][] = [
   [colors.heroFrom, colors.heroTo],
-  ['#059669', '#065f46'],
-  ['#9d174d', '#500724'],
+  ['#1E3A8A', '#172554'],
+  ['#1E293B', '#0F172A'],
 ];
 
 function greetingForHour(hour: number): string {
@@ -252,7 +253,6 @@ export default function HomeScreen() {
   };
 
   const openAddRecord = () => requireWallet(() => setRecordModalVisible(true));
-  const openStats = () => requireWallet(() => openWallet(targetWallet!.id));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -266,6 +266,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>
             {greetingForHour(now.getHours())}, <Text style={styles.greetingName}>{user?.username ?? '—'}</Text>
           </Text>
+          <BrandLogo size={34} />
         </View>
         <View style={styles.balanceRow}>
           <View>
@@ -355,29 +356,29 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.actionRow}>
-          <Pressable style={styles.actionItem} onPress={() => setTransferModalVisible(true)}>
-            <View style={styles.actionCircle}>
-              <Ionicons name="swap-horizontal" size={22} color={colors.primary} />
+          <Pressable style={styles.actionCard} onPress={() => setTransferModalVisible(true)}>
+            <View style={styles.actionIconCircle}>
+              <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
             </View>
-            <Text style={styles.actionLabel}>Transfer</Text>
+            <Text style={styles.actionCardLabel}>Transfer</Text>
           </Pressable>
-          <Pressable style={styles.actionItem} onPress={openAddRecord}>
-            <View style={styles.actionCircle}>
-              <Ionicons name="add" size={24} color={colors.primary} />
+          <Pressable style={[styles.actionCard, styles.actionCardHighlight]} onPress={openAddRecord}>
+            <View style={[styles.actionIconCircle, styles.actionIconCircleHighlight]}>
+              <Ionicons name="add" size={22} color="#fff" />
             </View>
-            <Text style={styles.actionLabel}>Add</Text>
+            <Text style={[styles.actionCardLabel, styles.actionCardLabelHighlight]}>Add</Text>
           </Pressable>
-          <Pressable style={styles.actionItem} onPress={openStats}>
-            <View style={styles.actionCircle}>
-              <Ionicons name="stats-chart" size={20} color={colors.primary} />
+          <Pressable style={styles.actionCard} onPress={() => router.push('/analytics')}>
+            <View style={styles.actionIconCircle}>
+              <Ionicons name="stats-chart" size={18} color={colors.primary} />
             </View>
-            <Text style={styles.actionLabel}>Stats</Text>
+            <Text style={styles.actionCardLabel}>Analytics</Text>
           </Pressable>
-          <Pressable style={styles.actionItem} onPress={() => router.push('/transactions')}>
-            <View style={styles.actionCircle}>
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
+          <Pressable style={styles.actionCard} onPress={() => router.push('/transactions')}>
+            <View style={styles.actionIconCircle}>
+              <Ionicons name="time-outline" size={18} color={colors.primary} />
             </View>
-            <Text style={styles.actionLabel}>History</Text>
+            <Text style={styles.actionCardLabel}>History</Text>
           </Pressable>
         </View>
 
@@ -570,14 +571,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: 6,
     paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   greeting: {
+    flex: 1,
     color: 'rgba(255,255,255,0.85)',
     fontSize: 13.5,
     fontWeight: '600',
@@ -859,29 +862,43 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  // Single-row, 4-icon quick-action grid — soft ice-blue circles with deep
-  // royal-blue icons, replacing the old stacked/conditional button row.
+  // Single-row, 4-card quick-action grid — rounded-rect cards, each with a
+  // soft ice-blue icon circle, except "Add" which is the highlighted
+  // primary action (solid royal blue, white icon/label).
   actionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  actionItem: {
+  actionCard: {
     flex: 1,
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    ...shadows.card,
   },
-  actionCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  actionCardHighlight: {
+    backgroundColor: colors.primary,
+  },
+  actionIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionLabel: {
+  actionIconCircleHighlight: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  actionCardLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: '#334155',
+  },
+  actionCardLabelHighlight: {
+    color: '#fff',
   },
   activityTitle: {
     fontSize: 15,
