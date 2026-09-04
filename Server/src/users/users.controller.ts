@@ -4,7 +4,10 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
   Param,
+  Request,
+  HttpCode,
   UnauthorizedException,
   UseGuards,
   ClassSerializerInterceptor,
@@ -187,8 +190,15 @@ export class UsersController {
     return await this.usersService.updatePassword(user, updatePasswordDto);
   }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.usersService.remove(+id);
-  // }
+  // Google Play Data Safety requires an in-app account deletion path.
+  // Deliberately scoped to the authenticated user only (req.user.id from
+  // the JWT, no :id param to trust) rather than following the :id-param
+  // pattern the other endpoints above use — deletion is destructive enough
+  // that it shouldn't depend on a client-supplied id matching the token.
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  @HttpCode(204)
+  async deleteAccount(@Request() req): Promise<void> {
+    await this.usersService.deleteAccount(req.user.id);
+  }
 }

@@ -1,9 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { User } from './entities/user.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
+import { Category } from '../categories/entities/category.entity';
+import { Record } from '../records/entities/record.entity';
+import { Goal } from '../goals/entities/goal.entity';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -15,6 +19,14 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Wallet)
+    private walletRepository: Repository<Wallet>,
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
+    @InjectRepository(Record)
+    private recordRepository: Repository<Record>,
+    @InjectRepository(Goal)
+    private goalRepository: Repository<Goal>,
   ) {}
 
   /**
@@ -88,5 +100,33 @@ export class UsersService {
 
   async delete(user: User) {
     return await this.userRepository.softDelete(user.id);
+  }
+
+  /**
+   * Account deletion (Google Play Data Safety requirement): cascades the
+   * same soft-delete every other entity in this app already uses (see
+   * WalletsService.remove/CategoriesService.remove/etc.) down from the user
+   * — records and goals scoped to the user's wallets, then the wallets and
+   * categories themselves, then the user. Children are removed before their
+   * parents so nothing is left pointing at an already-deleted row, even
+   * though soft-delete doesn't enforce FK integrity the way a hard delete
+   * would.
+   */
+  async deleteAccount(userId: number): Promise<void> {
+    const wallets = await this.walletRepository
+      .createQueryBuilder('wallet')
+      .leftJoin('wallet.user', 'user')
+      .where('user.id = :userId', { userId })
+      .getMany();
+    const walletIds = wallets.map((wallet) => wallet.id);
+
+    if (walletIds.length > 0) {
+      await this.recordRepository.softDelete({ wallet: { id: In(walletIds) } });
+      await this.goalRepository.softDelete({ wallet: { id: In(walletIds) } });
+      await this.walletRepository.softDelete({ id: In(walletIds) });
+    }
+
+    await this.categoryRepository.softDelete({ user: { id: userId } });
+    await this.userRepository.softDelete(userId);
   }
 }
