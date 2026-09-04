@@ -22,6 +22,7 @@ import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, ECategoryType, ICategory, TCategoryType } from '@/types';
 import { EIconName } from '@/types/icon-name.enum';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import IconSelector from '@/components/IconSelector';
 import { showToast } from '@/components/Toast';
 
@@ -288,13 +289,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 12,
     fontSize: 15,
     color: colors.text,
+    backgroundColor: colors.inputBg,
   },
   iconScroll: {
     maxHeight: 220,

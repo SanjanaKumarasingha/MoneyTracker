@@ -56,7 +56,7 @@ function AnimatedTabIcon({ focused, name }: { focused: boolean; name: keyof type
 
   return (
     <Animated.View style={iconStyle}>
-      <Ionicons name={name} size={20} color={focused ? colors.text : colors.textMuted} />
+      <Ionicons name={name} size={22} color={focused ? colors.primary : colors.textMuted} />
     </Animated.View>
   );
 }
@@ -302,9 +302,14 @@ const styles = StyleSheet.create({
     top: 4,
     height: BLOB_SIZE,
     borderRadius: 999,
-    backgroundColor: 'rgba(139,124,246,0.32)',
+    // Brand primary blue, not the off-brand purple this used to be — the
+    // active-tab indicator is the single strongest "you are here" signal in
+    // the bar, so it should read as the same blue as every other active/
+    // primary affordance in the app (hero card, primary buttons), not an
+    // unrelated color that appears nowhere else.
+    backgroundColor: 'rgba(37,99,235,0.16)',
     borderWidth: 1.5,
-    borderColor: 'rgba(139,124,246,0.6)',
+    borderColor: 'rgba(37,99,235,0.45)',
     overflow: 'hidden',
     // Above the tab Pressables so a press-and-hold actually lands on the
     // blob's own GestureDetector instead of the tab underneath — a quick
@@ -320,15 +325,18 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
+    // Bumped from 4 to give each tab a taller tap target (closer to the
+    // ~44pt thumb-friendly minimum once the bar's own padding is added),
+    // not just a bigger-looking icon.
     gap: 3,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   tabLabel: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: colors.textMuted,
   },
   tabLabelActive: {
-    color: colors.text,
+    color: colors.primary,
   },
 });

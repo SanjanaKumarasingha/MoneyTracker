@@ -34,6 +34,7 @@ import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
 import { showToast } from '@/components/Toast';
+import CurrencyText from '@/components/CurrencyText';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import RecordFormModal from '@/components/record/RecordFormModal';
 import GoalFormModal from '@/components/goal/GoalFormModal';
@@ -69,14 +70,6 @@ function getWalletIncomeExpense(wallet: IWalletRecordWithCategory): { income: nu
     },
     { income: 0, expense: 0 },
   );
-}
-
-function formatCurrency(amount: number, currency = 'USD'): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
 }
 
 // The screen every wallet name on Home pushes into — no tab bar (see the
@@ -317,15 +310,30 @@ export default function WalletDetailScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Balance</Text>
-                  <Text style={styles.statFigure}>{formatCurrency(balance, wallet.currency)}</Text>
+                  <CurrencyText
+                    amount={balance}
+                    currency={wallet.currency}
+                    mainStyle={styles.statFigure}
+                    decimalStyle={styles.statFigureDecimal}
+                  />
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Income</Text>
-                  <Text style={[styles.statFigure, styles.statFigureIncome]}>{formatCurrency(income, wallet.currency)}</Text>
+                  <CurrencyText
+                    amount={income}
+                    currency={wallet.currency}
+                    mainStyle={[styles.statFigure, styles.statFigureIncome]}
+                    decimalStyle={[styles.statFigureDecimal, styles.statFigureIncomeDecimal]}
+                  />
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statLabel}>Expenses</Text>
-                  <Text style={[styles.statFigure, styles.statFigureExpense]}>{formatCurrency(expense, wallet.currency)}</Text>
+                  <CurrencyText
+                    amount={expense}
+                    currency={wallet.currency}
+                    mainStyle={[styles.statFigure, styles.statFigureExpense]}
+                    decimalStyle={[styles.statFigureDecimal, styles.statFigureExpenseDecimal]}
+                  />
                 </View>
               </View>
             </Animated.View>
@@ -404,7 +412,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     gap: spacing.xs,
@@ -420,11 +428,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  statFigureDecimal: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
   statFigureIncome: {
     color: colors.success,
   },
+  statFigureIncomeDecimal: {
+    color: colors.success,
+    opacity: 0.65,
+  },
   statFigureExpense: {
     color: colors.danger,
+  },
+  statFigureExpenseDecimal: {
+    color: colors.danger,
+    opacity: 0.65,
   },
   fab: {
     position: 'absolute',

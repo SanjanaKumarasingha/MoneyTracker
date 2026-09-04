@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
-import { shadows } from '@/theme/shadows';
 import {
   MONTH_NAMES,
   getWeekInfoForDate,
@@ -97,62 +96,6 @@ export default function PeriodNavigator({ periodType, value, onChange, minYear, 
 
   const weeksInBrowseYear = useMemo(() => getWeeksInYear(browseYear), [browseYear]);
 
-  // Monthly gets its own inline, always-visible controls instead of the
-  // tap-to-open sheet — a year stepper plus a horizontal sliding strip of
-  // month chips you can swipe straight to, no popup in the way.
-  if (periodType === 'monthly') {
-    const year = value.getUTCFullYear();
-    return (
-      <View>
-        <View style={styles.row}>
-          <Pressable
-            onPress={() => onChange(new Date(Date.UTC(year - 1, value.getUTCMonth(), 1)))}
-            hitSlop={8}
-            style={[styles.arrowButton, year <= minYear && styles.arrowButtonDisabled]}
-            disabled={year <= minYear}
-            accessibilityLabel="Previous year"
-          >
-            <Ionicons name="chevron-back" size={18} color={year <= minYear ? colors.textFaint : colors.primaryDark} />
-          </Pressable>
-
-          <Text style={styles.labelText} numberOfLines={1}>{label}</Text>
-
-          <Pressable
-            onPress={() => year < maxYear && onChange(new Date(Date.UTC(year + 1, value.getUTCMonth(), 1)))}
-            hitSlop={8}
-            style={[styles.arrowButton, year >= maxYear && styles.arrowButtonDisabled]}
-            disabled={year >= maxYear}
-            accessibilityLabel="Next year"
-          >
-            <Ionicons name="chevron-forward" size={18} color={year < maxYear ? colors.primaryDark : colors.textFaint} />
-          </Pressable>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.monthSlider}
-          contentContainerStyle={styles.monthSliderContent}
-        >
-          {MONTH_NAMES.map((name, index) => {
-            const isSelected = value.getUTCMonth() === index;
-            const isFuture = isMonthStrictlyFuture(year, index);
-            return (
-              <Pressable
-                key={name}
-                disabled={isFuture}
-                style={[styles.monthChip, isSelected && styles.monthChipActive, isFuture && styles.monthCellDisabled]}
-                onPress={() => onChange(new Date(Date.UTC(year, index, 1)))}
-              >
-                <Text style={[styles.monthChipText, isSelected && styles.monthChipTextActive]}>{name.slice(0, 3)}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.row}>
       <Pressable
@@ -183,10 +126,10 @@ export default function PeriodNavigator({ periodType, value, onChange, minYear, 
         <Pressable style={styles.overlay} onPress={() => setSheetVisible(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitle}>
-              {periodType === 'weekly' ? 'Pick a week' : 'Pick a year'}
+              {periodType === 'weekly' ? 'Pick a week' : periodType === 'monthly' ? 'Pick a month' : 'Pick a year'}
             </Text>
 
-            {periodType === 'weekly' && (
+            {(periodType === 'weekly' || periodType === 'monthly') && (
               <View style={styles.yearStepperRow}>
                 <Pressable
                   onPress={() => setBrowseYear((y) => Math.max(minYear, y - 1))}
@@ -232,6 +175,28 @@ export default function PeriodNavigator({ periodType, value, onChange, minYear, 
                   );
                 })}
               </ScrollView>
+            )}
+
+            {periodType === 'monthly' && (
+              <View style={styles.monthGrid}>
+                {MONTH_NAMES.map((name, index) => {
+                  const isSelected = value.getUTCFullYear() === browseYear && value.getUTCMonth() === index;
+                  const isFuture = isMonthStrictlyFuture(browseYear, index);
+                  return (
+                    <Pressable
+                      key={name}
+                      disabled={isFuture}
+                      style={[styles.monthGridCell, isSelected && styles.weekRowActive, isFuture && styles.weekRowDisabled]}
+                      onPress={() => {
+                        onChange(new Date(Date.UTC(browseYear, index, 1)));
+                        setSheetVisible(false);
+                      }}
+                    >
+                      <Text style={[styles.weekRowText, isSelected && styles.weekRowTextActive]}>{name.slice(0, 3)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             )}
 
             {periodType === 'yearly' && (
@@ -324,33 +289,18 @@ const styles = StyleSheet.create({
     minWidth: 60,
     textAlign: 'center',
   },
-  monthCellDisabled: {
-    opacity: 0.4,
-  },
-  monthSlider: {
-    marginTop: spacing.sm,
-  },
-  monthSliderContent: {
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
-    paddingVertical: 2,
+    justifyContent: 'center',
   },
-  monthChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.card,
-    ...shadows.card,
-  },
-  monthChipActive: {
-    backgroundColor: colors.primary,
-  },
-  monthChipText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  monthChipTextActive: {
-    color: '#fff',
+  monthGridCell: {
+    width: '30%',
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   weekList: {
     maxHeight: 380,

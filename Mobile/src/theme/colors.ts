@@ -9,21 +9,38 @@ export const colors = {
   cardSoft: '#f7f7fb',
   border: '#eceef4',
   text: '#16151f',
-  textMuted: '#6f7285',
+  // Slate-500 — the modern-fintech secondary-text tone this app's design
+  // language is standardizing on (section labels, hints, captions).
+  textMuted: '#64748B',
   textFaint: '#a4a7b8',
+
+  // Shared fill/border for every text input and primary selector button
+  // (segmented controls, chip pickers, date-value boxes) — kept distinct
+  // from `card`/`border` above since inputs/selectors are meant to read as
+  // a slightly recessed field, not a raised card.
+  inputBg: '#F8FAFC',
+  inputBorder: '#E2E8F0',
 
   primary: '#2563eb',
   primaryDark: '#1d4ed8',
   primarySoft: '#dbeafe',
 
-  heroFrom: '#3b82f6',
-  heroTo: '#1e3a8a',
+  // Signature royal-blue hero gradient — the brand's defining surface.
+  heroFrom: '#1D4ED8',
+  heroTo: '#2563EB',
 
-  danger: '#f4506b',
-  dangerSoft: '#fde3e8',
-  success: '#22c55e',
+  // Standard fintech-palette semantic colors (Tailwind red/amber/emerald
+  // 500s) — used for expense/income direction, danger actions, and pace/
+  // status indicators (budget proximity, goal schedule health) alike.
+  danger: '#EF4444',
+  dangerSoft: '#FEF2F2',
+  dangerBorder: '#FCA5A5',
+  // A dark crimson for text/icons on dangerSoft alert backgrounds — `danger`
+  // itself is too light against that soft rose fill to hit AA contrast.
+  dangerDark: '#991b1b',
+  success: '#10B981',
   successSoft: '#dcfce7',
-  amber: '#f2a93c',
+  amber: '#F59E0B',
   amberSoft: '#fff3d9',
 
   // Fixed per-category identity colors — one hex per category, reused

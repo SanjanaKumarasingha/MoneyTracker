@@ -15,30 +15,32 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import { getCategoryColor } from '@/theme/categoryColor';
-import { getBudgetStatusColor } from '@/utils/goalStatus';
+import { getBudgetStatusColor, getScheduleStatusColor } from '@/utils/goalStatus';
+import { formatCurrency } from '@/utils/currency';
 import IconSelector from '@/components/IconSelector';
 import Skeleton from '@/components/Skeleton';
+import CurrencyText from '@/components/CurrencyText';
 import GoalFormModal from '@/components/goal/GoalFormModal';
 import ScreenHeader from '@/components/ScreenHeader';
 import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
 
-function formatMoney(amount: number): string {
-  return amount.toFixed(2);
-}
+type ScheduleStatus = { gapPercent: number; ratio: number };
 
-// How far ahead/behind a saving goal is relative to a straight-line pace
-// across its current period — e.g. a goal 20% of the way through its month
-// "should" be at roughly 20% progress; falling meaningfully short of that
-// gets the plain-language alert banner.
-function getScheduleGap(goal: IGoalWithProgress): number | null {
+// How a saving goal's progress compares to a straight-line pace across its
+// current period — e.g. a goal 20% of the way through its month "should" be
+// at roughly 20% progress. `ratio` (actual/expected, 100 = exactly on pace)
+// drives the progress-bar color; `gapPercent` (expected - actual, in points)
+// drives the plain-language alert banner text.
+function getScheduleStatus(goal: IGoalWithProgress): ScheduleStatus | null {
   if (goal.type !== EGoalType.SAVING || !goal.progress.isActive) return null;
   const start = new Date(goal.progress.periodStart).getTime();
   const end = new Date(goal.progress.periodEnd).getTime();
   if (end <= start) return null;
   const expectedPercent = Math.min(100, ((Date.now() - start) / (end - start)) * 100);
-  return Math.round(expectedPercent - goal.progress.percent);
+  const ratio = expectedPercent <= 0 ? 100 : (goal.progress.percent / expectedPercent) * 100;
+  return { gapPercent: Math.round(expectedPercent - goal.progress.percent), ratio };
 }
 
 
@@ -81,6 +83,12 @@ export default function PlanScreen() {
 
   const savingGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SAVING);
   const limitGoals = (allGoals ?? []).filter((g) => g.type === EGoalType.SPENDING_LIMIT);
+
+  // A goal can belong to any of the user's wallets, each with its own
+  // currency — same simplification Home makes for its cross-wallet totals:
+  // sum the raw numbers and label them with one representative currency
+  // (the first wallet's) rather than pretending to convert between them.
+  const overviewCurrency = wallets?.[0]?.currency ?? 'USD';
 
   const overview = useMemo(() => {
     const savedActual = savingGoals.reduce((sum, g) => sum + g.progress.actual, 0);
@@ -131,14 +139,7 @@ export default function PlanScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <ScreenHeader
-        title="My Plan"
-        right={
-          <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={openAddGoal}>
-            <Ionicons name="add" size={22} color="#fff" />
-          </Pressable>
-        }
-      />
+      <ScreenHeader title="My Plan" />
 
       {isLoading ? (
         <View style={styles.scrollContent}>
@@ -159,18 +160,28 @@ export default function PlanScreen() {
             <View style={styles.overviewCard}>
               <View style={styles.overviewStat}>
                 <Text style={styles.overviewLabel}>Saved</Text>
-                <Text style={styles.overviewFigure}>
-                  {formatMoney(overview.savedActual)}
-                  <Text style={styles.overviewOf}> / {formatMoney(overview.savedTarget)}</Text>
-                </Text>
+                <CurrencyText
+                  amount={overview.savedActual}
+                  currency={overviewCurrency}
+                  containerStyle={styles.overviewFigureRow}
+                  mainStyle={styles.overviewFigure}
+                  decimalStyle={styles.overviewFigureDecimal}
+                >
+                  <Text style={styles.overviewOf}> / {formatCurrency(overview.savedTarget, overviewCurrency)}</Text>
+                </CurrencyText>
               </View>
               <View style={styles.overviewDivider} />
               <View style={styles.overviewStat}>
                 <Text style={styles.overviewLabel}>Budgeted</Text>
-                <Text style={styles.overviewFigure}>
-                  {formatMoney(overview.spentActual)}
-                  <Text style={styles.overviewOf}> / {formatMoney(overview.spentTarget)}</Text>
-                </Text>
+                <CurrencyText
+                  amount={overview.spentActual}
+                  currency={overviewCurrency}
+                  containerStyle={styles.overviewFigureRow}
+                  mainStyle={styles.overviewFigure}
+                  decimalStyle={styles.overviewFigureDecimal}
+                >
+                  <Text style={styles.overviewOf}> / {formatCurrency(overview.spentTarget, overviewCurrency)}</Text>
+                </CurrencyText>
                 {overview.overBudgetCount > 0 && (
                   <Text style={styles.overviewWarning}>
                     {overview.overBudgetCount} over limit
@@ -187,7 +198,8 @@ export default function PlanScreen() {
             <View style={{ gap: 10 }}>
               {savingGoals.map((goal, index) => {
                 const percent = Math.max(0, Math.min(100, goal.progress.percent));
-                const gap = getScheduleGap(goal);
+                const schedule = getScheduleStatus(goal);
+                const scheduleColor = getScheduleStatusColor(schedule?.ratio ?? null);
                 const remaining = Math.max(0, Number(goal.targetAmount) - goal.progress.actual);
 
                 return (
@@ -213,21 +225,26 @@ export default function PlanScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.goalAmount}>
-                      {formatMoney(goal.progress.actual)}
-                      <Text style={styles.goalAmountOf}> of {formatMoney(Number(goal.targetAmount))}</Text>
-                    </Text>
-                    <View style={styles.goalTrack}>
-                      <View style={[styles.goalFill, { width: `${percent}%` }]} />
+                    <CurrencyText
+                      amount={goal.progress.actual}
+                      currency={goal.wallet.currency}
+                      mainStyle={styles.goalAmount}
+                      decimalStyle={styles.goalAmountDecimal}
+                    >
+                      <Text style={styles.goalAmountOf}> of {formatCurrency(Number(goal.targetAmount), goal.wallet.currency)}</Text>
+                    </CurrencyText>
+                    <View style={[styles.goalTrack, { backgroundColor: `${scheduleColor}26` }]}>
+                      <View style={[styles.goalFill, { width: `${percent}%`, backgroundColor: scheduleColor }]} />
                     </View>
                     <View style={styles.goalProgressRow}>
                       <Text style={styles.goalProgressLabel}>Your Progress · {Math.round(percent)}%</Text>
-                      <Text style={styles.goalProgressLabel}>{formatMoney(remaining)} Left</Text>
+                      <Text style={styles.goalProgressLabel}>{formatCurrency(remaining, goal.wallet.currency)} Left</Text>
                     </View>
-                    {gap !== null && gap > 5 && (
+                    {schedule !== null && schedule.gapPercent > 5 && (
                       <View style={styles.goalAlert}>
+                        <Ionicons name="warning" size={11} color={colors.dangerDark} />
                         <Text style={styles.goalAlertText}>
-                          You&apos;re {gap}% behind schedule and off target
+                          You&apos;re {schedule.gapPercent}% behind schedule and off target
                         </Text>
                       </View>
                     )}
@@ -265,7 +282,7 @@ export default function PlanScreen() {
                         {goal.name || (goal.category ? goal.category.name : goal.wallet.name)}
                       </Text>
                       <Text style={styles.budgetSub}>
-                        {formatMoney(goal.progress.actual)} of {formatMoney(Number(goal.targetAmount))} · {goal.wallet.name}
+                        {formatCurrency(goal.progress.actual, goal.wallet.currency)} of {formatCurrency(Number(goal.targetAmount), goal.wallet.currency)} · {goal.wallet.name}
                         {isExceeded ? ' — exceeded' : ''}
                       </Text>
                     </View>
@@ -276,6 +293,18 @@ export default function PlanScreen() {
             </View>
           )}
         </ScrollView>
+      )}
+
+      {!isLoading && !isError && (
+        <View style={styles.stickyFooter} pointerEvents="box-none">
+          <Pressable
+            style={({ pressed }) => [styles.stickyButton, pressed && styles.stickyButtonPressed]}
+            onPress={openAddGoal}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.stickyButtonText}>New Goal</Text>
+          </Pressable>
+        </View>
       )}
 
       <Modal visible={walletPickerVisible} transparent animationType="fade" onRequestClose={() => setWalletPickerVisible(false)}>
@@ -310,21 +339,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonPressed: {
-    backgroundColor: colors.primaryDark,
-  },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: 100,
     gap: spacing.sm,
+  },
+  // Sticky full-width CTA anchored to the bottom of the screen (the tab bar
+  // below already owns the true device safe-area inset, so this only needs
+  // its own comfortable padding) — replaces the old header-corner "+" button.
+  stickyFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.xl,
+    paddingTop: 12,
+    paddingBottom: 16,
+    backgroundColor: colors.background,
+  },
+  stickyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+    paddingVertical: 15,
+    ...shadows.raised,
+  },
+  stickyButtonPressed: {
+    backgroundColor: colors.primaryDark,
+  },
+  stickyButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   overviewCard: {
     flexDirection: 'row',
@@ -347,11 +396,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primaryDark,
   },
+  overviewFigureRow: {
+    marginTop: 4,
+  },
   overviewFigure: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 4,
+  },
+  overviewFigureDecimal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
   },
   overviewOf: {
     fontSize: 12,
@@ -376,8 +432,8 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: spacing.md,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
     gap: spacing.sm,
     ...shadows.card,
   },
@@ -408,21 +464,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  goalAmountDecimal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
   goalAmountOf: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textMuted,
   },
   goalTrack: {
-    height: 8,
+    height: 6,
     borderRadius: 999,
-    backgroundColor: colors.dangerSoft,
     overflow: 'hidden',
   },
   goalFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: colors.primary,
   },
   goalProgressRow: {
     flexDirection: 'row',
@@ -433,15 +492,26 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '600',
   },
+  // A compact inline chip, not a harsh full-width red bar — non-punitive by
+  // design: soft rose fill + a faint rose border, dark crimson text/icon for
+  // AA contrast, sized to hug its own content instead of stretching the
+  // full card width.
   goalAlert: {
-    backgroundColor: colors.danger,
-    borderRadius: 11,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   goalAlertText: {
-    color: '#fff',
-    fontSize: 11.5,
+    flexShrink: 1,
+    color: colors.dangerDark,
+    fontSize: 10.5,
     fontWeight: '600',
   },
   budgetRow: {
@@ -449,8 +519,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: spacing.md,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
     ...shadows.card,
   },
   budgetIcon: {

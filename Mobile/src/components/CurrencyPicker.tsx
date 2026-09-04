@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { currencyList } from '@/utils/currency';
 
 type CurrencyPickerProps = {
@@ -91,14 +92,15 @@ export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps)
 
 const styles = StyleSheet.create({
   field: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: colors.inputBg,
   },
   fieldValue: {
     fontSize: 15,
@@ -127,13 +129,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   searchInput: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 10,
     fontSize: 15,
     color: colors.text,
+    backgroundColor: colors.inputBg,
     marginBottom: 12,
   },
   listContent: {

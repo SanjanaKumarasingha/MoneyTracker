@@ -17,6 +17,7 @@ import { profile, updateUser } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IUserInfo } from '@/types';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radius.xxl,
     padding: 20,
     margin: 20,
     gap: 6,
@@ -245,12 +246,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   valueBox: {
+    height: 52,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: colors.background,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    backgroundColor: colors.inputBg,
   },
   valueText: {
     fontSize: 15,
@@ -258,13 +260,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
     fontSize: 15,
     color: colors.text,
+    backgroundColor: colors.inputBg,
   },
   inputError: {
     borderColor: colors.danger,

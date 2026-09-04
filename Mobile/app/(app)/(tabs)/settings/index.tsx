@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 
-import { profile } from '@/apis';
+import { deleteAccount, profile } from '@/apis';
 import { useAppDispatch } from '@/hooks';
 import { useAuth } from '@/provider/AuthProvider';
 import { logout } from '@/store/userSlice';
@@ -17,6 +17,7 @@ import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import ScreenHeader from '@/components/ScreenHeader';
 import Skeleton from '@/components/Skeleton';
+import { showToast } from '@/components/Toast';
 
 const NOTIFICATIONS_PREFERENCE_KEY = 'notifications_enabled';
 
@@ -27,20 +28,23 @@ type SettingRow = {
   onPress?: () => void;
   disabled?: boolean;
   badge?: string;
+  destructive?: boolean;
 };
 
 // Native counterpart to Client/src/pages/SettingPage.tsx, extended now that
 // Wallets/Charts moved off their own tabs: Manage Categories lives here too
 // (you touch it rarely enough that Settings is the right depth for it),
 // alongside a profile summary card, Update Password, a local Notifications
-// toggle, and Log Out set apart at the bottom. There is still no
-// DELETE /users/:id route on the server (Server/src/users/users.controller.ts
-// keeps it commented out), so Delete Account stays a disabled placeholder.
+// toggle, Delete Account (Google Play Data Safety requirement — cascades via
+// DELETE /users/me, see Server/src/users/users.service.ts's deleteAccount),
+// and Log Out set apart at the bottom.
 export default function SettingsScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const { userId } = useAuth();
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   useEffect(() => {
     getStoredPreference(NOTIFICATIONS_PREFERENCE_KEY).then((stored) => {
@@ -75,6 +79,39 @@ export default function SettingsScreen() {
     ]);
   }, [dispatch]);
 
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your account, wallets, transactions, and goals. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingAccount(true);
+            try {
+              await deleteAccount();
+              // Stronger reset than a plain log out: purge every cached
+              // server response (wallets, goals, profile, ...) so nothing
+              // from the deleted account can flash on screen for whoever
+              // signs in next on this device.
+              queryClient.clear();
+              await clearStoredToken();
+              dispatch(logout());
+              // No manual navigation needed — same as handleLogout above,
+              // the root layout's Stack.Protected guards react to
+              // `isSignedIn` flipping and swap back to (auth)/login.
+            } catch {
+              setIsDeletingAccount(false);
+              showToast('Could not delete your account. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [dispatch, queryClient]);
+
   const preferenceRows: SettingRow[] = [
     {
       key: 'categories',
@@ -93,10 +130,11 @@ export default function SettingsScreen() {
   const aboutRows: SettingRow[] = [
     {
       key: 'delete-account',
-      label: 'Delete Account',
+      label: isDeletingAccount ? 'Deleting…' : 'Delete Account',
       icon: 'trash-outline',
-      disabled: true,
-      badge: 'Coming soon',
+      disabled: isDeletingAccount,
+      destructive: true,
+      onPress: handleDeleteAccount,
     },
   ];
 
@@ -163,15 +201,27 @@ export default function SettingsScreen() {
             disabled={row.disabled || !row.onPress}
           >
             <View style={styles.rowLeft}>
-              <Ionicons name={row.icon} size={20} color={row.disabled ? colors.textMuted : colors.text} />
-              <Text style={[styles.rowLabel, row.disabled && styles.rowLabelDisabled]}>{row.label}</Text>
+              <Ionicons
+                name={row.icon}
+                size={20}
+                color={row.disabled ? colors.textMuted : row.destructive ? colors.danger : colors.text}
+              />
+              <Text
+                style={[
+                  styles.rowLabel,
+                  row.destructive && !row.disabled && styles.logoutLabel,
+                  row.disabled && styles.rowLabelDisabled,
+                ]}
+              >
+                {row.label}
+              </Text>
               {row.badge && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{row.badge}</Text>
                 </View>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            {!row.destructive && <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
           </Pressable>
         ))}
 

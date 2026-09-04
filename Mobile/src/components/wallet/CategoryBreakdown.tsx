@@ -24,10 +24,12 @@ import { getCategoryColor } from '@/theme/categoryColor';
 import { getBudgetStatusColor } from '@/utils/goalStatus';
 import { getWeekRange, getMonthRange, getYearRange, toDateOnly } from '@/utils/reportPeriods';
 import { groupRecordsByDate } from '@/utils/dateGroup';
+import { formatCurrency } from '@/utils/currency';
 import IconSelector from '@/components/IconSelector';
 import Skeleton from '@/components/Skeleton';
 import PressableScale from '@/components/PressableScale';
 import InfinityToggle from '@/components/InfinityToggle';
+import CurrencyText from '@/components/CurrencyText';
 import PeriodNavigator from '@/components/report/PeriodNavigator';
 import DateRangeCalendarModal from '@/components/report/DateRangeCalendarModal';
 
@@ -62,10 +64,6 @@ const MAX_SLICES = 8;
 const RADIUS = 60;
 const STROKE = 18;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-function formatMoney(amount: number): string {
-  return amount.toFixed(2);
-}
 
 type Row = IWalletSummaryCategory & { color: string };
 
@@ -215,14 +213,20 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
             <Text style={styles.drillHeroLabel}>
               {selectedCategory.name} · {PERIOD_LABELS[periodType]}
             </Text>
-            <Text style={styles.drillHeroAmount}>{formatMoney(selectedCategory.amount)}</Text>
+            <CurrencyText
+              amount={selectedCategory.amount}
+              currency={wallet.currency}
+              containerStyle={styles.drillHeroAmountRow}
+              mainStyle={styles.drillHeroAmount}
+              decimalStyle={styles.drillHeroAmountDecimal}
+            />
             <Text style={styles.drillHeroTrend}>
-              {trendDiff === 0 ? 'flat' : `${trendDiff > 0 ? '↑' : '↓'} ${formatMoney(Math.abs(trendDiff))}`} vs {PREVIOUS_NOUN[periodType]}
+              {trendDiff === 0 ? 'flat' : `${trendDiff > 0 ? '↑' : '↓'} ${formatCurrency(Math.abs(trendDiff), wallet.currency)}`} vs {PREVIOUS_NOUN[periodType]}
             </Text>
             {selectedGoal && (
               <Pressable style={styles.drillGoalBadge} onPress={() => onEditGoal(selectedGoal)}>
                 <Text style={styles.drillGoalBadgeText}>
-                  Goal: {Math.round(Math.min(100, selectedGoal.progress.percent))}% of {formatMoney(Number(selectedGoal.targetAmount))}
+                  Goal: {Math.round(Math.min(100, selectedGoal.progress.percent))}% of {formatCurrency(Number(selectedGoal.targetAmount), wallet.currency)}
                 </Text>
               </Pressable>
             )}
@@ -259,7 +263,7 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
                           </View>
                           <Text style={[styles.txnAmount, breakdownType === 'expense' ? styles.txnExpense : styles.txnIncome]}>
                             {breakdownType === 'expense' ? '-' : '+'}
-                            {formatMoney(Number(record.price))}
+                            {formatCurrency(Number(record.price), wallet.currency)}
                           </Text>
                         </PressableScale>
                       </Swipeable>
@@ -379,12 +383,25 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
                 </Svg>
                 <View style={styles.donutCenter} pointerEvents="none">
                   <Text style={styles.donutCenterLabel}>Total {breakdownType === 'expense' ? 'Expenses' : 'Income'}</Text>
-                  <Text style={styles.donutCenterFigure}>{formatMoney(breakdown.total)}</Text>
+                  <CurrencyText
+                    amount={breakdown.total}
+                    currency={wallet.currency}
+                    containerStyle={styles.donutCenterFigureRow}
+                    mainStyle={styles.donutCenterFigure}
+                    decimalStyle={styles.donutCenterFigureDecimal}
+                  />
                 </View>
               </View>
 
               <View style={{ gap: 8 }}>
+                {/* Semantic direction color — every row here is already the
+                    same breakdownType (the toggle above filters to one side
+                    at a time), so the amount and its share-of-total bar read
+                    as rose for expenses / emerald for income, while the icon
+                    dot keeps its per-category identity color so categories
+                    stay visually distinguishable from each other. */}
                 {breakdown.rows.map((row) => {
+                  const directionColor = breakdownType === ECategoryType.EXPENSE ? colors.danger : colors.success;
                   const percent = breakdown.total > 0 ? (row.amount / breakdown.total) * 100 : 0;
                   const change =
                     row.previousAmount > 0
@@ -412,13 +429,13 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
                           <Text style={styles.catPercent}>{percent.toFixed(1)}% of total</Text>
                         </View>
                         <View style={styles.catAmounts}>
-                          <Text style={styles.catAmount}>{formatMoney(row.amount)}</Text>
+                          <Text style={[styles.catAmount, { color: directionColor }]}>{formatCurrency(row.amount, wallet.currency)}</Text>
                           <Text style={[styles.catTrend, { color: isBad ? colors.danger : colors.success }]}>{trendLabel}</Text>
                         </View>
                         {row.categoryId >= 0 && <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />}
                       </View>
                       <View style={styles.catTrack}>
-                        <View style={[styles.catFill, { width: `${percent}%`, backgroundColor: row.color }]} />
+                        <View style={[styles.catFill, { width: `${percent}%`, backgroundColor: directionColor }]} />
                       </View>
                       {rowGoal && (
                         <Pressable
@@ -430,7 +447,7 @@ export default function CategoryBreakdown({ wallet, goals, onEditRecord, onDelet
                         >
                           <Ionicons name="flag" size={11} color={getBudgetStatusColor(rowGoal.progress.percent)} />
                           <Text style={[styles.goalBadgeText, { color: getBudgetStatusColor(rowGoal.progress.percent) }]}>
-                            {Math.round(Math.min(100, rowGoal.progress.percent))}% of {formatMoney(Number(rowGoal.targetAmount))} goal
+                            {Math.round(Math.min(100, rowGoal.progress.percent))}% of {formatCurrency(Number(rowGoal.targetAmount), wallet.currency)} goal
                           </Text>
                         </Pressable>
                       )}
@@ -570,16 +587,23 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '600',
   },
+  donutCenterFigureRow: {
+    marginTop: 2,
+  },
   donutCenterFigure: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 2,
+  },
+  donutCenterFigureDecimal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
   },
   catRow: {
     backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: spacing.md,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
     gap: spacing.sm,
     marginBottom: spacing.sm,
     ...shadows.card,
@@ -653,11 +677,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: 'rgba(255,255,255,0.85)',
   },
+  drillHeroAmountRow: {
+    marginTop: 4,
+  },
   drillHeroAmount: {
     fontSize: 24,
     fontWeight: '800',
     color: '#fff',
-    marginTop: 4,
+  },
+  drillHeroAmountDecimal: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.65)',
   },
   drillHeroTrend: {
     fontSize: 11,
@@ -677,7 +708,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: colors.card,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     ...shadows.card,

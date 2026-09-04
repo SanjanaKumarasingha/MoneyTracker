@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -11,9 +11,9 @@ import { fetchWallets } from '@/apis/wallet';
 import { fetchGoalsByWallet } from '@/apis/goal';
 import { profile } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
-import { useAppDispatch } from '@/hooks';
+import { useAppDispatch, useAppSelector } from '@/hooks';
 import { updateFavWallet } from '@/store/walletSlice';
-import { IGoalWithProgress, IUserInfo, IWalletRecordWithCategory } from '@/types';
+import { IGoalWithProgress, IRecordWithCategory, IUserInfo, IWalletRecordWithCategory } from '@/types';
 import { EGoalType } from '@/types/goal-type.enum';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -24,8 +24,12 @@ import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
+import CurrencyText from '@/components/CurrencyText';
+import IconSelector from '@/components/IconSelector';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import TransferModal from '@/components/wallet/TransferModal';
+import RecordFormModal from '@/components/record/RecordFormModal';
+import { formatCurrency } from '@/utils/currency';
 
 // Mirrors the balance calc used throughout the app (Client/src/pages/WalletPage.tsx):
 // income records add to the balance, expense records subtract.
@@ -42,14 +46,6 @@ function getWalletBalance(wallet: IWalletRecordWithCategory): number {
   }, 0);
 }
 
-function formatCurrency(amount: number, currency = 'USD'): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
-}
-
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -57,12 +53,13 @@ const MONTH_NAMES = [
 
 // One gradient per card position, cycling if there are more wallets than
 // colors — a fixed, recognizable "which wallet is this" cue at a glance,
-// the same way a real bank's cards each look different.
+// the same way a real bank's cards each look different. Deep, sophisticated
+// tones (Blue/Emerald/Plum) rather than candy-bright ones, so each still
+// reads as a distinct wallet identity as a muted fintech surface.
 const CARD_GRADIENTS: [string, string][] = [
   [colors.heroFrom, colors.heroTo],
-  ['#34d399', '#047857'],
-  ['#fb923c', '#9a3412'],
-  ['#f472b6', '#9d174d'],
+  ['#059669', '#065f46'],
+  ['#9d174d', '#500724'],
 ];
 
 function greetingForHour(hour: number): string {
@@ -71,17 +68,27 @@ function greetingForHour(hour: number): string {
   return 'Good evening';
 }
 
-// Home leads with things worth glancing at (balance + trend, a wallet
-// carousel, cash flow, top spending, a goal teaser, one insight) rather than
-// a raw activity feed — that flat chronological view now lives on the
-// dedicated /transactions screen, reachable from the quick action below.
+function formatDateLabel(dateString: string): string {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// Home leads with things worth glancing at: balance + trend, a wallet
+// carousel, a single-row quick-action grid, a 5-item recent-activity feed,
+// cash flow, top spending, a goal teaser, and one insight. The full flat
+// chronological transaction list still lives on /transactions (reachable
+// via "See All" / the History quick action) — Recent Activity here is a
+// glanceable teaser, not a replacement for it.
 export default function HomeScreen() {
   const { userId } = useAuth();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const favoriteWalletId = useAppSelector((state) => state.wallet.id);
   const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [recordModalVisible, setRecordModalVisible] = useState(false);
 
   // The hero gradient bleeds under the status bar (SafeAreaView below
   // excludes the 'top' edge on purpose), so the default dark status-bar
@@ -204,10 +211,48 @@ export default function HomeScreen() {
     return savingGoals[0] ?? null;
   }, [allGoals]);
 
+  // The wallet the quick-action row's "Add" and "Stats" buttons target —
+  // whichever wallet the user was last viewing, falling back to the first
+  // one, so those actions land somewhere meaningful without asking.
+  const targetWallet = useMemo(
+    () => (wallets ?? []).find((w) => w.id === favoriteWalletId) ?? wallets?.[0],
+    [wallets, favoriteWalletId],
+  );
+
+  type ActivityItem = { record: IRecordWithCategory; currency: string };
+  const recentActivity = useMemo<ActivityItem[]>(() => {
+    const all: ActivityItem[] = [];
+    (wallets ?? []).forEach((wallet) => {
+      (wallet.records ?? []).forEach((record) => {
+        // Same guard as the balance/aggregate calcs above — skip records
+        // whose category was soft-deleted server-side.
+        if (!record.category) return;
+        all.push({ record, currency: wallet.currency });
+      });
+    });
+    return all
+      .sort((a, b) => {
+        if (a.record.date !== b.record.date) return a.record.date < b.record.date ? 1 : -1;
+        return b.record.id - a.record.id;
+      })
+      .slice(0, 5);
+  }, [wallets]);
+
   const openWallet = (walletId: number) => {
     dispatch(updateFavWallet(walletId));
     router.push(`/wallet/${walletId}`);
   };
+
+  const requireWallet = (action: () => void) => {
+    if (!wallets || wallets.length === 0) {
+      Alert.alert('No wallets yet', 'Create a wallet on Home first.');
+      return;
+    }
+    action();
+  };
+
+  const openAddRecord = () => requireWallet(() => setRecordModalVisible(true));
+  const openStats = () => requireWallet(() => openWallet(targetWallet!.id));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -228,11 +273,16 @@ export default function HomeScreen() {
             {isLoading ? (
               <Skeleton width={140} height={28} style={{ marginTop: 6, backgroundColor: 'rgba(255,255,255,0.3)' }} />
             ) : (
-              <Text style={styles.balanceFigure}>{formatCurrency(balance, currency)}</Text>
+              <CurrencyText
+                amount={balance}
+                currency={currency}
+                mainStyle={styles.balanceFigure}
+                decimalStyle={styles.balanceFigureDecimal}
+              />
             )}
           </View>
           {!isLoading && (
-            <View style={[styles.trendBadge, { backgroundColor: netThisMonth >= 0 ? 'rgba(34,197,94,0.24)' : 'rgba(244,80,107,0.24)' }]}>
+            <View style={styles.trendBadge}>
               <Ionicons name={netThisMonth >= 0 ? 'trending-up' : 'trending-down'} size={12} color="#fff" />
               <Text style={styles.trendBadgeText}>
                 {netThisMonth >= 0 ? '+' : '-'}{formatCurrency(Math.abs(netThisMonth), currency)} this month
@@ -284,7 +334,12 @@ export default function HomeScreen() {
                     <Text style={styles.walletCardName} numberOfLines={1}>{wallet.name}</Text>
                     <View style={styles.walletCardChip} />
                   </View>
-                  <Text style={styles.walletCardBalance}>{formatCurrency(getWalletBalance(wallet), wallet.currency)}</Text>
+                  <CurrencyText
+                    amount={getWalletBalance(wallet)}
+                    currency={wallet.currency}
+                    mainStyle={styles.walletCardBalance}
+                    decimalStyle={styles.walletCardBalanceDecimal}
+                  />
                   <Text style={styles.walletCardMeta}>
                     {wallet.currency} · {wallet.records?.length ?? 0} record{wallet.records?.length === 1 ? '' : 's'}
                   </Text>
@@ -299,8 +354,77 @@ export default function HomeScreen() {
           )}
         </View>
 
+        <View style={styles.actionRow}>
+          <Pressable style={styles.actionItem} onPress={() => setTransferModalVisible(true)}>
+            <View style={styles.actionCircle}>
+              <Ionicons name="swap-horizontal" size={22} color={colors.primary} />
+            </View>
+            <Text style={styles.actionLabel}>Transfer</Text>
+          </Pressable>
+          <Pressable style={styles.actionItem} onPress={openAddRecord}>
+            <View style={styles.actionCircle}>
+              <Ionicons name="add" size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.actionLabel}>Add</Text>
+          </Pressable>
+          <Pressable style={styles.actionItem} onPress={openStats}>
+            <View style={styles.actionCircle}>
+              <Ionicons name="stats-chart" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.actionLabel}>Stats</Text>
+          </Pressable>
+          <Pressable style={styles.actionItem} onPress={() => router.push('/transactions')}>
+            <View style={styles.actionCircle}>
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.actionLabel}>History</Text>
+          </Pressable>
+        </View>
+
         {!isLoading && !isError && (
           <>
+            <View style={styles.card}>
+              <View style={styles.sectionRowTight}>
+                <Text style={styles.activityTitle}>Recent Activity</Text>
+                <Pressable onPress={() => router.push('/transactions')} hitSlop={8}>
+                  <Text style={styles.seeAllLink}>See All</Text>
+                </Pressable>
+              </View>
+              {recentActivity.length === 0 ? (
+                <Text style={styles.emptyActivityText}>No recent activity yet.</Text>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {recentActivity.map(({ record, currency: recordCurrency }) => {
+                    const isExpense = record.category!.type === 'expense';
+                    const signColor = isExpense ? '#E11D48' : '#059669';
+                    const tint = getCategoryColor(record.category!.id);
+                    return (
+                      <View key={record.id} style={styles.activityRow}>
+                        <View style={[styles.activityIconBadge, { backgroundColor: `${tint}22` }]}>
+                          <IconSelector name={record.category!.icon} size={16} color={tint} />
+                        </View>
+                        <View style={styles.activityMeta}>
+                          <Text style={styles.activityName} numberOfLines={1}>
+                            {record.remarks || record.category!.name}
+                          </Text>
+                          <Text style={styles.activityDate}>{formatDateLabel(record.date)}</Text>
+                        </View>
+                        <View style={styles.activityAmountWrap}>
+                          <Text style={[styles.activitySign, { color: signColor }]}>{isExpense ? '-' : '+'}</Text>
+                          <CurrencyText
+                            amount={Number(record.price)}
+                            currency={recordCurrency}
+                            mainStyle={[styles.activityAmount, { color: signColor }]}
+                            decimalStyle={[styles.activityAmountDecimal, { color: signColor }]}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
             <View style={styles.card}>
               <View style={styles.sectionRowTight}>
                 <Text style={styles.sectionTitle}>Cash Flow</Text>
@@ -350,7 +474,9 @@ export default function HomeScreen() {
                         ]}
                       />
                     </View>
-                    <Text style={styles.catMiniAmount}>{cat.amount.toFixed(0)}</Text>
+                    <Text style={styles.catMiniAmount} numberOfLines={1} adjustsFontSizeToFit>
+                      {formatCurrency(cat.amount, currency)}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -412,29 +538,6 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-
-        <View style={styles.quickActions}>
-          <Pressable style={styles.qaBtn} onPress={() => setWalletModalVisible(true)}>
-            <View style={styles.qaIcon}>
-              <Ionicons name="wallet-outline" size={16} color={colors.primary} />
-            </View>
-            <Text style={styles.qaText}>New Wallet</Text>
-          </Pressable>
-          {(wallets?.length ?? 0) >= 2 && (
-            <Pressable style={styles.qaBtn} onPress={() => setTransferModalVisible(true)}>
-              <View style={styles.qaIcon}>
-                <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
-              </View>
-              <Text style={styles.qaText}>Transfer</Text>
-            </Pressable>
-          )}
-          <Pressable style={[styles.qaBtn, styles.qaBtnHighlight]} onPress={() => router.push('/transactions')}>
-            <View style={[styles.qaIcon, styles.qaIconHighlight]}>
-              <Ionicons name="list" size={16} color="#fff" />
-            </View>
-            <Text style={[styles.qaText, styles.qaTextHighlight]}>All Transactions</Text>
-          </Pressable>
-        </View>
       </ScrollView>
 
       <WalletFormModal
@@ -446,6 +549,13 @@ export default function HomeScreen() {
       <TransferModal
         visible={transferModalVisible}
         onClose={() => setTransferModalVisible(false)}
+      />
+      <RecordFormModal
+        visible={recordModalVisible}
+        wallet={targetWallet}
+        record={null}
+        category={null}
+        onClose={() => setRecordModalVisible(false)}
       />
     </SafeAreaView>
   );
@@ -460,8 +570,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: 6,
     paddingBottom: 20,
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   heroTop: {
     flexDirection: 'row',
@@ -494,10 +604,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 3,
   },
+  balanceFigureDecimal: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  // A neutral translucent "glass" pill rather than a green/red-tinted one —
+  // the trending-up/down icon already carries the direction, so the pill
+  // itself stays a consistent brand-glass surface either way.
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
@@ -593,6 +712,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: -0.3,
   },
+  walletCardBalanceDecimal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.65)',
+  },
   walletCardMeta: {
     fontSize: 10,
     fontWeight: '700',
@@ -687,7 +811,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: colors.text,
-    width: 54,
+    width: 78,
     textAlign: 'right',
     flexShrink: 0,
   },
@@ -735,39 +859,87 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  quickActions: {
+  // Single-row, 4-icon quick-action grid — soft ice-blue circles with deep
+  // royal-blue icons, replacing the old stacked/conditional button row.
+  actionRow: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
   },
-  qaBtn: {
+  actionItem: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radius.xxl,
-    paddingVertical: 11,
     alignItems: 'center',
     gap: 6,
-    ...shadows.card,
   },
-  qaBtnHighlight: {
-    backgroundColor: colors.primary,
-  },
-  qaIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: colors.primarySoft,
+  actionCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  qaIconHighlight: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
   },
-  qaText: {
-    fontSize: 10,
+  activityTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  seeAllLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  emptyActivityText: {
+    fontSize: 12.5,
+    color: colors.textMuted,
+    paddingVertical: 4,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  activityIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  activityMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  activityName: {
+    fontSize: 13,
     fontWeight: '700',
     color: colors.text,
   },
-  qaTextHighlight: {
-    color: '#fff',
+  activityDate: {
+    fontSize: 10.5,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  activityAmountWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexShrink: 0,
+  },
+  activitySign: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  activityAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  activityAmountDecimal: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

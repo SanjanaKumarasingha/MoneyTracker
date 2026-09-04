@@ -20,6 +20,8 @@ import { useAppDispatch } from '@/hooks';
 import { setIsSignedIn } from '@/store/userSlice';
 import { ApiError, IUser, LoginResponse } from '@/types';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
+import { shadows } from '@/theme/shadows';
 import PasswordInput from '@/components/PasswordInput';
 
 type FieldErrors = {
@@ -183,15 +185,9 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: radius.xxl,
     padding: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    ...shadows.card,
   },
   title: {
     fontSize: 24,
@@ -223,14 +219,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
     fontSize: 15,
     color: colors.text,
-    backgroundColor: colors.background,
+    backgroundColor: colors.inputBg,
   },
   inputError: {
     borderColor: colors.danger,

@@ -19,6 +19,7 @@ import { createWallet, deleteWallet, updateWallet } from '@/apis/wallet';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IWallet } from '@/types';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import CurrencyPicker from '@/components/CurrencyPicker';
 import { showToast } from '@/components/Toast';
 
@@ -212,13 +213,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 12,
     fontSize: 15,
     color: colors.text,
+    backgroundColor: colors.inputBg,
   },
   actions: {
     flexDirection: 'row',

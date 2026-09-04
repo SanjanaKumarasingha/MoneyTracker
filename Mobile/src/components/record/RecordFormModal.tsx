@@ -34,6 +34,7 @@ import {
   IWalletRecordWithCategory,
 } from '@/types';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import IconSelector from '@/components/IconSelector';
 import Calculator from '@/components/calculator/Calculator';
 import { showToast } from '@/components/Toast';
@@ -606,17 +607,18 @@ const styles = StyleSheet.create({
   },
   typeToggle: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 10,
+    height: 52,
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.inputBorder,
     overflow: 'hidden',
     marginBottom: 12,
   },
   typeToggleOption: {
     flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   typeToggleOptionActive: {
     backgroundColor: colors.primary,
@@ -701,15 +703,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   walletValueBox: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 6,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    backgroundColor: colors.inputBg,
   },
   walletValue: {
     fontSize: 14,
@@ -719,7 +722,7 @@ const styles = StyleSheet.create({
   },
   walletPickerBox: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radius.xxl,
     padding: 20,
     width: '100%',
   },
@@ -741,11 +744,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dateValueBox: {
+    height: 52,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    backgroundColor: colors.inputBg,
   },
   dateDoneButton: {
     alignSelf: 'flex-end',
@@ -781,13 +786,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   remarksInput: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 10,
     fontSize: 14,
     color: colors.text,
+    backgroundColor: colors.inputBg,
     marginTop: 12,
   },
   remarkChips: {
@@ -851,7 +857,7 @@ const styles = StyleSheet.create({
   },
   confirmBox: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: radius.xxl,
     padding: 20,
     width: '100%',
   },

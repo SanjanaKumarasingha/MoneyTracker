@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -30,6 +31,7 @@ import {
 import { EGoalType } from '@/types/goal-type.enum';
 import { EGoalPeriodType } from '@/types/goal-period-type.enum';
 import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { getCategoryColor } from '@/theme/categoryColor';
 import IconSelector from '@/components/IconSelector';
 import { showToast } from '@/components/Toast';
@@ -79,6 +81,7 @@ export default function GoalFormModal({
 }: GoalFormModalProps) {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const isEditing = !!goal;
 
   const [name, setName] = useState('');
@@ -214,9 +217,12 @@ export default function GoalFormModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: Math.max(90, insets.bottom + 100) }]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.headerRow}>
             <Text style={styles.title}>{isEditing ? 'Edit goal' : 'New goal'}</Text>
             <Pressable onPress={onClose} hitSlop={8}>
@@ -392,33 +398,42 @@ export default function GoalFormModal({
             </>
           )}
 
-          <View style={styles.actionsRow}>
-            {isEditing && (
-              <Pressable
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-                onPress={handleDelete}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? (
-                  <ActivityIndicator color={colors.danger} size="small" />
-                ) : (
-                  <Text style={styles.secondaryButtonText}>Delete</Text>
-                )}
-              </Pressable>
-            )}
+          {isEditing && (
             <Pressable
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-              onPress={handleSave}
-              disabled={isSaving}
+              style={styles.deleteLink}
+              onPress={handleDelete}
+              disabled={deleteMutation.isPending}
+              hitSlop={8}
             >
-              {isSaving ? (
-                <ActivityIndicator color="#fff" size="small" />
+              {deleteMutation.isPending ? (
+                <ActivityIndicator color={colors.danger} size="small" />
               ) : (
-                <Text style={styles.primaryButtonText}>{isEditing ? 'Save' : 'Create'}</Text>
+                <Text style={styles.deleteLinkText}>Delete goal</Text>
               )}
             </Pressable>
-          </View>
+          )}
         </ScrollView>
+
+        {/* Thumb-reach CTA: the primary action anchored to the bottom safe
+            area rather than scrolled inline with the form, so it's always
+            one tap away regardless of how far the form has scrolled. */}
+        <View style={styles.stickyFooter} pointerEvents="box-none">
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryButton,
+              { marginBottom: insets.bottom + 8 },
+              pressed && styles.primaryButtonPressed,
+            ]}
+            onPress={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>{isEditing ? 'Save' : 'Create'}</Text>
+            )}
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -452,10 +467,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   label: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textMuted,
-    marginTop: 14,
+    marginTop: 8,
     marginBottom: 6,
   },
   scopeReadoutRow: {
@@ -478,13 +493,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   input: {
+    height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 12,
     fontSize: 15,
     color: colors.text,
+    backgroundColor: colors.inputBg,
   },
   slider: {
     marginTop: 4,
@@ -497,16 +513,17 @@ const styles = StyleSheet.create({
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 10,
+    height: 52,
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.inputBorder,
     overflow: 'hidden',
   },
   segmentedOption: {
     flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentedOptionActive: {
     backgroundColor: colors.primary,
@@ -532,9 +549,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: colors.card,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.inputBorder,
   },
   categoryChipActive: {
     backgroundColor: colors.primary,
@@ -561,9 +578,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: colors.card,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.inputBorder,
   },
   periodChipActive: {
     backgroundColor: colors.primary,
@@ -578,50 +595,54 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   dateValueBox: {
+    height: 52,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: colors.inputBg,
   },
   dateValueText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
+  deleteLink: {
+    alignSelf: 'center',
     marginTop: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  secondaryButtonPressed: {
-    backgroundColor: colors.border,
-  },
-  secondaryButtonText: {
+  deleteLinkText: {
     color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
   },
+  // Full-width, anchored to the bottom safe area rather than scrolled
+  // inline — the primary CTA should always be one thumb-reach away.
+  stickyFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 12,
+    backgroundColor: colors.background,
+  },
   primaryButton: {
+    height: 52,
+    marginHorizontal: 16,
     backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    minWidth: 90,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonPressed: {
     backgroundColor: colors.primaryDark,
   },
   primaryButtonText: {
     color: '#fff',
+    fontSize: 15,
     fontWeight: '700',
   },
 });
