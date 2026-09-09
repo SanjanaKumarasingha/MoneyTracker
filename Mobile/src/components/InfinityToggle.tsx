@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   labelsRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
   },
   labelWrap: {

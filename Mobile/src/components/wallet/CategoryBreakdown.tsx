@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, G } from 'react-native-svg';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import {
@@ -465,7 +466,7 @@ export default function CategoryBreakdown({ wallets, goals, onEditRecord, onDele
                   return (
                     <Pressable key={row.categoryId} style={styles.catRow} onPress={() => openCategory(row.categoryId)}>
                       <View style={styles.catRowTop}>
-                        <View style={[styles.catDot, { backgroundColor: `${row.color}22` }]}>
+                        <View style={[styles.catDot, { backgroundColor: `${row.color}33` }]}>
                           {row.icon ? (
                             <IconSelector name={row.icon} size={13} color={row.color} />
                           ) : (
@@ -477,7 +478,7 @@ export default function CategoryBreakdown({ wallets, goals, onEditRecord, onDele
                           <Text style={styles.catPercent}>{percent.toFixed(1)}% of total</Text>
                         </View>
                         <View style={styles.catAmounts}>
-                          <Text style={[styles.catAmount, { color: directionColor }]}>{formatCurrency(row.amount, currency)}</Text>
+                          <Text style={styles.catAmount}>{formatCurrency(row.amount, currency)}</Text>
                           <View style={[styles.catTrendTag, { backgroundColor: `${trendColor}1A` }]}>
                             <Text style={[styles.catTrendText, { color: trendColor }]}>{trendLabel}</Text>
                           </View>
@@ -485,7 +486,14 @@ export default function CategoryBreakdown({ wallets, goals, onEditRecord, onDele
                         {row.categoryId >= 0 && <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />}
                       </View>
                       <View style={styles.catTrack}>
-                        <View style={[styles.catFill, { width: `${percent}%`, backgroundColor: directionColor }]} />
+                        <View style={[styles.catFillWrap, { width: `${percent}%` }]}>
+                          <LinearGradient
+                            colors={[row.color, `${directionColor}A6`]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        </View>
                       </View>
                       {rowGoal && (
                         <Pressable
@@ -698,9 +706,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     overflow: 'hidden',
   },
-  catFill: {
+  catFillWrap: {
     height: '100%',
     borderRadius: 999,
+    overflow: 'hidden',
   },
   backRow: {
     flexDirection: 'row',

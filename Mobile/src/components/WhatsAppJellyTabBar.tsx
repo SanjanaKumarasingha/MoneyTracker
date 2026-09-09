@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -26,7 +26,7 @@ const ICONS: Record<string, IconPair> = {
 };
 
 const BAR_HEIGHT = 56;
-const PILL_HEIGHT = 40;
+const PILL_HEIGHT = 48;
 const PILL_TOP = (BAR_HEIGHT - PILL_HEIGHT) / 2;
 const SPRING_CONFIG = { stiffness: 160, damping: 18, mass: 0.8 };
 
@@ -170,7 +170,8 @@ const BAR_RADIUS = 28;
 
 const styles = StyleSheet.create({
   outerWrap: {
-    paddingHorizontal: 20,
+    paddingLeft: 20,
+    paddingRight: 19,
   },
   // Shadow lives on this wrapper (not the clipped/blurred bar below it) —
   // a shadow on a view with overflow:hidden gets clipped away along with
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: PILL_TOP,
     height: PILL_HEIGHT,
-    borderRadius: 20,
+    borderRadius: BAR_RADIUS,
     backgroundColor: '#EFF6FF',
   },
   tab: {

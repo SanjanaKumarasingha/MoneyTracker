@@ -43,7 +43,7 @@ export default function PercentRing({ percent, color, size = 42 }: PercentRingPr
 
 const styles = StyleSheet.create({
   ringLabelWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
