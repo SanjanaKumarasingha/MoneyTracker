@@ -22,11 +22,11 @@ import { shadows } from '@/theme/shadows';
 import { getCategoryColor } from '@/theme/categoryColor';
 import Skeleton from '@/components/Skeleton';
 import ErrorState from '@/components/ErrorState';
-import PressableScale from '@/components/PressableScale';
 import PercentRing from '@/components/PercentRing';
 import CurrencyText from '@/components/CurrencyText';
 import IconSelector from '@/components/IconSelector';
 import BrandLogo from '@/components/BrandLogo';
+import GlassWalletCarousel from '@/components/wallet/GlassWalletCarousel';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import TransferModal from '@/components/wallet/TransferModal';
 import RecordFormModal from '@/components/record/RecordFormModal';
@@ -50,17 +50,6 @@ function getWalletBalance(wallet: IWalletRecordWithCategory): number {
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-// One gradient per card position, cycling if there are more wallets than
-// colors — a fixed, recognizable "which wallet is this" cue at a glance,
-// the same way a real bank's cards each look different. Deep navy/charcoal
-// tones rather than candy-bright ones, so each still reads as a distinct
-// wallet identity as a muted fintech surface.
-const CARD_GRADIENTS: [string, string][] = [
-  [colors.heroFrom, colors.heroTo],
-  ['#1E3A8A', '#172554'],
-  ['#1E293B', '#0F172A'],
 ];
 
 function greetingForHour(hour: number): string {
@@ -319,38 +308,11 @@ export default function HomeScreen() {
               style={styles.walletScroller}
               contentContainerStyle={styles.walletScrollerContent}
             >
-              {(wallets ?? []).map((wallet, index) => (
-                <PressableScale
-                  key={wallet.id}
-                  style={styles.walletCard}
-                  onPress={() => openWallet(wallet.id)}
-                >
-                  <LinearGradient
-                    colors={CARD_GRADIENTS[index % CARD_GRADIENTS.length]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.walletCardTop}>
-                    <Text style={styles.walletCardName} numberOfLines={1}>{wallet.name}</Text>
-                    <View style={styles.walletCardChip} />
-                  </View>
-                  <CurrencyText
-                    amount={getWalletBalance(wallet)}
-                    currency={wallet.currency}
-                    mainStyle={styles.walletCardBalance}
-                    decimalStyle={styles.walletCardBalanceDecimal}
-                  />
-                  <Text style={styles.walletCardMeta}>
-                    {wallet.currency} · {wallet.records?.length ?? 0} record{wallet.records?.length === 1 ? '' : 's'}
-                  </Text>
-                </PressableScale>
-              ))}
-
-              <PressableScale style={[styles.walletCard, styles.walletCardAdd]} onPress={() => setWalletModalVisible(true)}>
-                <Ionicons name="add" size={22} color={colors.primaryDark} />
-                <Text style={styles.walletCardAddText}>Add Wallet</Text>
-              </PressableScale>
+              <GlassWalletCarousel
+                wallets={wallets ?? []}
+                onOpenWallet={openWallet}
+                onAddWallet={() => setWalletModalVisible(true)}
+              />
             </ScrollView>
           )}
         </View>
@@ -667,63 +629,6 @@ const styles = StyleSheet.create({
   walletScrollerContent: {
     paddingHorizontal: spacing.xl,
     gap: 12,
-  },
-  walletCard: {
-    width: 200,
-    height: 116,
-    borderRadius: 18,
-    padding: 14,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-  },
-  walletCardAdd: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  walletCardAddText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  walletCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  walletCardName: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#fff',
-    opacity: 0.92,
-    flexShrink: 1,
-    marginRight: 8,
-  },
-  walletCardChip: {
-    width: 24,
-    height: 17,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.32)',
-  },
-  walletCardBalance: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-  },
-  walletCardBalanceDecimal: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.65)',
-  },
-  walletCardMeta: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.82)',
   },
   card: {
     backgroundColor: colors.card,

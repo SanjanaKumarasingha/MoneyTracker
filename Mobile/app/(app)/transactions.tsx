@@ -267,9 +267,9 @@ export default function TransactionsScreen() {
               {group.records.map((entry, index) => {
                 const isExpense = entry.category?.type === 'expense';
                 const isTransfer = !!entry.isTransfer;
-                const cardBg = isTransfer ? '#1E293B' : isExpense ? '#FFF1F2' : '#ECFDF5';
-                const iconBg = isTransfer ? 'rgba(255,255,255,0.16)' : isExpense ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
-                const accentColor = isTransfer ? '#fff' : isExpense ? '#DC2626' : '#16A34A';
+                const cardBg = isTransfer ? '#F1F5F9' : isExpense ? '#FFF1F2' : '#ECFDF5';
+                const iconBg = isTransfer ? 'rgba(71,85,105,0.15)' : isExpense ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
+                const accentColor = isTransfer ? '#475569' : isExpense ? '#DC2626' : '#16A34A';
 
                 return (
                   <Animated.View key={entry.id} entering={FadeInDown.delay(index * 20)} layout={LinearTransition.springify()}>
@@ -287,11 +287,11 @@ export default function TransactionsScreen() {
                           {entry.category && <IconSelector name={entry.category.icon} size={16} color={accentColor} />}
                         </View>
                         <View style={styles.txnMeta}>
-                          <Text style={[styles.txnName, isTransfer && styles.txnNameOnDark]} numberOfLines={1}>
+                          <Text style={styles.txnName} numberOfLines={1}>
                             {entry.remarks || entry.category?.name || 'Deleted category'}
                           </Text>
                           <View style={styles.txnSubRow}>
-                            <Text style={[styles.txnSub, isTransfer && styles.txnSubOnDark]} numberOfLines={1}>
+                            <Text style={styles.txnSub} numberOfLines={1}>
                               {formatDate(entry.date)}
                             </Text>
                             {isTransfer && (
@@ -524,9 +524,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  txnNameOnDark: {
-    color: '#fff',
-  },
   txnSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -537,9 +534,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     flexShrink: 1,
-  },
-  txnSubOnDark: {
-    color: 'rgba(255,255,255,0.65)',
   },
   walletTag: {
     backgroundColor: colors.primarySoft,
@@ -555,7 +549,7 @@ const styles = StyleSheet.create({
     maxWidth: 90,
   },
   transferBadge: {
-    backgroundColor: 'rgba(37,99,235,0.28)',
+    backgroundColor: colors.primarySoft,
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -564,7 +558,7 @@ const styles = StyleSheet.create({
   transferBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#93C5FD',
+    color: colors.primaryDark,
   },
   txnAmount: {
     fontSize: 14,
