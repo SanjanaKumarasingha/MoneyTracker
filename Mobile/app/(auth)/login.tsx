@@ -21,7 +21,8 @@ import { setStoredToken } from '@/lib/secureStorage';
 import { useAppDispatch } from '@/hooks';
 import { setIsSignedIn } from '@/store/userSlice';
 import { ApiError, IUser, LoginResponse } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import PasswordInput from '@/components/PasswordInput';
@@ -40,6 +41,8 @@ function extractErrorMessage(err: AxiosError<ApiError>): string {
 }
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -209,7 +212,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -338,4 +342,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
-});
+  });
+}

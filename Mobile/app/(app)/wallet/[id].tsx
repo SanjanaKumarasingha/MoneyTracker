@@ -27,7 +27,8 @@ import {
   IRecordWithCategory,
   IWalletRecordWithCategory,
 } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -92,6 +93,8 @@ export default function WalletDetailScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const {
     data: wallets,
@@ -376,7 +379,8 @@ export default function WalletDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -462,4 +466,5 @@ const styles = StyleSheet.create({
   fabPressed: {
     backgroundColor: colors.primaryDark,
   },
-});
+  });
+}

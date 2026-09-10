@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import {
@@ -80,6 +81,8 @@ function isWeekStrictlyFuture(year: number, week: number): boolean {
 }
 
 export default function PeriodNavigator({ periodType, value, onChange, minYear, maxYear }: PeriodNavigatorProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [browseYear, setBrowseYear] = useState(value.getUTCFullYear());
 
@@ -225,7 +228,8 @@ export default function PeriodNavigator({ periodType, value, onChange, minYear, 
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,4 +338,5 @@ const styles = StyleSheet.create({
   weekRowTextActive: {
     color: '#fff',
   },
-});
+  });
+}

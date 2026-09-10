@@ -30,7 +30,8 @@ import {
 } from '@/types';
 import { EGoalType } from '@/types/goal-type.enum';
 import { EGoalPeriodType } from '@/types/goal-period-type.enum';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { getCategoryColor } from '@/theme/categoryColor';
 import IconSelector from '@/components/IconSelector';
@@ -80,6 +81,8 @@ export default function GoalFormModal({
   onClose,
 }: GoalFormModalProps) {
   const { userId } = useAuth();
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const isEditing = !!goal;
@@ -359,7 +362,7 @@ export default function GoalFormModal({
               value={startDate}
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              themeVariant="light"
+              themeVariant={scheme}
               onChange={(event, selectedDate) => {
                 setShowStartPicker(Platform.OS === 'ios');
                 if (event.type === 'dismissed') {
@@ -383,7 +386,7 @@ export default function GoalFormModal({
                   value={endDate}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  themeVariant="light"
+                  themeVariant={scheme}
                   onChange={(event, selectedDate) => {
                     setShowEndPicker(Platform.OS === 'ios');
                     if (event.type === 'dismissed') {
@@ -439,7 +442,8 @@ export default function GoalFormModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -645,4 +649,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-});
+  });
+}

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -26,6 +27,8 @@ const VISIBLE_MS = 2600;
 // Mount once near the root (app/_layout.tsx). Reuses Skeleton.tsx's
 // useSharedValue/useAnimatedStyle/withTiming shape for the slide-in/fade.
 export default function Toast() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastState>(null);
   const progress = useSharedValue(0);
@@ -73,27 +76,29 @@ export default function Toast() {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: spacing.xl,
-    right: spacing.xl,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    zIndex: 999,
-    ...shadows.raised,
-  },
-  error: {
-    backgroundColor: colors.danger,
-  },
-  success: {
-    backgroundColor: colors.success,
-  },
-  text: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+    wrap: {
+      position: 'absolute',
+      left: spacing.xl,
+      right: spacing.xl,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      zIndex: 999,
+      ...shadows.raised,
+    },
+    error: {
+      backgroundColor: colors.danger,
+    },
+    success: {
+      backgroundColor: colors.success,
+    },
+    text: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 14,
+      textAlign: 'center',
+    },
+  });
+}

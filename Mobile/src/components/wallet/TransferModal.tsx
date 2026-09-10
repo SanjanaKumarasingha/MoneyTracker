@@ -21,7 +21,8 @@ import { fetchWallets } from '@/apis/wallet';
 import { transferBetweenWallets } from '@/apis/transfer';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IWalletRecordWithCategory } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import { formatCurrency } from '@/utils/currency';
@@ -59,6 +60,8 @@ export default function TransferModal({
   defaultFromWalletId,
 }: TransferModalProps) {
   const { userId } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
@@ -251,6 +254,9 @@ function WalletOption({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       style={[styles.walletCard, selected && styles.walletCardSelected]}
@@ -293,7 +299,8 @@ function WalletOption({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -472,4 +479,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-});
+  });
+}

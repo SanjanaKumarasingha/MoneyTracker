@@ -20,7 +20,8 @@ import { fetchCategories, updateCategory } from '@/apis/category';
 import { profile, updateCategoryOrder } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ECategoryType, ICategory, IUserInfo } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -39,6 +40,8 @@ import ErrorState from '@/components/ErrorState';
 export default function CategoriesScreen() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'Create' | 'Edit'>('Create');
@@ -259,7 +262,8 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -338,4 +342,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
-});
+  });
+}

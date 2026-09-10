@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,8 @@ import * as Haptics from 'expo-haptics';
 import { createWallet, deleteWallet, updateWallet } from '@/apis/wallet';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IWallet } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import CurrencyPicker from '@/components/CurrencyPicker';
 import { showToast } from '@/components/Toast';
@@ -40,6 +41,8 @@ export default function WalletFormModal({
   onClose,
 }: WalletFormModalProps) {
   const { userId } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
 
   const [name, setName] = useState(wallet?.name ?? '');
@@ -185,7 +188,8 @@ export default function WalletFormModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -275,4 +279,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-});
+  });
+}

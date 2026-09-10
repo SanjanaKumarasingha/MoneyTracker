@@ -17,7 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/provider/AuthProvider';
 import { getStoredPreference, setStoredPreference } from '@/lib/secureStorage';
 import { IWalletRecordWithCategory } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import CurrencyText from '@/components/CurrencyText';
 import PressableScale from '@/components/PressableScale';
 
@@ -32,11 +33,23 @@ const REORDER_SPRING = { damping: 16, stiffness: 150 };
 // old solid-gradient wallet cards used (CARD_GRADIENTS), just frosted-glass
 // tints instead. The first two entries are the cyan/rose pair from the
 // design spec; the rest extend the same family for a 3rd/4th+ wallet.
-const GLASS_TINTS = [
-  { bg: 'rgba(207, 250, 254, 0.65)', border: 'rgba(6, 182, 212, 0.25)', accent: '#0E7490' },
-  { bg: 'rgba(255, 228, 230, 0.65)', border: 'rgba(244, 63, 94, 0.25)', accent: '#BE123C' },
-  { bg: 'rgba(237, 233, 254, 0.65)', border: 'rgba(124, 58, 237, 0.25)', accent: '#6D28D9' },
-  { bg: 'rgba(254, 249, 195, 0.65)', border: 'rgba(217, 119, 6, 0.25)', accent: '#B45309' },
+// `titleColor` is the fixed slate-800 the spec calls for in light mode, but
+// a light glass tint on a light card reads fine with dark text — on a dark
+// background the same light glass panel needs light text instead, so dark
+// mode gets its own darker-glass variant with light text, not just a
+// palette swap.
+const LIGHT_GLASS_TINTS = [
+  { bg: 'rgba(207, 250, 254, 0.65)', border: 'rgba(6, 182, 212, 0.25)', accent: '#0E7490', titleColor: '#1E293B' },
+  { bg: 'rgba(255, 228, 230, 0.65)', border: 'rgba(244, 63, 94, 0.25)', accent: '#BE123C', titleColor: '#1E293B' },
+  { bg: 'rgba(237, 233, 254, 0.65)', border: 'rgba(124, 58, 237, 0.25)', accent: '#6D28D9', titleColor: '#1E293B' },
+  { bg: 'rgba(254, 249, 195, 0.65)', border: 'rgba(217, 119, 6, 0.25)', accent: '#B45309', titleColor: '#1E293B' },
+] as const;
+
+const DARK_GLASS_TINTS = [
+  { bg: 'rgba(8, 51, 68, 0.65)', border: 'rgba(34, 211, 238, 0.3)', accent: '#67E8F9', titleColor: '#F1F5F9' },
+  { bg: 'rgba(76, 5, 25, 0.55)', border: 'rgba(251, 113, 133, 0.3)', accent: '#FDA4AF', titleColor: '#F1F5F9' },
+  { bg: 'rgba(46, 16, 101, 0.55)', border: 'rgba(167, 139, 250, 0.3)', accent: '#C4B5FD', titleColor: '#F1F5F9' },
+  { bg: 'rgba(66, 32, 6, 0.55)', border: 'rgba(251, 191, 36, 0.3)', accent: '#FCD34D', titleColor: '#F1F5F9' },
 ] as const;
 
 // Soft prismatic ring used behind whichever card is currently being
@@ -144,6 +157,8 @@ type GlassWalletCarouselProps = {
 // user.categoryOrder — see src/lib/secureStorage.ts's getStoredPreference).
 export default function GlassWalletCarousel({ wallets, onOpenWallet, onAddWallet }: GlassWalletCarouselProps) {
   const { userId } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [orderIds, setOrderIds] = useState<number[]>(() => wallets.map((w) => w.id));
   const hydratedRef = useRef(false);
 
@@ -239,11 +254,14 @@ type GlassWalletCardProps = {
 
 function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, onOpen, onPickup, onDragEnd }: GlassWalletCardProps) {
   const id = wallet.id;
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const startSlot = useSharedValue(0);
 
-  const tint = GLASS_TINTS[tintIndex % GLASS_TINTS.length];
+  const tints = scheme === 'dark' ? DARK_GLASS_TINTS : LIGHT_GLASS_TINTS;
+  const tint = tints[tintIndex % tints.length];
   const balance = getWalletBalance(wallet);
   const { income, expense } = getWalletIncomeExpense(wallet);
   const total = income + expense;
@@ -341,7 +359,7 @@ function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, on
 
       <GestureDetector gesture={gesture}>
         <View style={styles.cardInner}>
-          <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={40} tint={scheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <View
             style={[
               StyleSheet.absoluteFill,
@@ -351,14 +369,14 @@ function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, on
 
           <View style={styles.cardContent}>
             <View style={styles.cardTop}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{wallet.name}</Text>
+              <Text style={[styles.cardTitle, { color: tint.titleColor }]} numberOfLines={1}>{wallet.name}</Text>
               <Ionicons name="reorder-two-outline" size={14} color={tint.accent} />
             </View>
 
             <CurrencyText
               amount={balance}
               currency={wallet.currency}
-              mainStyle={styles.cardBalance}
+              mainStyle={[styles.cardBalance, { color: tint.titleColor }]}
               decimalStyle={[styles.cardBalanceDecimal, { color: tint.accent }]}
             />
 
@@ -378,7 +396,8 @@ function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, on
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   row: {
     position: 'relative',
   },
@@ -418,14 +437,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
     flexShrink: 1,
     marginRight: 6,
   },
   cardBalance: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E293B',
     letterSpacing: -0.2,
   },
   cardBalanceDecimal: {
@@ -440,7 +457,10 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+    // colors.text flips near-black/near-white with theme, so appending an
+    // alpha suffix gives an always-subtle, always-visible track against
+    // either the light or dark glass tint above, with one expression.
+    backgroundColor: `${colors.text}14`,
   },
   progressFill: {
     height: '100%',
@@ -471,4 +491,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryDark,
   },
-});
+  });
+}

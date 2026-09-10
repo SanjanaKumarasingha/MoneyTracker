@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { toDateOnly } from '@/utils/reportPeriods';
@@ -24,6 +25,8 @@ export default function DateRangeCalendarModal({
   onClose,
   onConfirm,
 }: DateRangeCalendarModalProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [start, setStart] = useState<string | null>(toDateOnly(initialStart));
   const [end, setEnd] = useState<string | null>(toDateOnly(initialEnd));
 
@@ -59,7 +62,7 @@ export default function DateRangeCalendarModal({
       cursor.setDate(cursor.getDate() + 1);
     }
     return marks;
-  }, [start, end]);
+  }, [start, end, colors]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -109,7 +112,8 @@ export default function DateRangeCalendarModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -157,4 +161,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-});
+  });
+}

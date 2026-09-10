@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { currencyList } from '@/utils/currency';
 
@@ -23,6 +24,8 @@ type CurrencyPickerProps = {
 // currency selection in Client/src/components/wallet/WalletModal.tsx — RN
 // has no native <select>, so this opens a full-screen searchable list.
 export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -90,7 +93,8 @@ export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps)
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   field: {
     height: 52,
     flexDirection: 'row',
@@ -161,4 +165,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-});
+  });
+}

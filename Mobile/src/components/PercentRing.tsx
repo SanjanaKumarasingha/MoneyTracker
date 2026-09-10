@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 
 type PercentRingProps = {
   percent: number;
@@ -11,6 +11,7 @@ type PercentRingProps = {
 };
 
 export default function PercentRing({ percent, color, size = 42 }: PercentRingProps) {
+  const { colors } = useTheme();
   const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -35,7 +36,7 @@ export default function PercentRing({ percent, color, size = 42 }: PercentRingPr
         </G>
       </Svg>
       <View style={styles.ringLabelWrap} pointerEvents="none">
-        <Text style={styles.ringLabel}>{Math.round(clamped)}%</Text>
+        <Text style={[styles.ringLabel, { color: colors.text }]}>{Math.round(clamped)}%</Text>
       </View>
     </View>
   );
@@ -50,6 +51,5 @@ const styles = StyleSheet.create({
   ringLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.text,
   },
 });

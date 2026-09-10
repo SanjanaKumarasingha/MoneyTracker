@@ -1,9 +1,10 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
@@ -19,6 +20,8 @@ type ScreenHeaderProps = {
 // Owns the safe-area top inset itself so no screen using it can regress into
 // the header-under-status-bar bug that hit Plan/Report/Settings/Categories.
 export default function ScreenHeader({ title, subtitle, right, back }: ScreenHeaderProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
   if (back) {
@@ -44,38 +47,40 @@ export default function ScreenHeader({ title, subtitle, right, back }: ScreenHea
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
-  },
-  titleBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  backHeader: {
-    gap: spacing.sm,
-  },
-  backTitle: {
-    ...typography.subtitle,
-    color: colors.text,
-    flex: 1,
-    textAlign: 'center',
-  },
-  backSlot: {
-    minWidth: 24,
-    alignItems: 'flex-end',
-  },
-});
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.sm,
+    },
+    titleBlock: {
+      flex: 1,
+      minWidth: 0,
+    },
+    title: {
+      ...typography.title,
+      color: colors.text,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    backHeader: {
+      gap: spacing.sm,
+    },
+    backTitle: {
+      ...typography.subtitle,
+      color: colors.text,
+      flex: 1,
+      textAlign: 'center',
+    },
+    backSlot: {
+      minWidth: 24,
+      alignItems: 'flex-end',
+    },
+  });
+}

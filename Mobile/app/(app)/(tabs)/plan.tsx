@@ -10,7 +10,8 @@ import { fetchGoalsByWallet } from '@/apis/goal';
 import { useAuth } from '@/provider/AuthProvider';
 import { IGoalWithProgress, IWalletRecordWithCategory } from '@/types';
 import { EGoalType } from '@/types/goal-type.enum';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -53,6 +54,8 @@ function getScheduleStatus(goal: IGoalWithProgress): ScheduleStatus | null {
 export default function PlanScreen() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<IGoalWithProgress | null>(null);
@@ -350,7 +353,8 @@ export default function PlanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -607,4 +611,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-});
+  });
+}

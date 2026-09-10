@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 
 // Same TextInput used across Login/Register/Update Password, just adding a
 // show/hide eye toggle — none of the three had one before.
 export default function PasswordInput({ style, ...rest }: Omit<TextInputProps, 'secureTextEntry'>) {
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
 
   return (

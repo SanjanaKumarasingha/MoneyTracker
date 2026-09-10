@@ -33,7 +33,8 @@ import {
   IWallet,
   IWalletRecordWithCategory,
 } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import IconSelector from '@/components/IconSelector';
 import Calculator from '@/components/calculator/Calculator';
@@ -78,6 +79,8 @@ export default function RecordFormModal({
   onClose,
 }: RecordFormModalProps) {
   const { userId } = useAuth();
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
 
   const [editRecord, setEditRecord] = useState<IRecord>(record ?? emptyRecord());
@@ -434,7 +437,7 @@ export default function RecordFormModal({
             value={Number.isNaN(new Date(editRecord.date).getTime()) ? new Date() : new Date(editRecord.date)}
             mode="date"
             display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            themeVariant="light"
+            themeVariant={scheme}
             onChange={(event, selectedDate) => {
               setShowDatePicker(Platform.OS === 'ios');
               if (event.type === 'dismissed') {
@@ -578,7 +581,8 @@ export default function RecordFormModal({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -655,13 +659,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   categoryChipExpense: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
   },
   categoryChipExpenseActive: {
     backgroundColor: colors.danger,
   },
   categoryChipIncome: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
   },
   categoryChipIncomeActive: {
     backgroundColor: colors.success,
@@ -898,4 +902,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-});
+  });
+}

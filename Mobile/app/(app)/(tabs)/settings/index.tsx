@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,7 +11,8 @@ import { useAuth } from '@/provider/AuthProvider';
 import { logout } from '@/store/userSlice';
 import { clearStoredToken, getStoredPreference, setStoredPreference } from '@/lib/secureStorage';
 import { IUserInfo } from '@/types';
-import { colors } from '@/theme/colors';
+import { ThemeMode, useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -38,11 +39,19 @@ type SettingRow = {
 // toggle, Delete Account (Google Play Data Safety requirement — cascades via
 // DELETE /users/me, see Server/src/users/users.service.ts's deleteAccount),
 // and Log Out set apart at the bottom.
+const APPEARANCE_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { mode: 'light', label: 'Light', icon: 'sunny-outline' },
+  { mode: 'dark', label: 'Dark', icon: 'moon-outline' },
+  { mode: 'system', label: 'System', icon: 'phone-portrait-outline' },
+];
+
 export default function SettingsScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
@@ -192,6 +201,23 @@ export default function SettingsScreen() {
           />
         </Pressable>
 
+        <Text style={styles.groupLabel}>Appearance</Text>
+        <View style={styles.appearanceRow}>
+          {APPEARANCE_OPTIONS.map((option) => {
+            const active = mode === option.mode;
+            return (
+              <Pressable
+                key={option.mode}
+                style={[styles.appearanceOption, active && styles.appearanceOptionActive]}
+                onPress={() => setMode(option.mode)}
+              >
+                <Ionicons name={option.icon} size={18} color={active ? '#fff' : colors.textMuted} />
+                <Text style={[styles.appearanceLabel, active && styles.appearanceLabelActive]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Text style={styles.groupLabel}>About</Text>
         {aboutRows.map((row) => (
           <Pressable
@@ -239,7 +265,8 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -336,4 +363,29 @@ const styles = StyleSheet.create({
   logoutLabel: {
     color: colors.danger,
   },
-});
+  appearanceRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  appearanceOption: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    ...shadows.card,
+  },
+  appearanceOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  appearanceLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  appearanceLabelActive: {
+    color: '#fff',
+  },
+  });
+}

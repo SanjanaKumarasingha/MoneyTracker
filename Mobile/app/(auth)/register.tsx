@@ -16,7 +16,8 @@ import { AxiosError } from 'axios';
 
 import { register } from '@/apis';
 import { ApiError, IUserInfo, NewUser } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import PasswordInput from '@/components/PasswordInput';
@@ -40,6 +41,8 @@ function extractErrorMessage(err: AxiosError<ApiError>): string {
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [userInfo, setUserInfo] = useState<NewUser>({
     username: '',
@@ -232,7 +235,8 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -332,4 +336,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-});
+  });
+}

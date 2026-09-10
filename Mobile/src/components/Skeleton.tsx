@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { DimensionValue, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 
 type SkeletonProps = {
   width?: DimensionValue;
@@ -20,6 +20,7 @@ type SkeletonProps = {
 // A pulsing placeholder block, used in place of a blank full-screen spinner
 // on list/detail screens so the loading state hints at the eventual layout.
 export default function Skeleton({ width = '100%', height = 16, borderRadius = 6, style }: SkeletonProps) {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0.4);
 
   useEffect(() => {
@@ -31,17 +32,10 @@ export default function Skeleton({ width = '100%', height = 16, borderRadius = 6
   return (
     <Animated.View
       style={[
-        styles.base,
-        { width, height, borderRadius },
+        { backgroundColor: colors.border, width, height, borderRadius },
         animatedStyle,
         style,
       ]}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: colors.border,
-  },
-});

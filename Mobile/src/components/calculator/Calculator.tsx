@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 
 type CalculatorProps = {
   onKeyPress: (key: string) => void;
@@ -20,6 +21,9 @@ const KEY_ROWS: string[][] = [
 ];
 
 export default function Calculator({ onKeyPress }: CalculatorProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.grid}>
       {KEY_ROWS.flat().map((key) => (
@@ -39,32 +43,34 @@ export default function Calculator({ onKeyPress }: CalculatorProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  key: {
-    flexBasis: '22%',
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  keyWide: {
-    flexBasis: '48%',
-  },
-  keyPressed: {
-    backgroundColor: colors.border,
-  },
-  keyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    key: {
+      flexBasis: '22%',
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    keyWide: {
+      flexBasis: '48%',
+    },
+    keyPressed: {
+      backgroundColor: colors.border,
+    },
+    keyText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+    },
+  });
+}

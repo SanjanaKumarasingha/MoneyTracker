@@ -15,7 +15,8 @@ import { useAppDispatch, useAppSelector } from '@/hooks';
 import { updateFavWallet } from '@/store/walletSlice';
 import { IGoalWithProgress, IRecordWithCategory, IUserInfo, IWalletRecordWithCategory } from '@/types';
 import { EGoalType } from '@/types/goal-type.enum';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -75,6 +76,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const favoriteWalletId = useAppSelector((state) => state.wallet.id);
   const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [transferModalVisible, setTransferModalVisible] = useState(false);
@@ -83,13 +86,14 @@ export default function HomeScreen() {
   // The hero gradient bleeds under the status bar (SafeAreaView below
   // excludes the 'top' edge on purpose), so the default dark status-bar
   // icons are invisible against it — force light icons while Home has
-  // focus, and hand back dark icons (for every other screen's light
-  // background) once it doesn't.
+  // focus, and hand back the current theme's icon color (dark on light
+  // mode's light background, light on dark mode's dark background) once
+  // it doesn't.
   useFocusEffect(
     useCallback(() => {
       setStatusBarStyle('light');
-      return () => setStatusBarStyle('dark');
-    }, []),
+      return () => setStatusBarStyle(scheme === 'dark' ? 'light' : 'dark');
+    }, [scheme]),
   );
 
   const {
@@ -524,7 +528,8 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -790,7 +795,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -800,7 +805,7 @@ const styles = StyleSheet.create({
   actionCardLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#334155',
+    color: colors.text,
   },
   actionCardLabelHighlight: {
     color: '#fff',
@@ -808,7 +813,7 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.text,
   },
   seeAllLink: {
     fontSize: 12,
@@ -864,4 +869,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-});
+  });
+}

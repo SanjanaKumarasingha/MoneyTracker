@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -10,7 +10,8 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 
 type Side = 'left' | 'right';
 
@@ -41,9 +42,14 @@ export default function InfinityToggle({
   onChange,
   leftLabel,
   rightLabel,
-  leftColor = colors.danger,
-  rightColor = colors.success,
+  leftColor,
+  rightColor,
 }: InfinityToggleProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const resolvedLeftColor = leftColor ?? colors.danger;
+  const resolvedRightColor = rightColor ?? colors.success;
+
   const progress = useSharedValue(value === 'right' ? 1 : 0);
   const startProgress = useSharedValue(0);
 
@@ -90,8 +96,8 @@ export default function InfinityToggle({
     const squeezeY = interpolate(progress.value, [0, 0.5, 1], [1, 0.58, 1]);
     const squeezeX = interpolate(progress.value, [0, 0.5, 1], [1, 1.22, 1]);
     return {
-      backgroundColor: interpolateColor(progress.value, [0, 1], [leftColor, rightColor]),
-      borderColor: interpolateColor(progress.value, [0, 1], [leftColor, rightColor]),
+      backgroundColor: interpolateColor(progress.value, [0, 1], [resolvedLeftColor, resolvedRightColor]),
+      borderColor: interpolateColor(progress.value, [0, 1], [resolvedLeftColor, resolvedRightColor]),
       transform: [{ translateX }, { scaleX: squeezeX }, { scaleY: squeezeY }],
     };
   });
@@ -120,38 +126,40 @@ export default function InfinityToggle({
   );
 }
 
-const styles = StyleSheet.create({
-  track: {
-    width: WIDTH,
-    height: HEIGHT,
-    borderRadius: HEIGHT / 2,
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  blob: {
-    position: 'absolute',
-    top: PADDING,
-    left: PADDING,
-    width: BLOB_WIDTH,
-    height: HEIGHT - PADDING * 2,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    opacity: 0.55,
-  },
-  labelsRow: {
-    ...StyleSheet.absoluteFill,
-    flexDirection: 'row',
-  },
-  labelWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: colors.text,
-  },
-});
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+    track: {
+      width: WIDTH,
+      height: HEIGHT,
+      borderRadius: HEIGHT / 2,
+      backgroundColor: colors.cardSoft,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    blob: {
+      position: 'absolute',
+      top: PADDING,
+      left: PADDING,
+      width: BLOB_WIDTH,
+      height: HEIGHT - PADDING * 2,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      opacity: 0.55,
+    },
+    labelsRow: {
+      ...StyleSheet.absoluteFill,
+      flexDirection: 'row',
+    },
+    labelWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    label: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: colors.text,
+    },
+  });
+}

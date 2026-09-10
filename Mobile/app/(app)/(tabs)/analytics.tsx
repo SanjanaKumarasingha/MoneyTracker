@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,8 @@ import { useAuth } from '@/provider/AuthProvider';
 import { useAppDispatch } from '@/hooks';
 import { updateFavWallet } from '@/store/walletSlice';
 import { ICategory, IGoalWithProgress, IRecord, IRecordWithCategory, IWalletRecordWithCategory } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
@@ -35,6 +36,8 @@ export default function AnalyticsScreen() {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [walletFilter, setWalletFilter] = useState<WalletFilter>(ALL_WALLETS);
   const [recordModalVisible, setRecordModalVisible] = useState(false);
@@ -185,7 +188,8 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -236,4 +240,5 @@ const styles = StyleSheet.create({
   walletTabTextActive: {
     color: '#fff',
   },
-});
+  });
+}

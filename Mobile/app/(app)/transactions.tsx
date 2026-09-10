@@ -12,7 +12,8 @@ import { fetchWallets } from '@/apis/wallet';
 import { deleteRecord } from '@/apis/record';
 import { useAuth } from '@/provider/AuthProvider';
 import { ECategoryType, ICategory, IRecord, IRecordWithCategory, IWallet, IWalletRecordWithCategory } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -47,6 +48,8 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [walletFilter, setWalletFilter] = useState<number | 'all'>(
     initialWalletId ? Number(initialWalletId) : 'all',
@@ -267,9 +270,9 @@ export default function TransactionsScreen() {
               {group.records.map((entry, index) => {
                 const isExpense = entry.category?.type === 'expense';
                 const isTransfer = !!entry.isTransfer;
-                const cardBg = isTransfer ? '#F1F5F9' : isExpense ? '#FFF1F2' : '#ECFDF5';
-                const iconBg = isTransfer ? 'rgba(71,85,105,0.15)' : isExpense ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
-                const accentColor = isTransfer ? '#475569' : isExpense ? '#DC2626' : '#16A34A';
+                const cardBg = isTransfer ? colors.cardSoft : isExpense ? colors.dangerSoft : colors.successSoft;
+                const accentColor = isTransfer ? colors.textMuted : isExpense ? colors.danger : colors.success;
+                const iconBg = `${accentColor}26`;
 
                 return (
                   <Animated.View key={entry.id} entering={FadeInDown.delay(index * 20)} layout={LinearTransition.springify()}>
@@ -333,7 +336,8 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -565,4 +569,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     flexShrink: 0,
   },
-});
+  });
+}

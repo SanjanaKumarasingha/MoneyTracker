@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profile, updateUser } from '@/apis';
 import { useAuth } from '@/provider/AuthProvider';
 import { ApiError, IUserInfo } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
@@ -35,6 +36,8 @@ const emptyUser = (): IUserInfo => ({ id: 0, username: '', email: '', categoryOr
 export default function ProfileScreen() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { data: user, isLoading, isError, refetch } = useQuery<IUserInfo>({
     queryKey: ['user', userId],
@@ -210,7 +213,8 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -312,4 +316,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-});
+  });
+}

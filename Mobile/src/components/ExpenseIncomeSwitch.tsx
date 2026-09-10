@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { ECategoryType } from '@/types';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 
 type ExpenseIncomeSwitchProps = {
   value: ECategoryType;
@@ -21,6 +22,8 @@ const CAPSULE_WIDTH = (WIDTH - PADDING * 2) / 2;
 // tracks which side is active — crimson/emerald when active, muted slate
 // when not.
 export default function ExpenseIncomeSwitch({ value, onChange }: ExpenseIncomeSwitchProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const progress = useSharedValue(value === ECategoryType.INCOME ? 1 : 0);
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export default function ExpenseIncomeSwitch({ value, onChange }: ExpenseIncomeSw
         { scaleX: squeezeX },
         { scaleY: squeezeY },
       ],
-      backgroundColor: interpolateColor(progress.value, [0, 1], ['#FEE2E2', '#DCFCE7']),
+      backgroundColor: interpolateColor(progress.value, [0, 1], [colors.dangerSoft, colors.successSoft]),
     };
   });
 
@@ -60,41 +63,43 @@ export default function ExpenseIncomeSwitch({ value, onChange }: ExpenseIncomeSw
   );
 }
 
-const styles = StyleSheet.create({
-  track: {
-    width: WIDTH,
-    height: HEIGHT,
-    borderRadius: HEIGHT / 2,
-    backgroundColor: colors.card,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    padding: PADDING,
-    alignSelf: 'center',
-  },
-  capsule: {
-    position: 'absolute',
-    top: PADDING,
-    left: PADDING,
-    width: CAPSULE_WIDTH,
-    height: HEIGHT - PADDING * 2,
-    borderRadius: 999,
-  },
-  option: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  labelExpenseActive: {
-    color: '#DC2626',
-  },
-  labelIncomeActive: {
-    color: '#16A34A',
-  },
-  labelInactive: {
-    color: colors.textMuted,
-  },
-});
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+    track: {
+      width: WIDTH,
+      height: HEIGHT,
+      borderRadius: HEIGHT / 2,
+      backgroundColor: colors.card,
+      overflow: 'hidden',
+      flexDirection: 'row',
+      padding: PADDING,
+      alignSelf: 'center',
+    },
+    capsule: {
+      position: 'absolute',
+      top: PADDING,
+      left: PADDING,
+      width: CAPSULE_WIDTH,
+      height: HEIGHT - PADDING * 2,
+      borderRadius: 999,
+    },
+    option: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    label: {
+      fontSize: 12.5,
+      fontWeight: '700',
+    },
+    labelExpenseActive: {
+      color: colors.danger,
+    },
+    labelIncomeActive: {
+      color: colors.success,
+    },
+    labelInactive: {
+      color: colors.textMuted,
+    },
+  });
+}

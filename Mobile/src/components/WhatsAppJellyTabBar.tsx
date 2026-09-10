@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 
 type IconPair = { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap };
 
@@ -48,6 +49,8 @@ function triggerHaptic() {
 // instead of the tab underneath, and the capsule's zIndex painting it over
 // the tab icon/label instead of behind them. Tap-to-switch only, no drag.
 export default function WhatsAppJellyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { colors, scheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const layouts = useRef<TabLayout[]>([]);
   const [ready, setReady] = useState(false);
@@ -116,7 +119,7 @@ export default function WhatsAppJellyTabBar({ state, descriptors, navigation }: 
       <View style={styles.shadowWrap}>
         <BlurView
           intensity={75}
-          tint="light"
+          tint={scheme === 'dark' ? 'dark' : 'light'}
           experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
           style={styles.bar}
         >
@@ -152,7 +155,7 @@ export default function WhatsAppJellyTabBar({ state, descriptors, navigation }: 
                 <Ionicons
                   name={isFocused ? iconSet.active : iconSet.inactive}
                   size={21}
-                  color={isFocused ? colors.primary : '#94A3B8'}
+                  color={isFocused ? colors.primary : colors.textFaint}
                 />
                 <Text style={[styles.label, isFocused ? styles.labelActive : styles.labelInactive]} numberOfLines={1}>
                   {label}
@@ -168,7 +171,8 @@ export default function WhatsAppJellyTabBar({ state, descriptors, navigation }: 
 
 const BAR_RADIUS = 28;
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   outerWrap: {
     paddingLeft: 20,
     paddingRight: 19,
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
     height: BAR_HEIGHT,
     borderRadius: BAR_RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(226,232,240,0.6)',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   pill: {
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
     top: PILL_TOP,
     height: PILL_HEIGHT,
     borderRadius: BAR_RADIUS,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primarySoft,
   },
   tab: {
     flex: 1,
@@ -214,7 +218,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   labelInactive: {
-    color: '#94A3B8',
+    color: colors.textFaint,
     fontWeight: '500',
   },
-});
+  });
+}

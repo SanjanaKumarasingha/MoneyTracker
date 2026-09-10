@@ -14,7 +14,8 @@ import {
   IWalletRecordWithCategory,
 } from '@/types';
 import { EIconName } from '@/types/icon-name.enum';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
+import { ColorPalette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
@@ -135,6 +136,8 @@ function getPreviousRange(
 // section — a goal tied to a category shows as a small status badge right
 // on that category's row instead.
 export default function CategoryBreakdown({ wallets, goals, onEditRecord, onDeleteRecord, onEditGoal, hideTitle }: CategoryBreakdownProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [breakdownType, setBreakdownType] = useState<ECategoryType>(ECategoryType.EXPENSE);
   const [periodType, setPeriodType] = useState<PeriodType>('monthly');
   const [referenceDate, setReferenceDate] = useState(new Date());
@@ -521,7 +524,8 @@ export default function CategoryBreakdown({ wallets, goals, onEditRecord, onDele
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   headerTitle: {
     fontSize: 13.5,
     fontWeight: '700',
@@ -801,4 +805,5 @@ const styles = StyleSheet.create({
   txnIncome: {
     color: colors.success,
   },
-});
+  });
+}

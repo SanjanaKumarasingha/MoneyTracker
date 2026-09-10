@@ -11,6 +11,7 @@ import { store } from '@/store';
 import { useAppDispatch } from '@/hooks';
 import { setIsSignedIn } from '@/store/userSlice';
 import { AuthProvider, useAuth } from '@/provider/AuthProvider';
+import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { clearStoredToken, getStoredToken } from '@/lib/secureStorage';
 import Toast from '@/components/Toast';
 
@@ -22,19 +23,34 @@ export default function RootLayout() {
     // lists) is built on react-native-gesture-handler, which requires a
     // GestureHandlerRootView somewhere above it in the tree.
     <GestureHandlerRootView style={styles.flex}>
-      <Provider store={store}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <SessionBootstrap>
-              <RootNavigator />
-            </SessionBootstrap>
-          </AuthProvider>
-          <StatusBar style="auto" />
-          <Toast />
-        </QueryClientProvider>
-      </Provider>
+      <ThemeProvider>
+        <Provider store={store}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <SessionBootstrap>
+                <RootNavigator />
+              </SessionBootstrap>
+            </AuthProvider>
+            <ThemedStatusBar />
+            <Toast />
+          </QueryClientProvider>
+        </Provider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
+}
+
+// expo-status-bar's style="auto" already follows the OS scheme on its own,
+// but Home.tsx (see app/(app)/(tabs)/index.tsx) imperatively forces 'light'
+// while it's focused (its hero banner is a solid blue gradient in both
+// themes) and must hand back the *current* theme's style on blur rather
+// than a hardcoded one — reading `scheme` here isn't strictly required for
+// that handoff (Home reads useTheme() itself), but keeping the root style
+// explicitly tied to the resolved theme (rather than 'auto') avoids any
+// lag between an in-app Light/Dark override and the OS's own scheme.
+function ThemedStatusBar() {
+  const { scheme } = useTheme();
+  return <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 /**
@@ -48,6 +64,7 @@ export default function RootLayout() {
 function SessionBootstrap({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const dispatch = useAppDispatch();
+  const { colors } = useTheme();
 
   useEffect(() => {
     (async () => {
@@ -75,8 +92,8 @@ function SessionBootstrap({ children }: { children: ReactNode }) {
 
   if (!isReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -116,6 +133,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
   },
 });

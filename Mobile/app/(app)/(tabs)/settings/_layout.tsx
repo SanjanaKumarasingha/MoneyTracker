@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeProvider';
 
 // Settings is a tab that also owns two sub-screens (Profile, Update
 // Password), so unlike the single-screen Home/Wallets/Records/Categories/
@@ -9,6 +9,8 @@ import { colors } from '@/theme/colors';
 // hidden (the Tabs navigator's default header already labels it "Settings"),
 // while the sub-screens get a native header with a back button and title.
 export default function SettingsLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{
