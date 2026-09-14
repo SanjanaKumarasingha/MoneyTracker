@@ -22,7 +22,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE_WITH_PRODUCTION_API_URL/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://moneytracker-smeb.onrender.com/api/v1"
       }
     }
   },
