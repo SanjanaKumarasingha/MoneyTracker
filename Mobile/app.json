@@ -20,7 +20,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": false
+      "usesCleartextTraffic": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +39,13 @@
           "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for faster sign-in."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "478439f2-03d3-49f6-81ca-8a473cb7703a"
+      }
+    },
+    "owner": "sanjanak01"
   }
 }
