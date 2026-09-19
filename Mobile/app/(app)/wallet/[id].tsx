@@ -33,6 +33,7 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import Skeleton from '@/components/Skeleton';
+import GlassFab from '@/components/GlassFab';
 import ErrorState from '@/components/ErrorState';
 import { showToast } from '@/components/Toast';
 import CurrencyText from '@/components/CurrencyText';
@@ -352,9 +353,14 @@ export default function WalletDetailScreen() {
         />
       </ScrollView>
 
-      <Pressable style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]} onPress={openCreateRecord}>
-        <Ionicons name="add" size={26} color="#fff" />
-      </Pressable>
+      {/* Same glass FAB as Home (see GlassFab.tsx) — was previously a flat
+          solid-color circle, the one add-action in the app not sharing the
+          rest's look. */}
+      <GlassFab
+        style={{ position: 'absolute', right: spacing.xl, bottom: spacing.xxl }}
+        onPress={openCreateRecord}
+        accessibilityLabel="Add record"
+      />
 
       <WalletFormModal
         visible={editWalletVisible}
@@ -450,21 +456,6 @@ function createStyles(colors: ColorPalette) {
   statFigureExpenseDecimal: {
     color: colors.danger,
     opacity: 0.65,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.xl,
-    bottom: spacing.xxl,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.raised,
-  },
-  fabPressed: {
-    backgroundColor: colors.primaryDark,
   },
   });
 }
