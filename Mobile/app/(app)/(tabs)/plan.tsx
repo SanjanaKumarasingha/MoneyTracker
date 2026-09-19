@@ -25,6 +25,7 @@ import GoalFormModal from '@/components/goal/GoalFormModal';
 import ScreenHeader from '@/components/ScreenHeader';
 import ErrorState from '@/components/ErrorState';
 import PressableScale from '@/components/PressableScale';
+import GlassButton from '@/components/GlassButton';
 import PercentRing from '@/components/PercentRing';
 import BrandLogo from '@/components/BrandLogo';
 
@@ -316,13 +317,11 @@ export default function PlanScreen() {
 
       {!isLoading && !isError && (
         <View style={styles.stickyFooter} pointerEvents="box-none">
-          <Pressable
-            style={({ pressed }) => [styles.stickyButton, pressed && styles.stickyButtonPressed]}
-            onPress={openAddGoal}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={styles.stickyButtonText}>New Goal</Text>
-          </Pressable>
+          {/* Same glass material as GlassFab (see GlassButton.tsx) — was a
+              flat solid-color pill; needs its "New Goal" label to stay
+              clear in context, so it keeps this shape rather than becoming
+              a bare icon ball. */}
+          <GlassButton icon="add" label="New Goal" onPress={openAddGoal} />
         </View>
       )}
 
@@ -376,24 +375,6 @@ function createStyles(colors: ColorPalette) {
     paddingTop: 12,
     paddingBottom: 16,
     backgroundColor: colors.background,
-  },
-  stickyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: radius.xl,
-    paddingVertical: 15,
-    ...shadows.raised,
-  },
-  stickyButtonPressed: {
-    backgroundColor: colors.primaryDark,
-  },
-  stickyButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
   },
   overviewCard: {
     flexDirection: 'row',
