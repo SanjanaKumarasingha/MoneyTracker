@@ -173,9 +173,15 @@ const BAR_RADIUS = 28;
 
 function createStyles(colors: ColorPalette) {
   return StyleSheet.create({
+  // React Navigation's default scene background is white regardless of
+  // theme, so the safe-area margin around the floating pill (left/right
+  // padding, the bottom inset gap) showed that white through in dark mode
+  // — the pill itself has its own dark backgroundColor (shadowWrap below)
+  // so it looked fine, but the transparent gap around it didn't.
   outerWrap: {
     paddingLeft: 20,
     paddingRight: 19,
+    backgroundColor: colors.background,
   },
   // Shadow lives on this wrapper (not the clipped/blurred bar below it) —
   // a shadow on a view with overflow:hidden gets clipped away along with
