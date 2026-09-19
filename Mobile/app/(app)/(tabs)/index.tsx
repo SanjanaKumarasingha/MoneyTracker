@@ -27,6 +27,7 @@ import PercentRing from '@/components/PercentRing';
 import CurrencyText from '@/components/CurrencyText';
 import IconSelector from '@/components/IconSelector';
 import BrandLogo from '@/components/BrandLogo';
+import GlassFab from '@/components/GlassFab';
 import GlassWalletCarousel from '@/components/wallet/GlassWalletCarousel';
 import WalletFormModal from '@/components/wallet/WalletFormModal';
 import TransferModal from '@/components/wallet/TransferModal';
@@ -47,6 +48,11 @@ function getWalletBalance(wallet: IWalletRecordWithCategory): number {
     return acc + Number(record.price);
   }, 0);
 }
+
+// WhatsAppJellyTabBar.BAR_HEIGHT (56) plus a thin gap above it — close
+// enough to read as anchored to the tab bar rather than floating loose in
+// the middle of the screen, without actually overlapping it.
+const TAB_BAR_CLEARANCE = 0;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -82,6 +88,11 @@ export default function HomeScreen() {
   const [walletModalVisible, setWalletModalVisible] = useState(false);
   const [transferModalVisible, setTransferModalVisible] = useState(false);
   const [recordModalVisible, setRecordModalVisible] = useState(false);
+  // Hide-balance is a trust/control pattern borrowed from Revolut/Monzo —
+  // letting someone glance-check the app in public without exposing the
+  // figure builds more confidence than always showing it. Session-only by
+  // design (resets on relaunch); promote to secureStorage if it should persist.
+  const [balanceHidden, setBalanceHidden] = useState(false);
 
   // The hero gradient bleeds under the status bar (SafeAreaView below
   // excludes the 'top' edge on purpose), so the default dark status-bar
@@ -255,6 +266,22 @@ export default function HomeScreen() {
         end={{ x: 1, y: 1 }}
         style={[styles.hero, { paddingTop: insets.top + 6 }]}
       >
+        {/* A diagonal glass "glare" — the light-reflection cue real glass
+            and premium card UI (Apple Card, physical credit cards) lean on
+            for depth, in place of the flat gradient slab (or the blobby
+            orbs that read as literal circles rather than glass). Angled
+            and pushed to the right edge so it never crosses the balance
+            text; the hairline underneath reads as a glass edge catching
+            light. Both are decorative: pointerEvents 'none'. */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroSheen}
+          pointerEvents="none"
+        />
+        <View style={styles.heroTopHairline} pointerEvents="none" />
+
         <View style={styles.heroTop}>
           <Text style={styles.greeting}>
             {greetingForHour(now.getHours())}, <Text style={styles.greetingName}>{user?.username ?? '—'}</Text>
@@ -262,10 +289,25 @@ export default function HomeScreen() {
           <BrandLogo size={34} />
         </View>
         <View style={styles.balanceRow}>
-          <View>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
+          <View style={{ flex: 1 }}>
+            <View style={styles.balanceLabelRow}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              {/* Hide/show toggle — the same glanceable-in-public privacy
+                  control Revolut/Monzo use; builds trust through user
+                  control rather than always forcing the figure on screen. */}
+              <Pressable
+                hitSlop={10}
+                onPress={() => setBalanceHidden((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={balanceHidden ? 'Show balance' : 'Hide balance'}
+              >
+                <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={14} color="rgba(255,255,255,0.75)" />
+              </Pressable>
+            </View>
             {isLoading ? (
               <Skeleton width={140} height={28} style={{ marginTop: 6, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+            ) : balanceHidden ? (
+              <Text style={styles.balanceFigure}>••••••</Text>
             ) : (
               <CurrencyText
                 amount={balance}
@@ -279,7 +321,9 @@ export default function HomeScreen() {
             <View style={styles.trendBadge}>
               <Ionicons name={netThisMonth >= 0 ? 'trending-up' : 'trending-down'} size={12} color="#fff" />
               <Text style={styles.trendBadgeText}>
-                {netThisMonth >= 0 ? '+' : '-'}{formatCurrency(Math.abs(netThisMonth), currency)} this month
+                {balanceHidden
+                  ? '••••'
+                  : `${netThisMonth >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netThisMonth), currency)} this month`}
               </Text>
             </View>
           )}
@@ -321,18 +365,18 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* "Add" used to be a 4th highlighted card here, competing with the
+            floating action button below for the same job. Two same-weight
+            entry points for one primary action splits attention (Hick's
+            Law) and blurs which one is "the" way to add a record, so it
+            now lives solely on the FAB — the single, clearly-dominant
+            primary action a FAB is meant to be. */}
         <View style={styles.actionRow}>
           <Pressable style={styles.actionCard} onPress={() => setTransferModalVisible(true)}>
             <View style={styles.actionIconCircle}>
               <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
             </View>
             <Text style={styles.actionCardLabel}>Transfer</Text>
-          </Pressable>
-          <Pressable style={[styles.actionCard, styles.actionCardHighlight]} onPress={openAddRecord}>
-            <View style={[styles.actionIconCircle, styles.actionIconCircleHighlight]}>
-              <Ionicons name="add" size={22} color="#fff" />
-            </View>
-            <Text style={[styles.actionCardLabel, styles.actionCardLabelHighlight]}>Add</Text>
           </Pressable>
           <Pressable style={styles.actionCard} onPress={() => router.push('/analytics')}>
             <View style={styles.actionIconCircle}>
@@ -507,6 +551,16 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      {/* Floating primary action — see GlassFab.tsx for the full design
+          rationale (Fitts's Law, von Restorff, glass-affordance research).
+          Shared across every screen with an "add" action so they all look
+          and feel like the same button. */}
+      <GlassFab
+        style={{ position: 'absolute', right: spacing.xl, bottom: insets.bottom + TAB_BAR_CLEARANCE }}
+        onPress={openAddRecord}
+        accessibilityLabel="Add record"
+      />
+
       <WalletFormModal
         visible={walletModalVisible}
         mode="Create"
@@ -540,6 +594,25 @@ function createStyles(colors: ColorPalette) {
     paddingBottom: 20,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    overflow: 'hidden',
+  },
+  // Decorative depth cues (see render comment) — clipped by hero's
+  // overflow:'hidden' so they never poke past the rounded corners.
+  heroSheen: {
+    position: 'absolute',
+    top: -60,
+    right: -30,
+    width: 130,
+    height: 320,
+    transform: [{ rotate: '22deg' }],
+  },
+  heroTopHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   heroTop: {
     flexDirection: 'row',
@@ -562,6 +635,11 @@ function createStyles(colors: ColorPalette) {
     justifyContent: 'space-between',
     marginTop: 14,
   },
+  balanceLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   balanceLabel: {
     color: 'rgba(255,255,255,0.72)',
     fontSize: 11.5,
@@ -569,9 +647,9 @@ function createStyles(colors: ColorPalette) {
   },
   balanceFigure: {
     color: '#fff',
-    fontSize: 30,
+    fontSize: 33,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     marginTop: 3,
   },
   balanceFigureDecimal: {
@@ -788,9 +866,6 @@ function createStyles(colors: ColorPalette) {
     borderRadius: radius.xxl,
     ...shadows.card,
   },
-  actionCardHighlight: {
-    backgroundColor: colors.primary,
-  },
   actionIconCircle: {
     width: 40,
     height: 40,
@@ -799,16 +874,10 @@ function createStyles(colors: ColorPalette) {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionIconCircleHighlight: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
   actionCardLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: colors.text,
-  },
-  actionCardLabelHighlight: {
-    color: '#fff',
   },
   activityTitle: {
     fontSize: 15,
