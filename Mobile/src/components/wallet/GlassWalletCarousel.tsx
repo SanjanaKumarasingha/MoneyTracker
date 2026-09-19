@@ -315,10 +315,18 @@ function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, on
       }
     });
 
+  const openWithTick = useCallback(() => {
+    // A light tick on the tap that actually opens the wallet — the drag
+    // gesture already has pickup/drop haptics, so a plain tap was the one
+    // interaction on this card giving no physical feedback at all.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onOpen();
+  }, [onOpen]);
+
   const tap = Gesture.Tap()
     .maxDuration(250)
     .onEnd((_event, success) => {
-      if (success) runOnJS(onOpen)();
+      if (success) runOnJS(openWithTick)();
     });
 
   // A quick tap opens the wallet; a sustained hold falls through to the
@@ -365,6 +373,16 @@ function GlassWalletCard({ wallet, tintIndex, positions, draggingId, maxSlot, on
               StyleSheet.absoluteFill,
               { backgroundColor: tint.bg, borderWidth: 1, borderColor: tint.border, borderRadius: CARD_RADIUS },
             ]}
+          />
+          {/* Same diagonal glass glare as the Home hero (see index.tsx) —
+              one consistent "this is glass" cue across every frosted
+              surface on Home instead of a different treatment per card. */}
+          <LinearGradient
+            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cardSheen}
+            pointerEvents="none"
           />
 
           <View style={styles.cardContent}>
@@ -423,6 +441,14 @@ function createStyles(colors: ColorPalette) {
     flex: 1,
     borderRadius: CARD_RADIUS,
     overflow: 'hidden',
+  },
+  cardSheen: {
+    position: 'absolute',
+    top: -50,
+    right: -20,
+    width: 60,
+    height: CARD_HEIGHT + 100,
+    transform: [{ rotate: '22deg' }],
   },
   cardContent: {
     flex: 1,
