@@ -30,6 +30,7 @@ import CategoryFormModal from '@/components/category/CategoryFormModal';
 import Skeleton from '@/components/Skeleton';
 import ScreenHeader from '@/components/ScreenHeader';
 import ErrorState from '@/components/ErrorState';
+import GlassFab from '@/components/GlassFab';
 
 // Native counterpart to Client/src/pages/CategoryPage.tsx: same concept
 // (two type sections, drag to reorder, tap a row to edit/delete, "+" to
@@ -201,13 +202,14 @@ export default function CategoriesScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
+        {/* Same glass material as the page-level GlassFab, sized down for
+            this small inline context (see GlassFab.tsx / GlassButton.tsx)
+            — was a flat solid-color circle. */}
+        <GlassFab
+          size={30}
           onPress={() => openCreateModal(type)}
           accessibilityLabel={`Add ${title.toLowerCase()} category`}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-        </Pressable>
+        />
       </View>
 
       {data.length === 0 ? (
@@ -286,17 +288,6 @@ function createStyles(colors: ColorPalette) {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonPressed: {
-    backgroundColor: colors.primaryDark,
   },
   emptySection: {
     backgroundColor: colors.card,
