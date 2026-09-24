@@ -1,43 +1,57 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppDispatch } from '../hooks';
-import { IoSearchOutline, IoSettingsOutline } from 'react-icons/io5';
+import { IoSearchOutline } from 'react-icons/io5';
 import { ICategory, IRecord, IRecordWithCategory } from '../types';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { BsArrowLeftRight } from 'react-icons/bs';
 import RecordModal from '../components/record/RecordModal';
 import RecordsSheetGrid from '../components/record/RecordsSheetGrid';
+import PeriodBar from '../components/record/PeriodBar';
 import TransferModal from '../components/wallet/TransferModal';
 import { DateTime } from 'luxon';
 import IconSelector from '../components/IconSelector';
 import clsx from 'clsx';
 import * as _ from 'lodash';
-import DatePicker from 'react-datepicker';
-import CustomAccordion from '../components/Custom/CustomAccordion';
-import CustomModal from '../components/Custom/CustomModal';
-import CustomSelector from '../components/Custom/CustomSelector';
 import { updateFavWallet } from '../store/walletSlice';
 import { useRecord } from '../provider/RecordDataProvider';
-import { Button, Card, EmptyState, Input, Select, Skeleton } from '../components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  GlassFab,
+  Input,
+  Money,
+  Select,
+  SegmentedControl,
+  Skeleton,
+} from '../components/ui';
 import { formatMoney } from '../utils';
+import { getCategoryColor } from '../utils/categoryColor';
+import { signedAmount } from '../utils/portfolio';
+import {
+  CustomRange,
+  PeriodScale,
+  getPeriodRange,
+  isDateInRange,
+  relativeDayLabel,
+} from '../utils/period';
 
 type Props = {};
 
+const ALL_CATEGORIES = 'All categories';
+// Days of records rendered before "Show more" - an All-time view can be
+// thousands of rows, and none of them are useful to mount up front.
+const DAYS_PER_PAGE = 14;
+
 const Records = (props: Props) => {
   const [open, setOpen] = useState(false);
-
   const [openTransfer, setOpenTransfer] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<string>('');
-
-  // "List" is the grouped/filterable accordion view below; "Sheet" is a
-  // directly-editable Google-Sheets-style grid (RecordsSheetGrid) for
-  // people who'd rather just type straight into a ledger.
+  // "List" is the day-grouped feed; "Sheet" is a directly-editable
+  // Google-Sheets-style grid (RecordsSheetGrid). Both read the same period
+  // and (for List) the same filters.
   const [viewMode, setViewMode] = useState<'list' | 'sheet'>('list');
-
-  const headerRef = useRef<HTMLDivElement>(null);
-
-  const [openSelectWallet, setOpenSelectWallet] = useState(false);
 
   const [editRecord, setEditRecord] = useState<IRecord>({
     id: 0,
@@ -45,33 +59,31 @@ const Records = (props: Props) => {
     remarks: '',
     date: DateTime.now().toISO() ?? DateTime.now().toFormat('yyyy-LL-dd'),
   });
-
   const [editRecordCategory, setEditRecordCategory] =
     useState<ICategory | null>(null);
 
-  const { wallets, favWallet, income, expense, total } = useRecord();
+  const { wallets, favWallet } = useRecord();
 
   const dispatch = useAppDispatch();
   const location = useLocation();
 
   const isLoading = !wallets;
 
-  const ALL_CATEGORIES = 'All categories';
+  // ---- Period (Week / Month / Year / Custom / All) --------------------
+  const [scale, setScale] = useState<PeriodScale>('month');
+  const [offset, setOffset] = useState(0);
+  const [custom, setCustom] = useState<CustomRange>({ from: '', to: '' });
+  const range = useMemo(() => getPeriodRange(scale, offset, custom), [scale, offset, custom]);
 
+  // ---- Filters (List view) -------------------------------------------
   const [searchTerm, setSearchTerm] = useState<string>('');
-  // Arriving from a category drill-down (PieChart's PercentRow rows on
-  // /charts) pre-applies that category as the active filter here.
+  // Arriving from a category drill-down (Charts' category rows) pre-applies
+  // that category as the active filter here.
   const [categoryFilter, setCategoryFilter] = useState<string>(
     (location.state as { categoryFilter?: string } | null)?.categoryFilter ??
       ALL_CATEGORIES,
   );
-  const [dateFrom, setDateFrom] = useState<Date | null>(null);
-  const [dateTo, setDateTo] = useState<Date | null>(null);
-  // Date-range filters start collapsed - most visits don't need them, and
-  // always rendering a third filter row pushed the actual record list
-  // further down the screen on every visit regardless of whether it was
-  // ever used that session.
-  const [showDateFilters, setShowDateFilters] = useState(false);
+  const [visibleDays, setVisibleDays] = useState(DAYS_PER_PAGE);
 
   const categoryOptions = useMemo(() => {
     const names = _.uniq(
@@ -84,417 +96,414 @@ const Records = (props: Props) => {
   }, [favWallet]);
 
   const hasActiveFilters =
-    searchTerm.trim() !== '' ||
-    categoryFilter !== ALL_CATEGORIES ||
-    dateFrom !== null ||
-    dateTo !== null;
+    searchTerm.trim() !== '' || categoryFilter !== ALL_CATEGORIES;
 
   const clearFilters = () => {
     setSearchTerm('');
     setCategoryFilter(ALL_CATEGORIES);
-    setDateFrom(null);
-    setDateTo(null);
   };
 
-  // Apply all active filters (AND) client-side over the records already
-  // available in memory for the selected wallet.
+  // Records in the selected period (before search/category) - drives the
+  // summary tiles, so those describe the period, not the filtered list.
+  const periodRecords: IRecordWithCategory[] = useMemo(
+    () => (favWallet?.records ?? []).filter((record) => isDateInRange(record.date, range)),
+    [favWallet, range],
+  );
+
+  const summary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    periodRecords.forEach((record) => {
+      // Transfers move money between your own wallets - not earning/spending.
+      if (!record.category || record.isTransfer) return;
+      if (record.category.type === 'expense') expense += Number(record.price);
+      else income += Number(record.price);
+    });
+    return { income, expense, net: income - expense };
+  }, [periodRecords]);
+
+  const walletBalance = useMemo(
+    () => (favWallet?.records ?? []).reduce((acc, record) => acc + signedAmount(record), 0),
+    [favWallet],
+  );
+
   const filteredRecords: IRecordWithCategory[] = useMemo(() => {
-    const records = favWallet?.records ?? [];
-
-    return records.filter((record) => {
-      if (
-        searchTerm.trim() &&
-        !record.remarks?.toLowerCase().includes(searchTerm.trim().toLowerCase())
-      ) {
+    const term = searchTerm.trim().toLowerCase();
+    return periodRecords.filter((record) => {
+      if (term && !record.remarks?.toLowerCase().includes(term)) return false;
+      if (categoryFilter !== ALL_CATEGORIES && record.category?.name !== categoryFilter) {
         return false;
       }
-
-      if (
-        categoryFilter !== ALL_CATEGORIES &&
-        record.category?.name !== categoryFilter
-      ) {
-        return false;
-      }
-
-      if (dateFrom) {
-        const recordDate = DateTime.fromSQL(record.date).startOf('day');
-        const from = DateTime.fromJSDate(dateFrom).startOf('day');
-        if (recordDate < from) return false;
-      }
-
-      if (dateTo) {
-        const recordDate = DateTime.fromSQL(record.date).startOf('day');
-        const to = DateTime.fromJSDate(dateTo).startOf('day');
-        if (recordDate > to) return false;
-      }
-
       return true;
     });
-  }, [favWallet, searchTerm, categoryFilter, dateFrom, dateTo]);
+  }, [periodRecords, searchTerm, categoryFilter]);
 
-  // Reproduce the provider's date-grouping locally over the filtered
-  // records, since RecordDataProvider's grouping is tied to the full,
-  // unfiltered favWallet.records and isn't decomposed for reuse here.
-  const filteredDateRecords = useMemo(() => {
-    const groupedDates = _.groupBy(filteredRecords, 'date');
-
-    return _.sortBy(Object.keys(groupedDates)).map((date) => ({
-      date,
-      records: groupedDates[date],
-    }));
+  // Newest day first (the feed answers "what happened lately"), and within a
+  // day the most recently added record first.
+  const dayGroups = useMemo(() => {
+    const grouped = _.groupBy(filteredRecords, (record) => record.date.slice(0, 10));
+    return Object.keys(grouped)
+      .sort()
+      .reverse()
+      .map((date) => ({
+        date,
+        records: [...grouped[date]].sort((a, b) => b.id - a.id),
+      }));
   }, [filteredRecords]);
 
+  const openNewRecord = () => {
+    setEditRecord((prev) => ({
+      ...prev,
+      id: 0,
+      price: 0,
+      remarks: '',
+      // A previously-edited record's date would otherwise leak into "new".
+      date: DateTime.now().toISO() ?? DateTime.now().toFormat('yyyy-LL-dd'),
+    }));
+    setEditRecordCategory(null);
+    setOpen(true);
+  };
+
+  const hasAnyRecords = (favWallet?.records.length ?? 0) > 0;
+  const netPositive = summary.net >= 0;
+
   return (
-    <div className="relative h-full">
+    <div className="relative flex flex-col gap-5">
       {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-16 w-full mt-2" />
-          <div className="space-y-2 mt-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
         </div>
-      ) : favWallet ? (
-        <Card className="relative">
-          <div className="relative">
-            <div className="font-medium text-zinc-800 dark:text-zinc-100">
-              {favWallet.name}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-zinc-500 dark:text-zinc-400">Income:</p>{' '}
-              <p className="font-medium text-success-600 dark:text-success-400">
-                {formatMoney(income, favWallet.currency)}
-              </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-zinc-500 dark:text-zinc-400">Expense:</p>{' '}
-              <p className="font-medium text-danger-600 dark:text-danger-400">
-                {formatMoney(expense, favWallet.currency)}
-              </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-zinc-700 dark:text-zinc-200">
-                Balance:
-              </p>{' '}
-              <p
-                className={clsx(
-                  'text-lg font-bold',
-                  total >= 0
-                    ? 'text-success-600 dark:text-success-400'
-                    : 'text-danger-600 dark:text-danger-400',
-                )}
-              >
-                {formatMoney(total, favWallet.currency)}
-              </p>
-            </div>
-            <div className="absolute text-zinc-100 dark:text-zinc-700 text-6xl top-0 right-0 pointer-events-none select-none">
-              {favWallet.currency}
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label="Choose active wallet"
-            className="absolute top-1 right-1 rounded-full p-1 text-zinc-500 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-700 h-fit"
-            onClick={() => {
-              // Update the fav wallet
-              // update the dispatch -> local storage
-              setOpenSelectWallet(true);
-            }}
-          >
-            <IoSettingsOutline strokeWidth={1} className="cursor-pointer" />
-          </button>
-        </Card>
-      ) : (
+      ) : !favWallet ? (
         <EmptyState
           title="No wallet yet"
           description="Create a wallet first, then come back here to log records against it."
         />
-      )}
+      ) : (
+        <>
+          {/* Wallet switcher - always visible pills instead of the old
+              buried gear icon + modal; switching also updates the app-wide
+              "favorite" wallet, same as it always did. */}
+          {wallets.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Wallet">
+              {wallets.map((wallet) => (
+                <button
+                  key={wallet.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={wallet.id === favWallet.id}
+                  onClick={() => dispatch(updateFavWallet(wallet.id))}
+                  className={clsx(
+                    'shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium cursor-pointer transition-colors',
+                    wallet.id === favWallet.id
+                      ? 'border-primary-600 bg-primary-600 text-white'
+                      : 'border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.06]',
+                  )}
+                >
+                  {wallet.name}
+                </button>
+              ))}
+            </div>
+          )}
 
-      {!isLoading && favWallet && (
-        <div className="flex gap-1 mt-2">
-          <Button
-            variant={viewMode === 'list' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('list')}
-          >
-            List view
-          </Button>
-          <Button
-            variant={viewMode === 'sheet' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('sheet')}
-          >
-            Sheet view
-          </Button>
-        </div>
+          {/* Summary: plain high-contrast text on the card surface. The old
+              header had a giant currency-code watermark behind the numbers
+              (text-zinc-100 on white, zinc-700 on dark) that fought the
+              figures for legibility - gone. */}
+          <Card padding="lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                  {favWallet.name} · balance
+                </p>
+                <p>
+                  <Money
+                    amount={walletBalance}
+                    currency={favWallet.currency}
+                    prefix={walletBalance < 0 ? '−' : undefined}
+                    tone={walletBalance >= 0 ? 'default' : 'negative'}
+                    className="text-3xl"
+                  />
+                </p>
+              </div>
+              <p className="rounded-full bg-zinc-100 dark:bg-white/5 dark:border dark:border-white/10 px-3 py-1 text-xs font-semibold text-zinc-600 dark:text-slate-300">
+                {range ? range.label : 'All time'} · {periodRecords.length} record
+                {periodRecords.length === 1 ? '' : 's'}
+              </p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-success-500/10 border border-success-500/20 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-success-700 dark:text-success-300">
+                  Income
+                </p>
+                <p className="mt-0.5 text-xl font-bold text-success-600 dark:text-success-400">
+                  +{formatMoney(summary.income, favWallet.currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-danger-500/10 border border-danger-500/20 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-danger-700 dark:text-danger-300">
+                  Expense
+                </p>
+                <p className="mt-0.5 text-xl font-bold text-danger-600 dark:text-danger-400">
+                  −{formatMoney(summary.expense, favWallet.currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-zinc-100 dark:bg-white/[0.06] border border-zinc-200 dark:border-white/10 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                  Net
+                </p>
+                <p
+                  className={clsx(
+                    'mt-0.5 text-xl font-bold',
+                    netPositive
+                      ? 'text-success-600 dark:text-success-400'
+                      : 'text-danger-600 dark:text-danger-400',
+                  )}
+                >
+                  {netPositive ? '+' : '−'}
+                  {formatMoney(Math.abs(summary.net), favWallet.currency)}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <PeriodBar
+                scale={scale}
+                onScaleChange={setScale}
+                offset={offset}
+                onOffsetChange={setOffset}
+                custom={custom}
+                onCustomChange={setCustom}
+                range={range}
+              />
+              <SegmentedControl
+                aria-label="View"
+                options={[
+                  { value: 'list', label: 'List' },
+                  { value: 'sheet', label: 'Sheet' },
+                ]}
+                value={viewMode}
+                onChange={setViewMode}
+              />
+            </div>
+
+            {viewMode === 'list' && hasAnyRecords && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  placeholder="Search remarks..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  leftIcon={<IoSearchOutline />}
+                  containerClassName="flex-1"
+                />
+                <Select
+                  options={categoryOptions}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  placeholder={ALL_CATEGORIES}
+                  filter
+                  className="sm:w-56"
+                />
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {viewMode === 'sheet' && (
+            <RecordsSheetGrid wallets={wallets} defaultWalletId={favWallet.id} range={range} />
+          )}
+
+          {viewMode === 'list' &&
+            (!hasAnyRecords ? (
+              <EmptyState
+                title="No records yet"
+                description="Add your first income or expense record for this wallet using the + button below."
+                actionLabel="Add a record"
+                onAction={openNewRecord}
+              />
+            ) : dayGroups.length === 0 ? (
+              <EmptyState
+                title={hasActiveFilters ? 'No records match your filters' : 'Nothing in this period'}
+                description={
+                  hasActiveFilters
+                    ? 'Try adjusting or clearing your search or category filter.'
+                    : 'No records fall in the selected dates. Try another period, or All time.'
+                }
+                actionLabel={hasActiveFilters ? 'Clear filters' : scale !== 'all' ? 'Show all time' : undefined}
+                onAction={
+                  hasActiveFilters ? clearFilters : scale !== 'all' ? () => setScale('all') : undefined
+                }
+              />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {dayGroups.slice(0, visibleDays).map(({ date, records }) => {
+                  const dailyTotal = records.reduce((acc, record) => acc + signedAmount(record), 0);
+
+                  return (
+                    <section key={date} aria-label={relativeDayLabel(date)}>
+                      <div className="mb-2 flex items-center justify-between px-1">
+                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                          {relativeDayLabel(date)}
+                          <span className="ml-2 font-normal text-zinc-400 dark:text-zinc-500">
+                            {DateTime.fromFormat(date, 'yyyy-LL-dd').toFormat('LLL d, yyyy')}
+                          </span>
+                        </h3>
+                        <span
+                          className={clsx(
+                            'text-sm font-semibold',
+                            dailyTotal >= 0
+                              ? 'text-success-600 dark:text-success-400'
+                              : 'text-danger-600 dark:text-danger-400',
+                          )}
+                        >
+                          {dailyTotal >= 0 ? '+' : '−'}
+                          {formatMoney(Math.abs(dailyTotal), favWallet.currency)}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {records.map((record) => {
+                          const category = record.category;
+                          const isExpense = category?.type === 'expense';
+                          const editable = !record.isTransfer && !!category;
+
+                          return (
+                            <Card
+                              key={record.id}
+                              padding="sm"
+                              role={editable ? 'button' : undefined}
+                              tabIndex={editable ? 0 : undefined}
+                              onClick={() => {
+                                // Transfers are a matched pair of records with
+                                // no real category to edit (see
+                                // apis/transfer.ts) - editing one side here
+                                // would desync it from its other half, so the
+                                // normal edit modal is skipped.
+                                if (!editable) return;
+                                setEditRecord(record);
+                                setEditRecordCategory(category);
+                                setOpen(true);
+                              }}
+                              onKeyDown={(event) => {
+                                if (editable && (event.key === 'Enter' || event.key === ' ')) {
+                                  event.preventDefault();
+                                  setEditRecord(record);
+                                  setEditRecordCategory(category);
+                                  setOpen(true);
+                                }
+                              }}
+                              className={clsx(
+                                'flex items-center gap-3 !px-3 !py-2.5',
+                                editable &&
+                                  'cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                              )}
+                            >
+                              <span
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl text-white"
+                                style={{
+                                  backgroundColor: record.isTransfer
+                                    ? '#64748b'
+                                    : getCategoryColor(category?.id),
+                                }}
+                              >
+                                {category && <IconSelector name={category.icon} />}
+                              </span>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                  {category ? (
+                                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                      {category.name}
+                                    </span>
+                                  ) : (
+                                    // Category was deleted after this record was
+                                    // created - the server soft-deletes
+                                    // categories, so the join comes back null.
+                                    <span className="italic text-zinc-400 dark:text-zinc-500">
+                                      Deleted category
+                                    </span>
+                                  )}
+                                  <span className="rounded-md bg-zinc-100 dark:bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                                    {favWallet.name}
+                                  </span>
+                                </div>
+                                {record.remarks && (
+                                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
+                                    {record.remarks}
+                                  </p>
+                                )}
+                              </div>
+
+                              <span
+                                className={clsx(
+                                  'shrink-0 text-base font-bold tabular-nums',
+                                  !category
+                                    ? 'text-zinc-400 dark:text-zinc-500'
+                                    : isExpense
+                                    ? 'text-danger-600 dark:text-danger-400'
+                                    : 'text-success-600 dark:text-success-400',
+                                )}
+                              >
+                                {category && (isExpense ? '−' : '+')}
+                                {formatMoney(Number(record.price), favWallet.currency)}
+                              </span>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+
+                {dayGroups.length > visibleDays && (
+                  <Button
+                    variant="outline"
+                    className="self-center"
+                    onClick={() => setVisibleDays((count) => count + DAYS_PER_PAGE)}
+                  >
+                    Show more days ({dayGroups.length - visibleDays} left)
+                  </Button>
+                )}
+              </div>
+            ))}
+        </>
       )}
 
       {/* fixed (viewport-relative), not absolute (content-relative) - the
           content column's height grows with the record list, so an
           absolute-positioned FAB anchored to its bottom drifted far below
-          the visible screen on long lists instead of staying reachable.
-          bottom-20 on mobile clears the fixed BottomNavbar (~64px); sm:
-          screens have no bottom nav, so bottom-6 is enough there. */}
+          the visible screen on long lists. bottom-20 on mobile clears the
+          fixed BottomNavbar (~64px); sm: screens have no bottom nav.
+          Transfer keeps a neutral tint since Add is the one primary action
+          on this screen (see GlassFab's own comment). */}
       <div className="fixed bottom-20 sm:bottom-6 right-4 z-30 flex flex-col gap-2 items-end">
-        <button
-          type="button"
-          className="w-fit p-1.5 text-lg text-white rounded-full bg-zinc-600 hover:bg-zinc-500 active:bg-zinc-700 cursor-pointer transition-colors"
+        <GlassFab
+          variant="neutral"
+          size={40}
+          icon={<BsArrowLeftRight />}
           onClick={() => setOpenTransfer(true)}
           aria-label="Transfer between wallets"
           title="Transfer between wallets"
-        >
-          <BsArrowLeftRight />
-        </button>
-        <button
-          type="button"
+        />
+        <GlassFab
+          variant="primary"
+          size={56}
+          icon={<AiOutlinePlus />}
           aria-label="Add record"
           title="Add record"
-          className="w-fit p-1 text-2xl text-white rounded-full bg-primary-600 hover:bg-primary-500 active:bg-primary-700 cursor-pointer transition-colors"
-          onClick={() => {
-            setEditRecord((prev) => ({
-              ...prev,
-              id: 0,
-              price: 0,
-              remarks: '',
-            }));
-            setOpen(true);
-          }}
-        >
-          <AiOutlinePlus />
-        </button>
+          onClick={openNewRecord}
+        />
       </div>
-
-      {viewMode === 'list' && !isLoading && favWallet && favWallet.records.length > 0 && (
-        <div className="mt-2 space-y-2">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Search remarks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              leftIcon={<IoSearchOutline />}
-              containerClassName="flex-1"
-            />
-            <Select
-              options={categoryOptions}
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              placeholder={ALL_CATEGORIES}
-              filter
-              className="sm:w-56"
-            />
-            <Button
-              variant={dateFrom || dateTo ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => setShowDateFilters((prev) => !prev)}
-            >
-              {dateFrom || dateTo ? 'Date filter active' : 'Filters'}
-            </Button>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-
-          {showDateFilters && (
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                  From
-                </label>
-                <DatePicker
-                  selected={dateFrom}
-                  onChange={(date) => setDateFrom(date)}
-                  selectsStart
-                  startDate={dateFrom}
-                  endDate={dateTo}
-                  maxDate={dateTo ?? undefined}
-                  isClearable
-                  placeholderText="From date"
-                  className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                  To
-                </label>
-                <DatePicker
-                  selected={dateTo}
-                  onChange={(date) => setDateTo(date)}
-                  selectsEnd
-                  startDate={dateFrom}
-                  endDate={dateTo}
-                  minDate={dateFrom ?? undefined}
-                  isClearable
-                  placeholderText="To date"
-                  className="outline-none border border-zinc-300 dark:border-zinc-600 rounded-lg p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 w-full"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {viewMode === 'sheet' && !isLoading && favWallet && (
-        <div className="mt-2">
-          <RecordsSheetGrid wallets={wallets} defaultWalletId={favWallet?.id} />
-        </div>
-      )}
-
-      {viewMode === 'list' && (isLoading ? null : !favWallet || favWallet.records.length === 0 ? (
-        <EmptyState
-          title="No records yet"
-          description="Add your first income or expense record for this wallet using the + button below."
-        />
-      ) : filteredDateRecords.length === 0 ? (
-        <EmptyState
-          title="No records match your filters"
-          description="Try adjusting or clearing your search, category, or date filters."
-          actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
-          onAction={hasActiveFilters ? clearFilters : undefined}
-        />
-      ) : (
-        <Card padding="sm" className="mt-1">
-          {filteredDateRecords.map(({ date, records }, index) => {
-            const dailyTotal = records.reduce((acc, cur) => {
-              // cur.category can be null for records whose category was
-              // later deleted (server soft-deletes categories, so the join
-              // comes back null) — skip them rather than throwing here.
-              if (!cur.category) return acc;
-              const price =
-                cur.category.type === 'expense'
-                  ? -Number(cur.price)
-                  : Number(cur.price);
-              return acc + price;
-            }, 0);
-
-            return (
-              <div key={index} className="py-1">
-                <CustomAccordion
-                  header={
-                    <div
-                      ref={headerRef}
-                      className="accordion-header flex justify-between items-center"
-                      onClick={() => {
-                        setEditRecord((prev) => ({ ...prev, date: date }));
-                      }}
-                    >
-                      <div className="text-zinc-700 dark:text-zinc-200">
-                        {date}
-                      </div>
-                      <div
-                        className={clsx(
-                          'font-medium',
-                          dailyTotal >= 0
-                            ? 'text-success-600 dark:text-success-400'
-                            : 'text-danger-600 dark:text-danger-400',
-                        )}
-                      >
-                        {formatMoney(dailyTotal, favWallet.currency)}
-                      </div>
-                    </div>
-                  }
-                  customClass="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-700"
-                  triggerUpdate={favWallet}
-                  hideArrow
-                  controlled={{
-                    expanded: selectedDate === date,
-                    handleChange: (
-                      open: boolean,
-                      e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-                    ) => {
-                      if (open) {
-                        setSelectedDate('');
-                      } else {
-                        setSelectedDate(date);
-                      }
-                    },
-                  }}
-                >
-                  <div className="space-y-1">
-                    {records.map((record) => (
-                      <div
-                        key={record.id}
-                        className={clsx(
-                          'flex items-center justify-between p-1 bg-white dark:bg-zinc-800 rounded-md',
-                          record.isTransfer
-                            ? 'cursor-default'
-                            : 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700',
-                        )}
-                        onClick={() => {
-                          // Transfers are a matched pair of records with no
-                          // real category to edit (see apis/transfer.ts) —
-                          // editing one side here would desync it from its
-                          // other half, so the normal edit modal is skipped.
-                          if (record.isTransfer) return;
-                          setEditRecord(record);
-                          setEditRecordCategory(record.category);
-                          setOpen(true);
-                        }}
-                      >
-                        {record.category ? (
-                          <>
-                            <div className={clsx('flex items-center gap-2')}>
-                              <div
-                                className={clsx(
-                                  'p-1 rounded-full text-white',
-                                  record.category.type === 'expense'
-                                    ? 'bg-danger-500'
-                                    : 'bg-success-500',
-                                )}
-                              >
-                                <IconSelector name={record.category.icon} />
-                              </div>
-                              <span className="flex items-baseline gap-2">
-                                <span className="text-zinc-800 dark:text-zinc-100">
-                                  {record.category.name}
-                                </span>
-                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                                  {record.remarks}
-                                </span>
-                              </span>
-                            </div>
-
-                            <span
-                              className={clsx(
-                                'font-medium',
-                                record.category.type === 'expense'
-                                  ? 'text-danger-600 dark:text-danger-400'
-                                  : 'text-success-600 dark:text-success-400',
-                              )}
-                            >
-                              {record.category.type === 'expense' && '-'}
-                              {formatMoney(record.price, favWallet.currency)}
-                            </span>
-                          </>
-                        ) : (
-                          // Category was deleted after this record was created —
-                          // there's no category data left to render (server
-                          // soft-deletes categories, so the join comes back null
-                          // rather than throwing). Show a plain fallback instead
-                          // of crashing the whole accordion for this wallet.
-                          <>
-                            <span className="flex items-baseline gap-2 text-zinc-400 dark:text-zinc-500 italic">
-                              <span>Deleted category</span>
-                              <span className="text-sm">{record.remarks}</span>
-                            </span>
-                            <span className="font-medium text-zinc-400 dark:text-zinc-500">
-                              {formatMoney(record.price, favWallet.currency)}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CustomAccordion>
-              </div>
-            );
-          })}
-        </Card>
-      ))}
 
       {open && (
         <RecordModal
@@ -511,34 +520,6 @@ const Records = (props: Props) => {
           setOpen={setOpenTransfer}
           defaultFromWalletId={favWallet?.id}
         />
-      )}
-
-      {openSelectWallet && (
-        <CustomModal setOpen={setOpenSelectWallet}>
-          <div>
-            <p className="text-2xl">Select your wallet</p>
-
-            <div className="py-2">
-              <p className="font-semibold">Current wallet:</p>
-
-              <div>Name: {favWallet?.name}</div>
-              <div>Currency: {favWallet?.currency}</div>
-            </div>
-            <div>
-              <CustomSelector
-                title={'Wallet List'}
-                options={wallets?.map((w) => w.name) ?? []}
-                value={favWallet?.name}
-                callbackAction={(value) => {
-                  const newFavWallet = wallets?.find((w) => w.name === value);
-                  if (newFavWallet) {
-                    dispatch(updateFavWallet(newFavWallet.id));
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </CustomModal>
       )}
     </div>
   );

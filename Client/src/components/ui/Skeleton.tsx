@@ -7,7 +7,7 @@ const Skeleton = ({ className, ...rest }: SkeletonProps) => {
   return (
     <div
       className={clsx(
-        'animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700',
+        'animate-pulse rounded-md bg-zinc-200 dark:bg-white/[0.07]',
         className,
       )}
       {...rest}
@@ -38,7 +38,7 @@ export const SkeletonCard = ({ className }: { className?: string }) => {
   return (
     <div
       className={clsx(
-        'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-card p-4 flex flex-col gap-3',
+        'lux-card bg-white border border-zinc-200 rounded-2xl shadow-card p-4 flex flex-col gap-3',
         className,
       )}
     >

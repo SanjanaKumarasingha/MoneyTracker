@@ -57,13 +57,13 @@ const Select = ({
 
       <div
         className={clsx(
-          'w-full border p-2 flex items-center justify-between rounded-lg bg-white dark:bg-zinc-800',
+          'w-full border p-2 flex items-center justify-between rounded-lg bg-white dark:bg-white/[0.04]',
           disabled
             ? 'cursor-not-allowed opacity-60'
             : 'cursor-pointer',
           error
             ? 'border-danger-500'
-            : 'border-zinc-300 dark:border-zinc-600',
+            : 'border-zinc-300 dark:border-white/10',
         )}
         onClick={() => {
           if (!disabled) setOpen((prev) => !prev);
@@ -83,7 +83,7 @@ const Select = ({
 
       <ul
         className={clsx(
-          'bg-white dark:bg-zinc-800 mt-2 max-h-40 text-zinc-700 dark:text-zinc-300 overflow-y-auto overflow-x-hidden z-50 absolute break-words rounded-lg transition-all duration-300 shadow-sm border border-zinc-200 dark:border-zinc-700',
+          'bg-white dark:bg-[#0d1320] mt-2 max-h-40 text-zinc-700 dark:text-zinc-300 overflow-y-auto overflow-x-hidden z-50 absolute break-words rounded-lg transition-all duration-300 shadow-sm border border-zinc-200 dark:border-white/10',
           open ? 'visible' : 'hidden',
         )}
         ref={listRef}
@@ -92,7 +92,7 @@ const Select = ({
         }}
       >
         {filter && (
-          <div className="flex gap-2 sticky top-0 z-50 overflow-x-hidden mx-2 pt-2 bg-white dark:bg-zinc-800 items-center">
+          <div className="flex gap-2 sticky top-0 z-50 overflow-x-hidden mx-2 pt-2 bg-white dark:bg-[#0d1320] items-center">
             <IoSearchOutline className="text-zinc-400" strokeWidth={1} />
             <input
               type="text"

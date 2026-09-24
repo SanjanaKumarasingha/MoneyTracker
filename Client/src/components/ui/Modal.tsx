@@ -53,13 +53,13 @@ const Modal = ({ isOpen, onClose, title, size = 'md', children, footer }: ModalP
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
         className={clsx(
-          'bg-white dark:bg-zinc-800 shadow-lg overflow-auto w-full min-w-min max-h-[85vh]',
+          'lux-card bg-white shadow-lg overflow-auto w-full min-w-min max-h-[85vh]',
           'rounded-t-2xl sm:rounded-2xl',
           'animate-slide-up sm:animate-none',
           sizeClasses[size],
         )}
       >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-700">
+        <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-white/[0.08]">
           <div className="font-medium text-zinc-800 dark:text-zinc-100">
             {title}
           </div>
@@ -74,7 +74,7 @@ const Modal = ({ isOpen, onClose, title, size = 'md', children, footer }: ModalP
         <div className="p-4">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 p-4 border-t border-zinc-100 dark:border-zinc-700">
+          <div className="flex items-center justify-end gap-2 p-4 border-t border-zinc-100 dark:border-white/[0.08]">
             {footer}
           </div>
         )}

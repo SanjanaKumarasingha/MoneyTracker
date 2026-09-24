@@ -84,10 +84,21 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         aria-busy={isLoading || undefined}
         className={clsx(
-          'inline-flex items-center justify-center rounded-lg font-medium select-none transition-colors',
+          'inline-flex items-center justify-center rounded-lg font-medium select-none',
+          // transition-all (not transition-colors) so both the variant's
+          // hover/active color change AND the press-scale below animate —
+          // two separate transition-property utilities on one element don't
+          // combine, the later one simply wins. The scale-down-on-press is
+          // the web equivalent of the mobile app's PressableScale + haptic
+          // squeeze: a button that visibly "gives" under a click reads as
+          // more physically responsive than a flat color swap alone
+          // (affordance/feedback — see Mobile's GlassFab for the fuller
+          // citations), applied here once so every button in the app gets
+          // it for free instead of each screen re-inventing it.
+          'transition-all duration-150',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
           'disabled:opacity-60 disabled:cursor-not-allowed',
-          !isDisabled && 'cursor-pointer',
+          !isDisabled && 'cursor-pointer active:scale-95',
           variantClasses[variant],
           sizeClasses[size],
           className,

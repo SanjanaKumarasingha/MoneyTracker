@@ -26,3 +26,128 @@
       0 0 35px rgba(45, 125, 255, 0.12);
   }
 }
+
+/* ---- Luxury dark surfaces --------------------------------------------------
+   Un-layered rules scoped as `.dark #root ...` so they out-rank (or tie and
+   win on source order) Tailwind's `important: '#root'`-scoped utilities such
+   as a leftover bg-gradient-to-br or shadow-card. Dark mode only; light mode
+   keeps the standard white cards. Only works inside #root - portaled UI
+   (Modal, Drawer) styles itself with utilities instead.
+
+   .lux-canvas  page background: deep obsidian + soft blue backlight orbs.
+   .lux-card    frosted slate surface, specular top edge, layered shadow.
+   .lux-glass   smoked-glass wallet surface; a --lux-glow color leaks in from
+                the top-right, plus a faint diagonal sheen.
+   .lux-titanium matte obsidian with a faint brushed-metal gradient (hero).
+   (Soft translucent badges live in components/ui/Pill.tsx.)           */
+.dark #root .lux-canvas {
+  background-color: #080b11;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(56, 189, 248, 0.05), transparent 70%),
+    radial-gradient(ellipse 50% 35% at 0% 60%, rgba(99, 102, 241, 0.05), transparent 70%);
+  background-attachment: fixed;
+}
+
+.dark #root .lux-card {
+  background: linear-gradient(180deg, rgba(26, 34, 52, 0.6) 0%, rgba(15, 23, 42, 0.75) 100%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-top-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.5),
+    0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.dark #root .lux-glass {
+  --lux-glow: rgba(37, 99, 235, 0.25);
+  --lux-edge: rgba(96, 165, 250, 0.28);
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 60%),
+    radial-gradient(circle at 100% 0%, var(--lux-glow), transparent 62%),
+    linear-gradient(180deg, rgba(14, 19, 30, 0.92) 0%, rgba(8, 11, 17, 0.96) 100%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--lux-edge);
+  border-top-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.6),
+    0 20px 25px -5px rgba(0, 0, 0, 0.35);
+}
+.dark #root .lux-glass[data-tone='navy'] {
+  --lux-glow: rgba(37, 99, 235, 0.25);
+  --lux-edge: rgba(96, 165, 250, 0.3);
+}
+.dark #root .lux-glass[data-tone='crimson'] {
+  --lux-glow: rgba(225, 29, 72, 0.2);
+  --lux-edge: rgba(251, 113, 133, 0.22);
+}
+.dark #root .lux-glass[data-tone='amber'] {
+  --lux-glow: rgba(217, 119, 6, 0.22);
+  --lux-edge: rgba(252, 211, 77, 0.24);
+}
+.dark #root .lux-glass[data-tone='emerald'] {
+  --lux-glow: rgba(16, 185, 129, 0.2);
+  --lux-edge: rgba(110, 231, 183, 0.22);
+}
+
+.dark #root .lux-titanium {
+  background:
+    repeating-linear-gradient(100deg, rgba(255, 255, 255, 0.018) 0px, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 4px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(56, 189, 248, 0.14), transparent 60%),
+    linear-gradient(160deg, #141a26 0%, #0b0f17 55%, #090c13 100%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.6),
+    0 20px 25px -5px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- react-data-grid (Records "Sheet" view) theme -------------------------
+   The grid ships a light and a dark variable set of its own; RecordsSheetGrid
+   picks .rdg-dark / .rdg-light from the app's dark-mode state. These override
+   the library's neutral greys with the app's slate palette so the sheet reads
+   as part of the dark theme instead of a pasted-in white spreadsheet. */
+.rdg.rdg-dark {
+  --rdg-color: #e2e8f0;
+  --rdg-background-color: #0f172a;
+  --rdg-header-background-color: #1e293b;
+  --rdg-header-draggable-background-color: #334155;
+  --rdg-border-color: #334155;
+  --rdg-summary-border-color: #334155;
+  --rdg-row-hover-background-color: #1e293b;
+  --rdg-row-selected-background-color: rgba(37, 99, 235, 0.35);
+  --rdg-row-selected-hover-background-color: rgba(37, 99, 235, 0.45);
+  --rdg-selection-color: #2563eb;
+}
+.rdg.rdg-light {
+  --rdg-color: #0f172a;
+  --rdg-background-color: #ffffff;
+  --rdg-header-background-color: #f1f5f9;
+  --rdg-border-color: #e2e8f0;
+  --rdg-row-hover-background-color: #f8fafc;
+  --rdg-selection-color: #2563eb;
+}
+.rdg .rdg-header-row {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Zebra striping; hover still wins via the library's own :hover rule. */
+.rdg.rdg-dark .rdg-row-alt:not(:hover) {
+  background-color: rgba(30, 41, 59, 0.55);
+}
+.rdg.rdg-light .rdg-row-alt:not(:hover) {
+  background-color: #f8fafc;
+}
+
+/* Native date inputs follow the active theme (calendar popup + icon). */
+.dark input[type='date'] {
+  color-scheme: dark;
+}

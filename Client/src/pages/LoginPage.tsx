@@ -74,8 +74,8 @@ const LoginPage = () => {
   if (isSignedIn) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 font-Barlow">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-zinc-800/40">
+    <div className="min-h-[70vh] flex items-center justify-center px-4 font-lux">
+      <div className="w-full max-w-md lux-card rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Welcome back</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Sign in to continue tracking your income and expenses.

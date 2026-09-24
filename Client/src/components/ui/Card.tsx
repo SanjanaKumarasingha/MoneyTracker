@@ -25,7 +25,10 @@ const Card = ({
   return (
     <div
       className={clsx(
-        'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-card',
+        // Light: plain white card. Dark: the frosted-slate `.lux-card` surface
+        // (gradient, blur, specular top edge, layered shadow - see index.css),
+        // so no dark bg/border/shadow utilities here - they'd out-rank it.
+        'lux-card bg-white border border-zinc-200 rounded-2xl shadow-card',
         paddingClasses[padding],
         className,
       )}

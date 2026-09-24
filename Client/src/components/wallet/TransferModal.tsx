@@ -51,7 +51,7 @@ const WalletOption = ({
       'snap-start shrink-0 w-[75%] sm:w-60 rounded-2xl p-4 flex flex-col gap-3 border cursor-pointer transition-colors',
       selected
         ? 'bg-primary-600 border-primary-600 text-white'
-        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700',
+        : 'bg-zinc-50 dark:bg-white/[0.04] border-zinc-200 dark:border-white/10 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/[0.08]',
     )}
   >
     <div className="flex items-center justify-between gap-2">

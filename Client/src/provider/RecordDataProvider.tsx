@@ -17,6 +17,17 @@ import { useAuth } from './AuthProvider';
 interface ProviderValue {
   wallets: IWalletRecordWithCategory[];
   favWallet?: IWalletRecordWithCategory;
+  /**
+   * What the Analytics page charts: `favWallet` normally, or - when
+   * `allWalletsMode` is on - a synthetic wallet holding every record from
+   * the wallets sharing `favWallet`'s currency.
+   */
+  scopeWallet?: IWalletRecordWithCategory;
+  scopeWalletIds: number[];
+  /** Wallets left out of the "all wallets" scope because of a different currency. */
+  excludedWalletCount: number;
+  allWalletsMode: boolean;
+  setAllWalletsMode: (value: boolean) => void;
   income: number;
   expense: number;
   total: number;
@@ -55,6 +66,11 @@ export const RecordDateProvider = ({ children }: any) => {
   const [groupBy, setGroupBy] = useState<GroupByScale>(GroupByScale.ALL);
 
   const [currentDate, setCurrentDate] = useState<number>(0);
+
+  // Analytics-only: chart every wallet instead of just the selected one.
+  // Deliberately separate from the Redux fav-wallet id, which other pages
+  // (Records, Home, record creation) rely on being a real wallet.
+  const [allWalletsMode, setAllWalletsMode] = useState(false);
 
   const { data: wallets } = useQuery<IWalletRecordWithCategory[]>({
     queryKey: ['wallets', userId],
@@ -192,7 +208,7 @@ export const RecordDateProvider = ({ children }: any) => {
     });
     const groupedDateRecord = dateGrouping(
       GroupByScale.MONTH,
-      favWallet?.records ?? [],
+      scopeWallet?.records ?? [],
     );
 
     const groupDateRecordByCategory = categoryGrouping(groupedDateRecord);
@@ -280,9 +296,45 @@ export const RecordDateProvider = ({ children }: any) => {
     };
   }, [id, wallets]);
 
+  // No FX conversion exists anywhere in the app, so "all wallets" only
+  // combines wallets in the selected wallet's currency rather than summing
+  // mixed currencies into one meaningless number.
+  const { scopeWallet, scopeWalletIds, excludedWalletCount, scopeIncome, scopeExpense } =
+    useMemo(() => {
+      if (!allWalletsMode || !favWallet || !wallets) {
+        return {
+          scopeWallet: favWallet,
+          scopeWalletIds: favWallet ? [favWallet.id] : [],
+          excludedWalletCount: 0,
+          scopeIncome: income,
+          scopeExpense: expense,
+        };
+      }
+
+      const included = wallets.filter((w) => w.currency === favWallet.currency);
+      const records = included.flatMap((w) => w.records ?? []);
+
+      let scopeIncome = 0;
+      let scopeExpense = 0;
+      records.forEach((r) => {
+        // Transfers between your own wallets are neither income nor spending.
+        if (r.isTransfer || !r.category) return;
+        if (r.category.type === 'income') scopeIncome += Number(r.price);
+        else scopeExpense += Number(r.price);
+      });
+
+      return {
+        scopeWallet: { ...favWallet, name: 'All wallets', records },
+        scopeWalletIds: included.map((w) => w.id),
+        excludedWalletCount: wallets.length - included.length,
+        scopeIncome,
+        scopeExpense,
+      };
+    }, [allWalletsMode, favWallet, wallets, income, expense]);
+
   const groupByCategoryAndDateRecords = useMemo(() => {
-    return dateGrouping(groupBy, favWallet?.records ?? []);
-  }, [groupBy, favWallet]);
+    return dateGrouping(groupBy, scopeWallet?.records ?? []);
+  }, [groupBy, scopeWallet]);
 
   const { groupByCategoryRecords, incomeByDate, expenseByDate } =
     useMemo(() => {
@@ -300,8 +352,8 @@ export const RecordDateProvider = ({ children }: any) => {
 
       if (groupBy === GroupByScale.ALL) {
         return {
-          incomeByDate: income,
-          expenseByDate: expense,
+          incomeByDate: scopeIncome,
+          expenseByDate: scopeExpense,
           groupByCategoryRecords: tmpGroupingByCategory[0],
         };
       }
@@ -325,13 +377,18 @@ export const RecordDateProvider = ({ children }: any) => {
                 records: [],
               },
       };
-    }, [groupByCategoryAndDateRecords, groupBy, currentDate, income, expense]);
+    }, [groupByCategoryAndDateRecords, groupBy, currentDate, scopeIncome, scopeExpense]);
 
   return (
     <RecordDataContext.Provider
       value={{
         wallets,
         favWallet,
+        scopeWallet,
+        scopeWalletIds,
+        excludedWalletCount,
+        allWalletsMode,
+        setAllWalletsMode,
         income,
         expense,
         total,

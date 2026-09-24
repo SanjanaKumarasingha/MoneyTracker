@@ -47,10 +47,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div
           className={clsx(
-            'flex items-center gap-2 rounded-lg border px-2 py-1.5 bg-white dark:bg-zinc-800',
+            'flex items-center gap-2 rounded-lg border px-2 py-1.5 bg-white dark:bg-white/[0.04]',
             error
               ? 'border-danger-500 focus-within:ring-1 focus-within:ring-danger-500'
-              : 'border-zinc-300 dark:border-zinc-600 focus-within:ring-1 focus-within:ring-primary-500 focus-within:border-primary-500',
+              : 'border-zinc-300 dark:border-white/10 focus-within:ring-1 focus-within:ring-primary-500 focus-within:border-primary-500',
           )}
         >
           {leftIcon && (

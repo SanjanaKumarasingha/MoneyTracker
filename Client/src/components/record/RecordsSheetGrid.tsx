@@ -4,13 +4,15 @@ import { toast } from 'react-toastify';
 import { AxiosError } from 'axios';
 import DataGrid, { Column, RenderCellProps, RenderEditCellProps, RowsChangeData } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
-import { AiOutlineLeft, AiOutlineRight, AiOutlineDelete } from 'react-icons/ai';
+import { AiOutlineDelete } from 'react-icons/ai';
 
 import { fetchCategories } from '../../apis/category';
 import { createRecord, deleteRecord, updateRecord } from '../../apis/record';
 import { ICategory, ICreateRecord, IWalletRecordWithCategory } from '../../types';
 import { getCategoryColor } from '../../utils/categoryColor';
-import { Button, ConfirmDialog } from '../ui';
+import { ConfirmDialog } from '../ui';
+import { useDarkMode } from '../../provider/DarkModeProvider';
+import { PeriodRange, isDateInRange } from '../../utils/period';
 
 type SheetRow = {
   // 0 means "not saved yet" - the always-present blank row at the bottom.
@@ -21,24 +23,6 @@ type SheetRow = {
   remarks: string;
   price: number;
 };
-
-const currentMonth = () => new Date().toISOString().slice(0, 7);
-
-function shiftMonth(month: string, delta: number): string {
-  const [year, mon] = month.split('-').map(Number);
-  const total = year * 12 + (mon - 1) + delta;
-  const nextYear = Math.floor(total / 12);
-  const nextMon = (total % 12) + 1;
-  return `${nextYear}-${String(nextMon).padStart(2, '0')}`;
-}
-
-function formatMonthLabel(month: string): string {
-  const [year, mon] = month.split('-').map(Number);
-  return new Date(year, mon - 1, 1).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-  });
-}
 
 const makeBlankRow = (walletId: number | null): SheetRow => ({
   id: 0,
@@ -51,7 +35,7 @@ const makeBlankRow = (walletId: number | null): SheetRow => ({
 
 const buildRows = (
   wallets: IWalletRecordWithCategory[],
-  month: string,
+  range: PeriodRange | null,
   activeTab: number | 'all',
   defaultWalletId: number | null,
 ): SheetRow[] => {
@@ -73,7 +57,7 @@ const buildRows = (
           price: Number(record.price),
         })),
     )
-    .filter((row) => row.date.slice(0, 7) === month)
+    .filter((row) => isDateInRange(row.date, range))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const blankWalletId = activeTab === 'all' ? defaultWalletId : activeTab;
@@ -88,7 +72,7 @@ function WalletEditor({
   return (
     <select
       autoFocus
-      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
+      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none ring-2 ring-inset ring-primary-500"
       value={row.walletId ?? ''}
       onChange={(e) => {
         const walletId = e.target.value ? Number(e.target.value) : null;
@@ -115,7 +99,7 @@ function CategoryEditor({
   return (
     <select
       autoFocus
-      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none"
+      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none ring-2 ring-inset ring-primary-500"
       value={row.categoryId ?? ''}
       onChange={(e) => {
         const categoryId = e.target.value ? Number(e.target.value) : null;
@@ -149,7 +133,7 @@ function AmountEditor({ row, onRowChange, onClose }: RenderEditCellProps<SheetRo
       autoFocus
       type="number"
       step="0.01"
-      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none text-right"
+      className="w-full h-full px-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 outline-none ring-2 ring-inset ring-primary-500 text-right"
       defaultValue={row.price || ''}
       onBlur={(e) => {
         onRowChange({ ...row, price: Number(e.target.value) || 0 }, true);
@@ -169,21 +153,23 @@ function AmountEditor({ row, onRowChange, onClose }: RenderEditCellProps<SheetRo
 type Props = {
   wallets: IWalletRecordWithCategory[];
   defaultWalletId?: number;
+  /** The Records page's shared period filter; null = every record. */
+  range: PeriodRange | null;
 };
 
 // A directly-editable ledger across every wallet, closer to how the user
 // actually works in Google Sheets/Excel than the one-record-at-a-time
-// modal: pick a month, every row for it is live, edits save on commit
+// modal: every row in the page's selected period is live, edits save on commit
 // (Tab/Enter/blur), and there's always a blank row at the bottom ready for
 // the next entry - no separate "Add" step.
-const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
+const RecordsSheetGrid = ({ wallets, defaultWalletId, range }: Props) => {
+  const { isDarkMode } = useDarkMode();
   const queryClient = useQueryClient();
   const { data: categories = [] } = useQuery<ICategory[]>({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
 
-  const [month, setMonth] = useState(currentMonth);
   // Which "sheet" is showing - 'all' combines every wallet (with its own
   // Wallet column), or a specific wallet id for a single-wallet tab, same
   // idea as Google Sheets' bottom tab strip switching between sheets.
@@ -191,16 +177,16 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
   const fallbackWalletId = defaultWalletId ?? wallets[0]?.id ?? null;
 
   const [rows, setRows] = useState<SheetRow[]>(() =>
-    buildRows(wallets, month, activeTab, fallbackWalletId),
+    buildRows(wallets, range, activeTab, fallbackWalletId),
   );
 
-  // Only resync from server data when switching months/tabs - resyncing on
+  // Only resync from server data when switching period/tabs - resyncing on
   // every records change would clobber whatever the user is mid-edit on
   // (an invalidated query refetches right after every save below).
   useEffect(() => {
-    setRows(buildRows(wallets, month, activeTab, fallbackWalletId));
+    setRows(buildRows(wallets, range, activeTab, fallbackWalletId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, activeTab]);
+  }, [range?.start, range?.end, activeTab]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['wallets'] });
@@ -282,8 +268,8 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
         return;
       }
       // A row's date can be edited to fall outside the currently-viewed
-      // month - it still saves (the server doesn't care), it just won't be
-      // in this list anymore once the query refetches and this month is
+      // period - it still saves (the server doesn't care), it just won't be
+      // in this list anymore once the query refetches and this period is
       // rebuilt from scratch.
       updateMutation.mutate(row);
     });
@@ -384,7 +370,7 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
     },
   ];
 
-  const monthTotal = rows.reduce((acc, row) => {
+  const netTotal = rows.reduce((acc, row) => {
     if (row.id === 0) return acc;
     const category = categories.find((c) => c.id === row.categoryId);
     if (!category) return acc;
@@ -395,73 +381,51 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label="Previous month"
-            onClick={() => setMonth((m) => shiftMonth(m, -1))}
-          >
-            <AiOutlineLeft />
-          </Button>
-          <span className="font-medium text-zinc-800 dark:text-zinc-100 min-w-32 text-center">
-            {formatMonthLabel(month)}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label="Next month"
-            onClick={() => setMonth((m) => shiftMonth(m, 1))}
-          >
-            <AiOutlineRight />
-          </Button>
-          {month !== currentMonth() && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
-              Today
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Click any cell to edit - changes save as soon as you tab/enter out of it. Fill in the
+          blank row at the bottom to add a new transaction. Transfers between wallets aren't shown
+          here - edit those from List view.
+        </p>
         <span
           className={
-            monthTotal >= 0
-              ? 'font-medium text-success-600 dark:text-success-400'
-              : 'font-medium text-danger-600 dark:text-danger-400'
+            'shrink-0 text-sm font-semibold ' +
+            (netTotal >= 0
+              ? 'text-success-600 dark:text-success-400'
+              : 'text-danger-600 dark:text-danger-400')
           }
         >
-          Net: {monthTotal.toFixed(2)}
+          Net: {netTotal.toFixed(2)}
         </span>
       </div>
-
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Click any cell to edit - changes save as soon as you tab/enter out of it. Fill in the
-        blank row at the bottom to add a new transaction. Transfers between wallets aren't shown
-        here - edit those from List view.
-      </p>
 
       <DataGrid
         columns={columns}
         rows={rows}
         rowKeyGetter={(row: SheetRow) => row.id}
         onRowsChange={handleRowsChange}
-        className="rdg-light dark:rdg-dark rounded-t-xl overflow-hidden"
+        // `dark:rdg-dark` in a Tailwind class string never worked - rdg-dark
+        // isn't a Tailwind utility, so the grid was hard-locked to the light
+        // theme (the white slab in dark mode). Pick the library's own theme
+        // class from the app's dark-mode state instead; index.css maps both
+        // to the slate palette.
+        className={(isDarkMode ? 'rdg-dark' : 'rdg-light') + ' rounded-t-xl overflow-hidden'}
+        rowClass={(_row: SheetRow, index: number) => (index % 2 === 1 ? 'rdg-row-alt' : undefined)}
         style={{ blockSize: Math.min(560, 46 + rows.length * 35) }}
       />
 
       {/* Bottom sheet tabs, Google Sheets-style - "All" combines every
           wallet into one ledger (with its own Wallet column above); each
           wallet also gets its own tab, just that wallet's rows. */}
-      <div className="flex items-center gap-0.5 overflow-x-auto bg-zinc-100 dark:bg-zinc-900 rounded-b-xl px-2 py-1.5 -mt-2 border-t border-zinc-200 dark:border-zinc-700">
+      <div className="flex items-center gap-0.5 overflow-x-auto bg-zinc-100 dark:bg-zinc-800 rounded-b-xl px-2 py-1.5 -mt-2 border border-t-0 border-zinc-200 dark:border-zinc-700">
         <button
           type="button"
           onClick={() => setActiveTab('all')}
           className={
             'shrink-0 px-3 py-1 text-sm rounded-md transition-colors ' +
             (activeTab === 'all'
-              ? 'bg-white dark:bg-zinc-700 text-primary-700 dark:text-primary-300 font-semibold shadow-sm'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800')
+              ? 'bg-white dark:bg-zinc-900 text-primary-700 dark:text-primary-300 font-semibold shadow-sm'
+              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/[0.06]')
           }
         >
           All wallets
@@ -474,8 +438,8 @@ const RecordsSheetGrid = ({ wallets, defaultWalletId }: Props) => {
             className={
               'shrink-0 px-3 py-1 text-sm rounded-md transition-colors ' +
               (activeTab === wallet.id
-                ? 'bg-white dark:bg-zinc-700 text-primary-700 dark:text-primary-300 font-semibold shadow-sm'
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800')
+                ? 'bg-white dark:bg-zinc-900 text-primary-700 dark:text-primary-300 font-semibold shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/[0.06]')
             }
           >
             {wallet.name}

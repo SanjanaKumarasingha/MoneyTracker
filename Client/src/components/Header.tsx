@@ -16,21 +16,21 @@ const Header = (props: Props) => {
     if (authRoute) {
       return authRoute.name;
     } else {
-      return ' Expense Tracker';
+      return 'Money Game';
     }
   };
 
   return (
     <header
       className={clsx(
-        // Same frosted-glass treatment as Navbar/BottomNavbar, so the three
-        // pieces of chrome read as one consistent surface.
-        'flex justify-between items-center rounded-2xl backdrop-blur-xl shadow-card px-4 py-3',
-        'bg-white/60 dark:bg-zinc-900/50',
-        'border border-white/60 dark:border-white/10',
+        // Sticky slim top bar: page title on the left, account on the right.
+        // Blurred so content scrolling under it stays readable.
+        'sticky top-0 z-30 flex justify-between items-center px-4 sm:px-6 h-14',
+        'backdrop-blur-xl bg-white/80 dark:bg-[#080B11]/70',
+        'border-b border-zinc-200 dark:border-white/[0.07]',
       )}
     >
-      <div className="flex items-center gap-2 text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+      <div className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
         {header()}
       </div>
       <Setting />

@@ -13,6 +13,7 @@ import CategoryPage from '../pages/CategoryPage';
 import Profile from '../pages/Profile';
 import UpdatePassword from '../pages/UpdatePassword';
 import ImportPage from '../pages/ImportPage';
+import GoalsPage from '../pages/GoalsPage';
 
 export const routes = {
   authRoute: [
@@ -22,7 +23,7 @@ export const routes = {
       element: <Home />,
     },
     {
-      name: 'Charts',
+      name: 'Analytics',
       path: '/charts',
       element: <Chart />,
     },
@@ -35,6 +36,11 @@ export const routes = {
       name: 'Records',
       path: '/records',
       element: <Records />,
+    },
+    {
+      name: 'Goals',
+      path: '/goals',
+      element: <GoalsPage />,
     },
     {
       name: 'User Setting',

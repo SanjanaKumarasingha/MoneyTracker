@@ -21,3 +21,20 @@ export type { SkeletonProps } from './Skeleton';
 
 export { default as ConfirmDialog } from './ConfirmDialog';
 export type { ConfirmDialogProps } from './ConfirmDialog';
+
+export { default as GlassFab } from './GlassFab';
+export type { GlassFabProps } from './GlassFab';
+
+export { default as Drawer } from './Drawer';
+export type { DrawerProps } from './Drawer';
+
+export { default as SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
+
+export { default as ProgressBar } from './ProgressBar';
+export type { ProgressBarProps } from './ProgressBar';
+
+export { default as Money } from './Money';
+export type { MoneyProps, MoneyTone } from './Money';
+
+export { default as Pill } from './Pill';
