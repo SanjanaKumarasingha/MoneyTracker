@@ -16,8 +16,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://moneytracker-smeb.onrender.com/api/v1",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "EXPO_PUBLIC_API_URL": "https://moneytracker-smeb.onrender.com/api/v1"
       }
     },
     "production": {
