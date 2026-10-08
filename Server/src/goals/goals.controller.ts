@@ -12,6 +12,7 @@ import {
   Request,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { GoalsService } from './goals.service';
 import { CreateGoalDto } from './dto/create-goal.dto';
@@ -47,6 +48,7 @@ export class GoalsController {
     if (!wallet) {
       throw new BadRequestException('Wallet does not exist.');
     }
+    await this.assertWalletOwned(wallet.id, req);
 
     let category = null;
     if (createGoalDto.categoryId) {
@@ -55,6 +57,14 @@ export class GoalsController {
       );
       if (!category) {
         throw new BadRequestException('Category does not exist.');
+      }
+
+      const categoryOwned = await this.categoriesService.belongsToUser(
+        category.id,
+        req.user.id,
+      );
+      if (!categoryOwned) {
+        throw new ForbiddenException('You do not own this category');
       }
     }
 
@@ -67,21 +77,22 @@ export class GoalsController {
   }
 
   @Get('/wallet/:walletId')
-  async findAllByWallet(@Param('walletId') walletId: number) {
+  async findAllByWallet(
+    @Param('walletId') walletId: number,
+    @Request() req,
+  ) {
     const wallet = await this.walletsService.findOne(walletId);
     if (!wallet) {
       throw new BadRequestException('Wallet does not exist.');
     }
+    await this.assertWalletOwned(wallet.id, req);
 
     return await this.goalsService.findAllByWalletWithProgress(wallet.id);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number) {
-    const goal = await this.goalsService.findOne(id);
-    if (!goal) {
-      throw new BadRequestException('Goal does not exist.');
-    }
+  async findOne(@Param('id') id: number, @Request() req) {
+    const goal = await this.findOwnedGoal(id, req);
 
     const progress = await this.goalsService.computeProgress(goal);
     return Object.assign(goal, { progress });
@@ -93,26 +104,41 @@ export class GoalsController {
     @Body() updateGoalDto: UpdateGoalDto,
     @Request() req,
   ) {
-    const goal = await this.goalsService.findOne(id);
-    if (!goal) {
-      throw new BadRequestException('Goal does not exist.');
-    }
-
-    const user = await this.usersService.findById(req.user.id);
-    if (!user) {
-      throw new UnauthorizedException('You have no access to update this goal');
-    }
+    await this.findOwnedGoal(id, req);
 
     return await this.goalsService.update(+id, updateGoalDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id') id: number, @Request() req) {
+    const goal = await this.findOwnedGoal(id, req);
+
+    return await this.goalsService.remove(goal.id);
+  }
+
+  private async assertWalletOwned(walletId: number, req): Promise<void> {
+    const owned = await this.walletsService.belongsToUser(walletId, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this wallet');
+    }
+  }
+
+  // A goal always belongs to exactly one wallet, so wallet ownership is
+  // goal ownership.
+  private async findOwnedGoal(id: number, req) {
     const goal = await this.goalsService.findOne(id);
     if (!goal) {
       throw new BadRequestException('Goal does not exist.');
     }
 
-    return await this.goalsService.remove(goal.id);
+    const owned = await this.walletsService.belongsToUser(
+      goal.wallet.id,
+      req.user.id,
+    );
+    if (!owned) {
+      throw new ForbiddenException('You do not own this goal');
+    }
+
+    return goal;
   }
 }

@@ -8,6 +8,7 @@ import {
   Delete,
   Request,
   UnauthorizedException,
+  ForbiddenException,
   ClassSerializerInterceptor,
   UseGuards,
   UseInterceptors,
@@ -35,7 +36,7 @@ export class CategoriesController {
   async create(@Body() createCategoryDto: CreateCategoryDto, @Request() req) {
     const user = await this.usersService.findById(createCategoryDto.userId);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to create new category');
     }
     const category = await this.categoriesService.create(
@@ -58,7 +59,8 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Request() req) {
+    await this.assertOwned(+id, req);
     return await this.categoriesService.findOne(+id);
   }
 
@@ -68,32 +70,25 @@ export class CategoriesController {
     @Body() updateCategoryDto: UpdateCategoryDto,
     @Request() req,
   ) {
-    // Check category is existing
-    const category = await this.categoriesService.findOne(id);
-
-    if (!category) {
-      throw new BadRequestException('Category does not exist.');
-    }
-
-    const user = await this.usersService.findById(req.user.id);
-
-    if (!user) {
-      throw new UnauthorizedException(
-        'You have no access to update this wallet',
-      );
-    }
-
+    await this.assertOwned(+id, req);
     return await this.categoriesService.update(+id, updateCategoryDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
-    // Check category is existing
-    const category = await this.categoriesService.findOne(id);
+  async remove(@Param('id') id: number, @Request() req) {
+    await this.assertOwned(+id, req);
+    return await this.categoriesService.remove(+id);
+  }
 
+  private async assertOwned(id: number, req): Promise<void> {
+    const category = await this.categoriesService.findOne(id);
     if (!category) {
       throw new BadRequestException('Category does not exist.');
     }
-    return await this.categoriesService.remove(+id);
+
+    const owned = await this.categoriesService.belongsToUser(id, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this category');
+    }
   }
 }
