@@ -9,7 +9,10 @@ describe('UsersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [UsersService],
-    }).compile();
+    })
+      // Auto-mock every dependency this test doesn't provide itself.
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
   });

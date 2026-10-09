@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server (NestJS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Server
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: moneytracker_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      DB_DATABASE: moneytracker_test
+      DB_TEST_DATABASE: moneytracker_test
+      JWT_SECRET: ci-only-not-a-real-secret
+      JWT_EXPIRATION_TIME: 3600
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Server/package-lock.json
+
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Unit tests
+        run: npm test -- --ci
+      # app.e2e-spec loads entities from dist/, so build before e2e.
+      - name: Build
+        run: npm run build
+      - name: E2E tests (incl. ownership/authorization suite)
+        run: npm run test:e2e -- --ci --runInBand
+      # 188 pre-existing lint errors (mostly prettier + untyped `req`) -
+      # reported but not yet blocking. Remove continue-on-error once clean.
+      - name: Lint (non-blocking)
+        run: npx eslint "{src,test}/**/*.ts"
+        continue-on-error: true
+
+  client:
+    name: Client (React web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Client
+    env:
+      REACT_APP_BASE_URL: http://localhost:5000/api
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Client/package-lock.json
+
+      - run: npm ci
+      - name: Unit tests
+        run: npm test -- --watchAll=false --ci
+      # CI=true (set by GitHub) makes CRA treat lint warnings as errors.
+      - name: Build
+        run: npm run build
+
+  mobile:
+    name: Mobile (Expo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mobile
+    env:
+      EXPO_PUBLIC_API_URL: http://localhost:5000/api/v1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Mobile/package-lock.json
+
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test -- --ci
+      # Runs the real Metro bundler end-to-end (catches babel/native-module
+      # config issues tsc can't) without needing a device.
+      - name: Bundle smoke test
+        run: npx expo export --platform android --output-dir /tmp/expo-export

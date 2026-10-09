@@ -7,7 +7,10 @@ describe('RecordsService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [RecordsService],
-    }).compile();
+    })
+      // Auto-mock every dependency this test doesn't provide itself.
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<RecordsService>(RecordsService);
   });

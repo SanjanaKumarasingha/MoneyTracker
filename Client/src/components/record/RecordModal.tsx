@@ -380,7 +380,7 @@ const RecordModal = ({
     return () => {
       window.removeEventListener('keydown', keyListener);
     };
-  }, [value]);
+  }, [value, setEditRecord]);
 
   useEffect(() => {
     if (categories && user) {
