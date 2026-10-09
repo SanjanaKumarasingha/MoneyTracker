@@ -4,6 +4,7 @@ import {
   ApiBadRequestResponse,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { LocalAuthGuard } from './local-auth.guard';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -12,7 +13,9 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @UseGuards(LocalAuthGuard)
+  // Throttle first, so rate-limited attempts never reach the password check
+  // (10 attempts per minute per IP - see ThrottlerModule in app.module.ts).
+  @UseGuards(ThrottlerGuard, LocalAuthGuard)
   @Post('login')
   @ApiOkResponse()
   @ApiBadRequestResponse()

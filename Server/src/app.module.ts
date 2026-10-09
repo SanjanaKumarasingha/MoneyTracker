@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 import { datasource } from './datasource';
 import { AppController } from './app.controller';
@@ -16,6 +17,9 @@ import { GoalsModule } from './goals/goals.module';
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    // Default bucket for routes that opt in with ThrottlerGuard (login and
+    // sign-up); per-route limits are set with @Throttle where it's used.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

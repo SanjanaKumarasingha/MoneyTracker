@@ -1,37 +1,12 @@
-// Must run before any module import below: AuthModule reads JWT_SECRET from
-// process.env at import time.
-import 'dotenv/config';
-
-import { Test } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as request from 'supertest';
-import { createConnection } from 'mysql2/promise';
 
-import { UsersModule } from '../src/users/users.module';
-import { CategoriesModule } from '../src/categories/categories.module';
-import { RecordsModule } from '../src/records/records.module';
-import { AuthModule } from '../src/auth/auth.module';
-import { WalletsModule } from '../src/wallets/wallets.module';
-import { GoalsModule } from '../src/goals/goals.module';
+import { createTestApp, signUp, authHeader, Session } from './utils/test-app';
 
 // Authorization regression tests: user B must never be able to read or
-// modify anything owned by user A. Runs against a throwaway database whose
-// schema is dropped and rebuilt from the entities on every run, so it never
-// touches the dev database.
-const TEST_DB = process.env.DB_TEST_DATABASE ?? 'moneytracker_test';
-
-if (!TEST_DB.endsWith('_test')) {
-  throw new Error(
-    `Refusing to run: DB_TEST_DATABASE "${TEST_DB}" must end in "_test" - this suite drops its schema.`,
-  );
-}
-
-type Session = { id: number; token: string };
-
+// modify anything owned by user A.
 describe('Resource ownership (e2e)', () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let alice: Session;
   let bob: Session;
 
@@ -42,64 +17,13 @@ describe('Resource ownership (e2e)', () => {
   let goalId: number;
 
   const api = () => request(app.getHttpServer());
-  const as = (s: Session) => ({ Authorization: `Bearer ${s.token}` });
-
-  async function signUp(name: string): Promise<Session> {
-    const password = 'Password123!';
-    const created = await api()
-      .post('/api/v1/users')
-      .send({ username: name, email: `${name}@example.com`, password })
-      .expect(201);
-
-    const login = await api()
-      .post('/api/v1/auth/login')
-      .send({ username: name, password })
-      .expect(201);
-
-    return { id: created.body.id, token: login.body.access_token };
-  }
+  const as = authHeader;
 
   beforeAll(async () => {
-    const conn = await createConnection({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT ?? 3306),
-      user: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-    });
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\``);
-    await conn.end();
+    app = await createTestApp();
 
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot(),
-        TypeOrmModule.forRoot({
-          type: 'mysql',
-          host: process.env.DB_HOST,
-          port: Number(process.env.DB_PORT ?? 3306),
-          username: process.env.DB_USERNAME,
-          password: process.env.DB_PASSWORD,
-          database: TEST_DB,
-          autoLoadEntities: true,
-          dropSchema: true,
-          synchronize: true,
-        }),
-        UsersModule,
-        CategoriesModule,
-        RecordsModule,
-        AuthModule,
-        WalletsModule,
-        GoalsModule,
-      ],
-    }).compile();
-
-    // Mirror main.ts.
-    app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe());
-    app.setGlobalPrefix('api/v1');
-    await app.init();
-
-    alice = await signUp('alice');
-    bob = await signUp('bob');
+    alice = await signUp(app, 'alice');
+    bob = await signUp(app, 'bob');
 
     const wallet = await api()
       .post('/api/v1/wallets')

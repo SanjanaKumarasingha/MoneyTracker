@@ -15,6 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -35,6 +36,9 @@ export class UsersController {
     private readonly categoriesService: CategoriesService,
   ) {}
 
+  // Sign-up: 5 per minute per IP, to slow scripted account creation.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     // Check any existed user
