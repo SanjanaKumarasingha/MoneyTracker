@@ -28,6 +28,7 @@ const CustomSelector = ({
   const [open, setOpen] = useState<boolean>(false);
   const selectRef = useRef<HTMLUListElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
+  const listboxId = React.useId();
   const handleClickOutside = (event: React.MouseEvent) => {
     if (
       selectRef.current &&
@@ -51,6 +52,10 @@ const CustomSelector = ({
         <div>{title}</div>
         <div
           className="w-full cursor-pointer border border-zinc-300 p-2 flex items-center justify-between rounded"
+          role="combobox"
+          aria-label={title}
+          aria-expanded={open}
+          aria-controls={listboxId}
           onClick={() => {
             setOpen((prev) => !prev);
           }}
@@ -66,6 +71,8 @@ const CustomSelector = ({
           'bg-white mt-2 max-h-40 text-zinc-700 overflow-y-auto overflow-x-hidden z-50 absolute break-words rounded-sm transition-all duration-300 shadow',
           open ? 'visible' : 'hidden',
         )}
+        role="listbox"
+        id={listboxId}
         ref={selectRef}
         style={{
           width: wrapperRef.current?.clientWidth,
@@ -90,6 +97,8 @@ const CustomSelector = ({
         {options.map((option) => (
           <li
             key={option}
+            role="option"
+            aria-selected={value === option}
             className={clsx(
               'p-2 hover:bg-primary-50 relative',
               inputValue && !new RegExp(inputValue, 'i').test(option)

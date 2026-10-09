@@ -28,7 +28,7 @@ npm run test              # unit tests (jest), rootDir=src, matches *.spec.ts
 npm run test -- users.service          # run a single spec by name pattern
 npm run test:watch
 npm run test:cov
-npm run test:e2e          # e2e tests via test/jest-e2e.json
+npm run test:e2e          # e2e tests via test/jest-e2e.json (serial; needs MySQL - uses a throwaway `moneytracker_test` DB)
 ```
 
 Database migrations (TypeORM, `synchronize: false` — schema changes always go through a migration):
@@ -50,6 +50,7 @@ npm start                 # dev server, http://localhost:3000
 npm run build
 npm test                  # react-scripts test (Jest + RTL), interactive watch
 npm test -- --testPathPattern=SomeComponent   # run a single test file
+npm run test:e2e          # Playwright journeys (e2e/); boots its own API on :5001 (fresh `moneytracker_e2e` DB, real migrations) + client on :3001
 ```
 
 Requires a `.env` (see `Client/.env.example`) with `REACT_APP_BASE_URL` pointing at the Server API (e.g. `http://localhost:5000`).
@@ -61,6 +62,8 @@ npm install
 npx expo start            # dev server; scan the QR code with Expo Go, or press i/a for a simulator
 npx expo export --platform android   # non-interactive Metro bundle smoke test (no device/emulator needed)
 npx tsc --noEmit
+npm test                  # jest-expo unit tests
+maestro test .maestro/    # E2E flows - needs a dev build on an emulator/simulator; see .maestro/README.md
 ```
 
 Requires a `.env` (see `Mobile/.env.example`) with `EXPO_PUBLIC_API_URL` (e.g. `http://<your-lan-ip>:5000/api/v1`) — Expo Go on a physical device or emulator cannot reach `localhost`, it needs the host machine's LAN IP. The Server's dev-mode CORS (see below) already allows this.
@@ -76,14 +79,15 @@ Standard Flutter workflow (`flutter pub get`, `flutter run`, `flutter test`) if 
 ### API shape and cross-cutting conventions (Server)
 
 - Global prefix `api/v1` (set in `main.ts`); Swagger UI is mounted at `/api` and CORS is enabled **only when `NODE_ENV !== 'production'`** — production is expected to be same-origin. The dev CORS check accepts `localhost`/`127.0.0.1` on any port, private-LAN IP origins (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`) on any port (so `Mobile/` running in Expo Go over the LAN works), requests with no `Origin` header at all (native mobile requests aren't subject to CORS in the first place), and anything listed in the comma-separated `CORS_ORIGINS` env var (e.g. an Expo tunnel URL).
-- Auth is Passport local (login) + Passport JWT (everything else): `AuthService.validateUser` checks bcrypt hash, `AuthController` issues a JWT via `local-auth.guard`, and `JwtAuthGuard` (`@UseGuards(JwtAuthGuard)`) protects the rest of the API. There is no roles/permissions system — authorization is done ad hoc in each controller method by comparing the resource's owning `userId` against `req.user.id` (see `WalletsController.create/findAll`, `CategoriesController.create`). When adding new endpoints, follow this same manual-ownership-check pattern rather than assuming a guard does it for you.
+- Auth is Passport local (login) + Passport JWT (everything else): `AuthService.validateUser` checks bcrypt hash, `AuthController` issues a JWT via `local-auth.guard`, and `JwtAuthGuard` (`@UseGuards(JwtAuthGuard)`) protects the rest of the API. There is no roles/permissions system — authorization is done ad hoc in each controller method by comparing the resource's owning `userId` against `req.user.id` (see `WalletsController.create/findAll`, `CategoriesController.create`). When adding new endpoints, follow this same manual-ownership-check pattern rather than assuming a guard does it for you — every route that takes a resource id must verify ownership (the `belongsToUser(id, req.user.id)` helpers on `WalletsService`/`CategoriesService`/`RecordsService`; goals are owned via their wallet) and throw `ForbiddenException` otherwise. Add a case for any new route to `Server/test/ownership.e2e-spec.ts`, which proves user B gets 403 on user A's data.
 - Every entity (`User`, `Wallet`, `Category`, `Record`) extends TypeORM `BaseEntity`, uses soft deletes (`@DeleteDateColumn`), and excludes internal timestamp/password fields from JSON responses via `class-transformer`'s `@Exclude` + the controllers' `ClassSerializerInterceptor`.
 - Domain model: `User` 1→N `Wallet`, `User` 1→N `Category`, `Wallet` 1→N `Record`, `Category` 1→N `Record`. A `Record` (an income or expense entry) always belongs to exactly one wallet and one category.
 - `IconName` and `CategoryType` enums live in `Server/src/enums` and are **duplicated by hand** in `Client/src/common/icon-name.enum.ts`/`category-type.ts` and again in `Mobile/src/types` — there's no shared package, so keep all sides in sync manually when changing these.
 - Registering a user (`UsersController.create`) seeds a fixed default set of categories and immediately writes their generated IDs into `user.categoryOrder` — this array is what drives category drag-and-drop ordering in both clients (`@dnd-kit` on web, `react-native-draggable-flatlist` on mobile); if you change the seed list, the ordering bootstrap logic needs to stay consistent.
 - `User.categoryOrder` (`Server/src/users/entities/user.entity.ts`) has an explicit TypeORM `transformer` that maps each stored value through `Number(...)` on read. Without it, TypeORM's `simple-array` column type returns each id as a **string** (`"81"` not `81`), which silently breaks any `===` comparison against real `Category.id` values (a real bug this shipped with — categories rendered as permanently empty on the redesigned web Categories page until this was added). If you ever touch this column, keep the transformer.
 - `RecordsService.findAll` caps results at the 6 most recent records per wallet (`.limit(6)`) — the client does its own further aggregation on top of whatever it fetches, so don't assume "all records" are ever loaded through this endpoint.
-- `Server/src/main.ts` also serves the built client as static files via `ServeStaticModule` pointed at `client/build` relative to `dist/` — this expects a lowercase `client` directory produced by the root-level `build:client` script, which doesn't match the actual `Client/` (capitalized) directory at the repo root. Treat this static-serving path as stale/likely broken rather than the source of truth for how the frontend is served locally; the CI workflow (`.github/workflows/main_moneytracker.yml`) only builds and deploys `Server/` to Azure Web Apps and does not reference the client build at all.
+- `Server/src/main.ts` also serves the built client as static files via `ServeStaticModule` pointed at `client/build` relative to `dist/` — this expects a lowercase `client` directory produced by the root-level `build:client` script, which doesn't match the actual `Client/` (capitalized) directory at the repo root. Treat this static-serving path as stale/likely broken rather than the source of truth for how the frontend is served locally; CI (`.github/workflows/ci.yml`) type-checks, tests, and builds each of `Server/`, `Client/`, and `Mobile/` independently. The web client is deployed by Netlify's GitHub integration (site `money-tracker-my`, base directory `Client/`, deploy previews on PRs); its build settings live in `Client/netlify.toml` (Node 22, source maps off — a clean CRA build otherwise runs out of memory — and the SPA `/*` → `/index.html` rewrite), with `REACT_APP_BASE_URL` set in the Netlify UI. The Server has no deploy workflow in the repo.
+- Request handling shared by `main.ts` and the e2e tests lives in `Server/src/app.setup.ts` (`configureApp`): `helmet`, `trust proxy` (production only, so the rate limiter sees real client IPs behind Azure), and a `ValidationPipe({ whitelist: true })`. **Whitelisting drops any DTO field without a `class-validator` decorator**, so every DTO field needs one (even just `@IsOptional()`), and a DTO must never `PickType` a field marked `@Exclude({ toPlainOnly: true })` on its entity — the pipe re-serialises the body with `classToPlain`, which strips it (that's why `CreateUserDto` declares its own `password`). Login and sign-up are rate-limited with `@nestjs/throttler` (`ThrottlerModule` in `app.module.ts`; e2e suites build their app via `Server/test/utils/test-app.ts`, which must mirror it).
 
 ### Client architecture (`Client/`)
 

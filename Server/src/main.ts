@@ -1,19 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { configureApp } from './app.setup';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
   const isProduction = configService.get<string>('NODE_ENV') == 'production';
-  app.useGlobalPipes(new ValidationPipe());
-
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['_ah/start'],
-  });
+  configureApp(app, { isProduction });
 
   if (!isProduction) {
     // allows the CRA dev server, LAN-hosted previews, and a phone running

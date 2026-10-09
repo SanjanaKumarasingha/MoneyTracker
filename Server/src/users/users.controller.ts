@@ -8,12 +8,14 @@ import {
   Param,
   Request,
   HttpCode,
+  ForbiddenException,
   UnauthorizedException,
   UseGuards,
   ClassSerializerInterceptor,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -34,6 +36,9 @@ export class UsersController {
     private readonly categoriesService: CategoriesService,
   ) {}
 
+  // Sign-up: 5 per minute per IP, to slow scripted account creation.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     // Check any existed user
@@ -140,10 +145,19 @@ export class UsersController {
   //   return this.usersService.findAll();
   // }
 
+  // The :id-param routes below only ever act on the caller's own account -
+  // the param must match the authenticated user (req.user.id from the JWT).
+  private assertSelf(id: number | string, req): void {
+    if (Number(id) !== req.user.id) {
+      throw new ForbiddenException('You can only access your own account');
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await this.usersService.findById(+id);
+  async findOne(@Param('id') id: string, @Request() req) {
+    this.assertSelf(id, req);
+    return await this.usersService.findById(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -151,27 +165,25 @@ export class UsersController {
   async updateCategoryOrder(
     @Param('id') id: number,
     @Body() updateCategoryOrder: UpdateCategoryOrderDto,
+    @Request() req,
   ) {
-    const user = await this.usersService.findById(id);
-    if (!user) {
-      throw new UnauthorizedException(
-        'Unauthorized to update the order of category.',
-      );
-    }
-    return await this.usersService.updateCategoryOrder(updateCategoryOrder);
+    this.assertSelf(id, req);
+    // Never trust the body's id - always write to the caller's own row.
+    return await this.usersService.updateCategoryOrder({
+      ...updateCategoryOrder,
+      id: req.user.id,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  async update(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
-    const user = await this.usersService.findById(id);
-    if (!user) {
-      throw new UnauthorizedException(
-        'Unauthorized to update the order of category.',
-      );
-    }
-
-    return await this.usersService.update(user.id, updateUserDto);
+  async update(
+    @Param('id') id: number,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req,
+  ) {
+    this.assertSelf(id, req);
+    return await this.usersService.update(req.user.id, updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -179,12 +191,12 @@ export class UsersController {
   async updatePassword(
     @Param('id') id: number,
     @Body() updatePasswordDto: UpdatePasswordDto,
+    @Request() req,
   ) {
-    const user = await this.usersService.findById(id);
+    this.assertSelf(id, req);
+    const user = await this.usersService.findById(req.user.id);
     if (!user) {
-      throw new UnauthorizedException(
-        'Unauthorized to update the order of category.',
-      );
+      throw new UnauthorizedException('User does not exist');
     }
 
     return await this.usersService.updatePassword(user, updatePasswordDto);

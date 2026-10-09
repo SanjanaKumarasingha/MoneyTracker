@@ -23,9 +23,11 @@ const CustomTextField = ({
   setVisibleControl,
   direction,
 }: CustomTextFieldProps) => {
+  const inputId = React.useId();
+
   return (
     <div className={clsx('flex gap-2', direction ? '' : 'flex-col')}>
-      {name && <div>{name}: </div>}
+      {name && <label htmlFor={inputId}>{name}: </label>}
 
       <div
         className={clsx('border border-zinc-300 rounded-md px-2', {
@@ -33,6 +35,7 @@ const CustomTextField = ({
         })}
       >
         <input
+          id={inputId}
           value={value}
           autoComplete="on"
           type={type === 'password' ? (visible ? 'text' : 'password') : type}

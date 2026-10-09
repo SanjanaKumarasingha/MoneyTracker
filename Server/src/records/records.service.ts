@@ -25,8 +25,9 @@ export class RecordsService {
     const record = await this.recordRepository.create({
       price: createRecordDto.price,
       remarks: createRecordDto.remarks,
-      wallet: createRecordDto.wallet,
-      category: createRecordDto.category,
+      // Link by id only - never persist client-supplied entity fields.
+      wallet: { id: createRecordDto.wallet.id },
+      category: { id: createRecordDto.category.id },
       date: createRecordDto.date,
     });
 

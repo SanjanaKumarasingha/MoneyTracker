@@ -29,15 +29,19 @@ const CustomModal = ({ children, setOpen, size }: CustomModalProps) => {
           size === 'Small' ? 'w-1/4' : size === 'Medium' ? 'w-1/2' : 'w-4/5',
         )}
         ref={modalContentRef}
+        role="dialog"
+        aria-modal="true"
       >
-        <div
+        <button
+          type="button"
+          aria-label="Close"
           className="float-right hover:bg-zinc-100 rounded-full p-1 cursor-pointer active:bg-zinc-200 dark:hover:bg-opacity-40 dark:active:bg-opacity-60 dark:text-white"
           onClick={() => {
             setOpen(false);
           }}
         >
           <TfiClose />
-        </div>
+        </button>
 
         {children}
       </div>

@@ -1,0 +1,25 @@
+# Netlify build config for the web client. Lives in Client/ because that is
+# the site's base directory - Netlify only reads netlify.toml from there.
+# Values here override the same settings in the Netlify UI. The API URL
+# (REACT_APP_BASE_URL) is deliberately NOT set here - it stays a per-site
+# environment variable in the Netlify UI.
+
+[build]
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  # Playwright (dev dependency) requires Node >= 20; match CI.
+  NODE_VERSION = "22"
+  # A clean CRA build ran out of memory at Node's default heap. Skipping
+  # production source maps is the biggest saving (and stops publishing the
+  # original source); the larger heap is extra headroom.
+  GENERATE_SOURCEMAP = "false"
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
+# Single-page app: let react-router handle every path, so refreshing or
+# deep-linking to e.g. /wallets serves the app instead of a 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -9,7 +9,10 @@ describe('CategoriesController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CategoriesController],
       providers: [CategoriesService],
-    }).compile();
+    })
+      // Auto-mock every dependency this test doesn't provide itself.
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<CategoriesController>(CategoriesController);
   });

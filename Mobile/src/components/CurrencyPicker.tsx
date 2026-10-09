@@ -37,7 +37,7 @@ export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps)
 
   return (
     <>
-      <Pressable style={styles.field} onPress={() => setOpen(true)}>
+      <Pressable style={styles.field} onPress={() => setOpen(true)} testID="currency-picker">
         <Text style={value ? styles.fieldValue : styles.fieldPlaceholder}>
           {value || 'Select currency'}
         </Text>
@@ -55,6 +55,7 @@ export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps)
 
           <TextInput
             style={styles.searchInput}
+            testID="currency-search"
             placeholder="Search ISO code"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="characters"
@@ -69,6 +70,7 @@ export default function CurrencyPicker({ value, onChange }: CurrencyPickerProps)
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <Pressable
+                testID={`currency-option-${item}`}
                 style={({ pressed }) => [
                   styles.row,
                   item === value && styles.rowSelected,

@@ -362,6 +362,7 @@ export default function RecordFormModal({
               return (
                 <Pressable
                   key={c.id}
+                  testID={`record-category-${c.name}`}
                   onPress={() => setSelectedCategory(c)}
                   style={[
                     styles.categoryChip,
@@ -471,6 +472,7 @@ export default function RecordFormModal({
           style={styles.remarksInput}
           value={editRecord.remarks}
           onChangeText={(text) => setEditRecord((prev) => ({ ...prev, remarks: text }))}
+          testID="record-remarks"
           placeholder="Optional note"
           placeholderTextColor={colors.textMuted}
         />
@@ -509,6 +511,7 @@ export default function RecordFormModal({
 
           <Pressable
             style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+            testID="record-submit"
             onPress={() => handleSubmit(true)}
             disabled={isSaving}
           >

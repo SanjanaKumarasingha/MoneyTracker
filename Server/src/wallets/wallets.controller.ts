@@ -12,6 +12,7 @@ import {
   Request,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
@@ -43,7 +44,7 @@ export class WalletsController {
     // Validate the user
     const user = await this.usersService.findById(createWalletDto.userId);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to create wallet');
     }
     return await this.walletsService.create(createWalletDto, user);
@@ -53,7 +54,7 @@ export class WalletsController {
   async findAll(@Request() req, @Param('id') id: number) {
     const user = await this.usersService.findById(id);
 
-    if (user.id !== req.user.id) {
+    if (!user || user.id !== req.user.id) {
       throw new UnauthorizedException('Unable to fetch wallet list');
     }
 
@@ -77,24 +78,26 @@ export class WalletsController {
       throw new BadRequestException('Wallet does not exist.');
     }
 
-    const user = await this.usersService.findById(req.user.id);
-
-    if (!user) {
-      throw new UnauthorizedException(
-        'You have no access to update this wallet',
-      );
+    const owned = await this.walletsService.belongsToUser(+id, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this wallet');
     }
 
     return this.walletsService.update(+id, updateWalletDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id') id: number, @Request() req) {
     // Check wallet is existing
     const wallet = await this.walletsService.findOne(id);
 
     if (!wallet) {
       throw new BadRequestException('Wallet does not exist.');
+    }
+
+    const owned = await this.walletsService.belongsToUser(+id, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this wallet');
     }
 
     return await this.walletsService.remove(wallet.id);

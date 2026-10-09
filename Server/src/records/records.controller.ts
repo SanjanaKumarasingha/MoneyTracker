@@ -45,8 +45,26 @@ export class RecordsController {
     const user = await this.usersService.findById(req.user.id);
 
     if (!user) {
-      throw new UnauthorizedException('Unable to create category');
+      throw new UnauthorizedException('Unable to create record');
     }
+
+    const walletId = createRecordDto.wallet?.id;
+    const categoryId = createRecordDto.category?.id;
+    if (!walletId || !categoryId) {
+      throw new BadRequestException('wallet and category are required');
+    }
+
+    const [walletOwned, categoryOwned] = await Promise.all([
+      this.walletsService.belongsToUser(walletId, req.user.id),
+      this.categoriesService.belongsToUser(categoryId, req.user.id),
+    ]);
+    if (!walletOwned) {
+      throw new ForbiddenException('You do not own this wallet');
+    }
+    if (!categoryOwned) {
+      throw new ForbiddenException('You do not own this category');
+    }
+
     return this.recordsService.create(createRecordDto);
   }
 
@@ -126,12 +144,14 @@ export class RecordsController {
   }
 
   @Get('/wallet/:id')
-  async findAll(@Param('id') id: number) {
+  async findAll(@Param('id') id: number, @Request() req) {
     const wallet = await this.walletsService.findOne(id);
 
     if (!wallet) {
       throw new BadRequestException('Wallet does not exist');
     }
+
+    await this.assertWalletOwned(+id, req);
 
     return await this.recordsService.findAll(wallet);
   }
@@ -139,6 +159,7 @@ export class RecordsController {
   @Get('/wallet/:id/summary')
   async getSummary(
     @Param('id') id: number,
+    @Request() req,
     @Query('month') month?: string,
     @Query('start') start?: string,
     @Query('end') end?: string,
@@ -148,6 +169,8 @@ export class RecordsController {
     if (!wallet) {
       throw new BadRequestException('Wallet does not exist');
     }
+
+    await this.assertWalletOwned(+id, req);
 
     if (start || end) {
       if (!start || !end || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
@@ -168,8 +191,9 @@ export class RecordsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.recordsService.findOne(+id);
+  async findOne(@Param('id') id: number, @Request() req) {
+    await this.assertRecordOwned(+id, req);
+    return await this.recordsService.findOne(+id);
   }
 
   @Patch(':id')
@@ -178,19 +202,7 @@ export class RecordsController {
     @Body() updateRecordDto: UpdateRecordDto,
     @Request() req,
   ) {
-    const record = await this.recordsService.findOne(id);
-
-    if (!record) {
-      throw new BadRequestException('Record does not exist');
-    }
-
-    const recordOwned = await this.recordsService.belongsToUser(
-      id,
-      req.user.id,
-    );
-    if (!recordOwned) {
-      throw new ForbiddenException('You do not own this record');
-    }
+    await this.assertRecordOwned(+id, req);
 
     // Moving a record to a different wallet/category - verify the
     // destination is also one of the user's own before reassigning it.
@@ -218,17 +230,29 @@ export class RecordsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id') id: number, @Request() req) {
+    await this.assertRecordOwned(+id, req);
     return await this.recordsService.remove(+id);
   }
 
   @Get('/category/:categoryId/remarks')
-  async getRemarks(@Param('categoryId') categoryId: number) {
+  async getRemarks(
+    @Param('categoryId') categoryId: number,
+    @Request() req,
+  ) {
     // Get all the remarks of that category
     const category = await this.categoriesService.findOne(categoryId);
 
     if (!category) {
       throw new BadRequestException('The category does not exist');
+    }
+
+    const categoryOwned = await this.categoriesService.belongsToUser(
+      +categoryId,
+      req.user.id,
+    );
+    if (!categoryOwned) {
+      throw new ForbiddenException('You do not own this category');
     }
 
     const records = await this.recordsService.getRemarks(category);
@@ -241,5 +265,24 @@ export class RecordsController {
       }
       return remarks;
     }, []);
+  }
+
+  private async assertWalletOwned(walletId: number, req): Promise<void> {
+    const owned = await this.walletsService.belongsToUser(walletId, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this wallet');
+    }
+  }
+
+  private async assertRecordOwned(recordId: number, req): Promise<void> {
+    const record = await this.recordsService.findOne(recordId);
+    if (!record) {
+      throw new BadRequestException('Record does not exist');
+    }
+
+    const owned = await this.recordsService.belongsToUser(recordId, req.user.id);
+    if (!owned) {
+      throw new ForbiddenException('You do not own this record');
+    }
   }
 }

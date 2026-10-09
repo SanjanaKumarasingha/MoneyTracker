@@ -135,6 +135,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="username"
+                  testID="login-username"
                   placeholder="Enter your username"
                   placeholderTextColor={colors.textMuted}
                   onChangeText={(value) => {
@@ -158,6 +159,7 @@ export default function LoginScreen() {
                 value={password}
                 autoCapitalize="none"
                 autoComplete="current-password"
+                testID="login-password"
                 placeholder="Enter your password"
                 placeholderTextColor={colors.textMuted}
                 onChangeText={(value) => {
@@ -179,6 +181,7 @@ export default function LoginScreen() {
                 pressed && isFormValid && !login.isPending && styles.buttonPressed,
               ]}
               disabled={!isFormValid || login.isPending}
+              testID="login-submit"
               onPress={handleSignIn}
             >
               {login.isPending ? (
