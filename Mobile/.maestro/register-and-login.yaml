@@ -1,0 +1,42 @@
+# Journey: a new user registers, is sent to login, logs in, and lands on
+# Home with no wallets yet. Also used as the setup step for other flows.
+appId: com.sanjanakumarasingha.moneytracker
+---
+- launchApp:
+    clearState: true
+
+# Unique per run - the API rejects a username that's already taken.
+- evalScript: ${output.username = 'maestro' + Date.now()}
+
+- tapOn: ".*have an account.*Register"
+
+- tapOn:
+    id: "register-username"
+- inputText: ${output.username}
+- tapOn:
+    id: "register-email"
+- inputText: ${output.username + '@example.com'}
+- tapOn:
+    id: "register-password"
+- inputText: "Password123!"
+- tapOn:
+    id: "register-confirm-password"
+- inputText: "Password123!"
+- hideKeyboard
+- tapOn:
+    id: "register-submit"
+
+# Successful sign-up redirects to login.
+- assertVisible:
+    id: "login-username"
+- tapOn:
+    id: "login-username"
+- inputText: ${output.username}
+- tapOn:
+    id: "login-password"
+- inputText: "Password123!"
+- hideKeyboard
+- tapOn:
+    id: "login-submit"
+
+- assertVisible: "Add Wallet"

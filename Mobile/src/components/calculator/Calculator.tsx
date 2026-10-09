@@ -29,6 +29,7 @@ export default function Calculator({ onKeyPress }: CalculatorProps) {
       {KEY_ROWS.flat().map((key) => (
         <Pressable
           key={key}
+          testID={`calc-key-${key}`}
           onPress={() => onKeyPress(key)}
           style={({ pressed }) => [
             styles.key,

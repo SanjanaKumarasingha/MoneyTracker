@@ -1,0 +1,42 @@
+# Journey: a signed-in user creates a wallet, adds an expense through the
+# calculator, and sees it in Home's recent activity.
+appId: com.sanjanakumarasingha.moneytracker
+---
+- runFlow: register-and-login.yaml
+
+# Create a wallet
+- tapOn: "Add Wallet"
+- tapOn:
+    id: "wallet-name"
+- inputText: "Maestro Cash"
+- tapOn:
+    id: "currency-picker"
+- tapOn:
+    id: "currency-search"
+- inputText: "LKR"
+- tapOn:
+    id: "currency-option-LKR"
+- tapOn:
+    id: "wallet-save"
+- assertVisible: "Maestro Cash"
+
+# Add a 1500 expense
+- tapOn: "Add record"
+- tapOn:
+    id: "record-category-Restaurant"
+- tapOn:
+    id: "calc-key-1"
+- tapOn:
+    id: "calc-key-5"
+- tapOn:
+    id: "calc-key-0"
+- tapOn:
+    id: "calc-key-0"
+- tapOn:
+    id: "record-remarks"
+- inputText: "maestro lunch"
+- hideKeyboard
+- tapOn:
+    id: "record-submit"
+
+- assertVisible: "maestro lunch"

@@ -124,6 +124,7 @@ export default function RegisterScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="username"
+                testID="register-username"
                 placeholder="Choose a username"
                 placeholderTextColor={colors.textMuted}
                 onChangeText={(value) => {
@@ -147,6 +148,7 @@ export default function RegisterScreen() {
                 autoCorrect={false}
                 keyboardType="email-address"
                 autoComplete="email"
+                testID="register-email"
                 placeholder="you@example.com"
                 placeholderTextColor={colors.textMuted}
                 onChangeText={(value) => {
@@ -168,6 +170,7 @@ export default function RegisterScreen() {
                 value={userInfo.password}
                 autoCapitalize="none"
                 autoComplete="new-password"
+                testID="register-password"
                 placeholder="Create a password"
                 placeholderTextColor={colors.textMuted}
                 onChangeText={(value) => {
@@ -189,6 +192,7 @@ export default function RegisterScreen() {
                 value={userInfo.confirmPassword}
                 autoCapitalize="none"
                 autoComplete="new-password"
+                testID="register-confirm-password"
                 placeholder="Re-enter your password"
                 placeholderTextColor={colors.textMuted}
                 onChangeText={(value) => {
@@ -212,6 +216,7 @@ export default function RegisterScreen() {
                   !createUser.isPending && styles.buttonPressed,
               ]}
               disabled={!isFormValid || createUser.isPending}
+              testID="register-submit"
               onPress={handleRegister}
             >
               {createUser.isPending ? (

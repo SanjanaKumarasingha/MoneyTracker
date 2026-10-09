@@ -50,6 +50,7 @@ npm start                 # dev server, http://localhost:3000
 npm run build
 npm test                  # react-scripts test (Jest + RTL), interactive watch
 npm test -- --testPathPattern=SomeComponent   # run a single test file
+npm run test:e2e          # Playwright journeys (e2e/); boots its own API on :5001 (fresh `moneytracker_e2e` DB, real migrations) + client on :3001
 ```
 
 Requires a `.env` (see `Client/.env.example`) with `REACT_APP_BASE_URL` pointing at the Server API (e.g. `http://localhost:5000`).
@@ -61,6 +62,8 @@ npm install
 npx expo start            # dev server; scan the QR code with Expo Go, or press i/a for a simulator
 npx expo export --platform android   # non-interactive Metro bundle smoke test (no device/emulator needed)
 npx tsc --noEmit
+npm test                  # jest-expo unit tests
+maestro test .maestro/    # E2E flows - needs a dev build on an emulator/simulator; see .maestro/README.md
 ```
 
 Requires a `.env` (see `Mobile/.env.example`) with `EXPO_PUBLIC_API_URL` (e.g. `http://<your-lan-ip>:5000/api/v1`) — Expo Go on a physical device or emulator cannot reach `localhost`, it needs the host machine's LAN IP. The Server's dev-mode CORS (see below) already allows this.

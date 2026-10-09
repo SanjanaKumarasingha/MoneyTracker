@@ -143,6 +143,7 @@ export default function WalletFormModal({
             style={styles.input}
             value={name}
             onChangeText={setName}
+            testID="wallet-name"
             placeholder="e.g. Everyday spending"
             placeholderTextColor={colors.textMuted}
           />
@@ -171,6 +172,7 @@ export default function WalletFormModal({
               </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
+                testID="wallet-save"
                 onPress={handleSave}
                 disabled={isSaving}
               >
